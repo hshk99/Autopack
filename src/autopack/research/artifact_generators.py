@@ -3398,6 +3398,481 @@ class CodeGenerator:
         return section
 
 
+class CICDGenerator:
+    """Generates CI/CD pipeline configurations for multiple platforms.
+
+    Produces platform-specific CI/CD pipeline definitions including GitHub Actions,
+    GitLab CI/CD, and Jenkins, with comprehensive test automation, build, and
+    deployment workflows, plus monitoring and alerting configuration.
+
+    Implements IMP-ARTIFACT-003: CI/CD Pipeline Generator.
+    """
+
+    def __init__(self):
+        """Initialize the CI/CD generator."""
+        self._analyzer = CICDAnalyzer()
+        self._github_generator = CICDWorkflowGenerator()
+        self._gitlab_generator = GitLabCIGenerator()
+        self._jenkins_generator = JenkinsPipelineGenerator()
+
+    def generate(
+        self,
+        tech_stack: Dict[str, Any],
+        project_requirements: Optional[Dict[str, Any]] = None,
+        deployment_guidance: Optional[Dict[str, Any]] = None,
+        include_monitoring: bool = True,
+    ) -> str:
+        """Generate comprehensive CI/CD documentation with pipeline configurations.
+
+        Args:
+            tech_stack: Technology stack configuration
+            project_requirements: Optional project requirements
+            deployment_guidance: Optional deployment guidance
+            include_monitoring: Whether to include monitoring and alerting config
+
+        Returns:
+            Markdown string with CI/CD documentation and configurations
+        """
+        logger.info("[CICDGenerator] Generating CI/CD pipeline configurations")
+
+        # Analyze tech stack for CI/CD requirements
+        analysis = self._analyzer.analyze_tech_stack(tech_stack)
+
+        content = "# CI/CD Pipeline Guide\n\n"
+
+        # Executive summary
+        content += self._generate_executive_summary(analysis)
+
+        # Platform recommendation
+        content += self._generate_platform_recommendation(analysis)
+
+        # Pipeline stages overview
+        content += self._generate_pipeline_overview(analysis)
+
+        # GitHub Actions configuration
+        content += self._generate_github_actions_section(tech_stack, analysis)
+
+        # GitLab CI configuration
+        content += self._generate_gitlab_ci_section(tech_stack, analysis)
+
+        # Jenkins configuration
+        content += self._generate_jenkins_section(tech_stack, analysis)
+
+        # Monitoring and alerting (if requested)
+        if include_monitoring:
+            content += self._generate_monitoring_section(analysis)
+
+        # Environment configuration
+        content += self._generate_environment_section(analysis)
+
+        # Secrets management
+        content += self._generate_secrets_section(analysis)
+
+        # Best practices
+        content += self._generate_best_practices()
+
+        return content
+
+    def _generate_executive_summary(self, analysis: Any) -> str:
+        """Generate executive summary section."""
+        section = "## Executive Summary\n\n"
+
+        section += f"**Language**: {safe_get_string(analysis.language, 'unknown')}\n"
+        section += f"**Package Manager**: {safe_get_string(analysis.package_manager, 'unknown')}\n"
+        section += f"**Build Tool**: {safe_get_string(analysis.build_tool, 'unknown')}\n\n"
+
+        if analysis.test_framework:
+            section += f"**Test Framework**: {safe_get_string(analysis.test_framework)}\n"
+        if analysis.lint_tool:
+            section += f"**Linting**: {safe_get_string(analysis.lint_tool)}\n"
+
+        section += f"**Docker Support**: {'Yes' if analysis.has_docker else 'No'}\n"
+        section += f"**Kubernetes Support**: {'Yes' if analysis.has_kubernetes else 'No'}\n\n"
+
+        return section
+
+    def _generate_platform_recommendation(self, analysis: Any) -> str:
+        """Generate platform recommendation section."""
+        section = "## Platform Recommendation\n\n"
+
+        recommended = analysis.recommended_platform
+        section += f"**Recommended Platform**: {recommended.value.replace('_', ' ').title()}\n\n"
+
+        section += "### Why This Platform?\n\n"
+        section += (
+            "- **Best for your tech stack**: Optimal support for "
+            f"{safe_get_string(analysis.language, 'your language')} projects\n"
+        )
+        section += "- **Seamless integration**: Works well with your deployment targets\n"
+        section += "- **Cost effective**: Good balance of features and pricing\n"
+        section += "- **Community support**: Large community and extensive documentation\n\n"
+
+        section += "### Alternative Platforms\n\n"
+        section += "- **GitHub Actions**: If hosting on GitHub (easy GitHub integration)\n"
+        section += "- **GitLab CI**: If hosting on GitLab (built-in CI/CD)\n"
+        section += "- **Jenkins**: If self-hosted CI/CD needed (maximum flexibility)\n\n"
+
+        return section
+
+    def _generate_pipeline_overview(self, analysis: Any) -> str:
+        """Generate pipeline stages overview."""
+        section = "## Pipeline Stages Overview\n\n"
+
+        section += "Your CI/CD pipeline will include the following stages:\n\n"
+        section += "### 1. **Lint & Format Checking**\n"
+        section += "   - Code quality analysis\n"
+        section += (
+            f"   - Tool: {safe_get_string(analysis.lint_tool, 'built-in linter')}\n"
+        )
+        section += "   - Runs on every commit\n\n"
+
+        section += "### 2. **Unit & Integration Testing**\n"
+        section += "   - Automated test execution\n"
+        section += (
+            f"   - Framework: {safe_get_string(analysis.test_framework, 'built-in tests')}\n"
+        )
+        section += "   - Coverage reporting\n\n"
+
+        section += "### 3. **Build & Compilation**\n"
+        section += f"   - Build tool: {safe_get_string(analysis.build_tool, 'default')}\n"
+        if analysis.has_docker:
+            section += "   - Docker image build (if applicable)\n"
+        section += "   - Artifact generation\n\n"
+
+        section += "### 4. **Security Scanning**\n"
+        section += "   - Dependency vulnerability checks\n"
+        section += "   - Code security analysis\n"
+        section += "   - Secret detection\n\n"
+
+        section += "### 5. **Deployment to Staging**\n"
+        section += "   - Deploy to staging environment\n"
+        section += "   - Smoke tests on staging\n"
+        section += "   - Performance baseline\n\n"
+
+        section += "### 6. **Production Deployment** (Optional)\n"
+        section += "   - Manual approval required\n"
+        section += "   - Blue-green or canary deployment\n"
+        section += "   - Production health checks\n\n"
+
+        return section
+
+    def _generate_github_actions_section(self, tech_stack: Dict[str, Any], analysis: Any) -> str:
+        """Generate GitHub Actions configuration section."""
+        section = "## GitHub Actions Configuration\n\n"
+
+        section += "### File Location\n"
+        section += "```\n.github/workflows/ci-cd.yml\n```\n\n"
+
+        try:
+            github_config = self._github_generator.generate(tech_stack)
+            section += "### Configuration\n\n"
+            section += "```yaml\n"
+            section += github_config
+            section += "\n```\n\n"
+        except Exception as e:
+            logger.warning(f"[CICDGenerator] Failed to generate GitHub Actions config: {e}")
+            section += (
+                "### Configuration\n\n"
+                "Failed to auto-generate. See GitHub Actions documentation for your tech stack.\n\n"
+            )
+
+        section += self._generate_setup_instructions_github(analysis)
+
+        return section
+
+    def _generate_gitlab_ci_section(self, tech_stack: Dict[str, Any], analysis: Any) -> str:
+        """Generate GitLab CI configuration section."""
+        section = "## GitLab CI/CD Configuration\n\n"
+
+        section += "### File Location\n"
+        section += "```\n.gitlab-ci.yml\n```\n\n"
+
+        try:
+            gitlab_config = self._gitlab_generator.generate(tech_stack)
+            section += "### Configuration\n\n"
+            section += "```yaml\n"
+            section += gitlab_config
+            section += "\n```\n\n"
+        except Exception as e:
+            logger.warning(f"[CICDGenerator] Failed to generate GitLab CI config: {e}")
+            section += (
+                "### Configuration\n\n"
+                "Failed to auto-generate. See GitLab CI documentation for your tech stack.\n\n"
+            )
+
+        section += self._generate_setup_instructions_gitlab(analysis)
+
+        return section
+
+    def _generate_jenkins_section(self, tech_stack: Dict[str, Any], analysis: Any) -> str:
+        """Generate Jenkins configuration section."""
+        section = "## Jenkins Pipeline Configuration\n\n"
+
+        section += "### File Location\n"
+        section += "```\nJenkinsfile\n```\n\n"
+
+        try:
+            jenkins_config = self._jenkins_generator.generate(tech_stack)
+            section += "### Configuration\n\n"
+            section += "```groovy\n"
+            section += jenkins_config
+            section += "\n```\n\n"
+        except Exception as e:
+            logger.warning(f"[CICDGenerator] Failed to generate Jenkins config: {e}")
+            section += (
+                "### Configuration\n\n"
+                "Failed to auto-generate. See Jenkins documentation for your tech stack.\n\n"
+            )
+
+        section += self._generate_setup_instructions_jenkins(analysis)
+
+        return section
+
+    def _generate_setup_instructions_github(self, analysis: Any) -> str:
+        """Generate setup instructions for GitHub Actions."""
+        instructions = "### Setup Instructions\n\n"
+
+        instructions += "1. **Create workflow file**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   mkdir -p .github/workflows\n"
+        instructions += "   touch .github/workflows/ci-cd.yml\n"
+        instructions += "   ```\n\n"
+
+        instructions += "2. **Copy configuration**: Paste the configuration above into the file\n\n"
+
+        instructions += "3. **Configure secrets**:\n"
+        instructions += "   - Go to Settings → Secrets and variables → Actions\n"
+        instructions += "   - Add required secrets (see Secrets Management section)\n\n"
+
+        instructions += "4. **Push to repository**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   git add .github/workflows/ci-cd.yml\n"
+        instructions += "   git commit -m \"ci: Add GitHub Actions CI/CD pipeline\"\n"
+        instructions += "   git push\n"
+        instructions += "   ```\n\n"
+
+        instructions += "5. **Verify**: Check Actions tab to see pipeline status\n\n"
+
+        return instructions
+
+    def _generate_setup_instructions_gitlab(self, analysis: Any) -> str:
+        """Generate setup instructions for GitLab CI."""
+        instructions = "### Setup Instructions\n\n"
+
+        instructions += "1. **Create CI/CD file**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   touch .gitlab-ci.yml\n"
+        instructions += "   ```\n\n"
+
+        instructions += "2. **Copy configuration**: Paste the configuration above into the file\n\n"
+
+        instructions += "3. **Configure variables**:\n"
+        instructions += "   - Go to Settings → CI/CD → Variables\n"
+        instructions += "   - Add required secrets (see Secrets Management section)\n\n"
+
+        instructions += "4. **Enable CI/CD**:\n"
+        instructions += "   - Go to Settings → General → Visibility, project features\n"
+        instructions += "   - Ensure CI/CD is enabled\n\n"
+
+        instructions += "5. **Push to repository**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   git add .gitlab-ci.yml\n"
+        instructions += "   git commit -m \"ci: Add GitLab CI/CD pipeline\"\n"
+        instructions += "   git push\n"
+        instructions += "   ```\n\n"
+
+        instructions += "6. **Verify**: Check CI/CD → Pipelines to see status\n\n"
+
+        return instructions
+
+    def _generate_setup_instructions_jenkins(self, analysis: Any) -> str:
+        """Generate setup instructions for Jenkins."""
+        instructions = "### Setup Instructions\n\n"
+
+        instructions += "1. **Create Jenkinsfile**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   touch Jenkinsfile\n"
+        instructions += "   ```\n\n"
+
+        instructions += "2. **Copy configuration**: Paste the configuration above into the file\n\n"
+
+        instructions += "3. **Setup Jenkins job**:\n"
+        instructions += "   - Create a new Pipeline job in Jenkins\n"
+        instructions += "   - Configure source control (Git)\n"
+        instructions += "   - Set pipeline script from SCM\n\n"
+
+        instructions += "4. **Configure credentials**:\n"
+        instructions += "   - Add Git credentials\n"
+        instructions += "   - Add deployment secrets (see Secrets Management section)\n\n"
+
+        instructions += "5. **Push to repository**:\n"
+        instructions += "   ```bash\n"
+        instructions += "   git add Jenkinsfile\n"
+        instructions += "   git commit -m \"ci: Add Jenkins pipeline\"\n"
+        instructions += "   git push\n"
+        instructions += "   ```\n\n"
+
+        instructions += "6. **Verify**: Trigger build and check Jenkins logs\n\n"
+
+        return instructions
+
+    def _generate_monitoring_section(self, analysis: Any) -> str:
+        """Generate monitoring and alerting configuration section."""
+        section = "## Monitoring & Alerting\n\n"
+
+        section += "### Key Metrics to Monitor\n\n"
+
+        section += "**Pipeline Health**:\n"
+        section += "- Build success rate\n"
+        section += "- Average build duration\n"
+        section += "- Deployment frequency\n"
+        section += "- Lead time for changes\n"
+        section += "- Mean time to recovery (MTTR)\n\n"
+
+        section += "**Test Coverage**:\n"
+        section += "- Overall test coverage percentage\n"
+        section += "- Coverage trend over time\n"
+        section += "- Tests failing trend\n\n"
+
+        section += "**Code Quality**:\n"
+        section += "- Lint errors and warnings\n"
+        section += "- Code complexity metrics\n"
+        section += "- Security vulnerabilities\n"
+        section += "- Dependency updates needed\n\n"
+
+        section += "### Alerting Configuration\n\n"
+
+        section += "**Alert on Critical Events**:\n"
+        section += "```\n"
+        section += "- Pipeline failure in main branch\n"
+        section += "- Test coverage drops below threshold (85%)\n"
+        section += "- Critical security vulnerabilities detected\n"
+        section += "- Deployment to production fails\n"
+        section += "- Performance regression detected\n"
+        section += "```\n\n"
+
+        section += "### Recommended Tools\n\n"
+
+        section += "- **Prometheus**: Metrics collection and alerting\n"
+        section += "- **Grafana**: Visualization and dashboards\n"
+        section += "- **DataDog/New Relic**: Application performance monitoring\n"
+        section += "- **PagerDuty**: Incident management and alerts\n\n"
+
+        return section
+
+    def _generate_environment_section(self, analysis: Any) -> str:
+        """Generate environment configuration section."""
+        section = "## Environment Configuration\n\n"
+
+        section += "### Development\n\n"
+        section += "```yaml\n"
+        section += "environment: development\n"
+        section += "database_url: postgres://localhost:5432/dev\n"
+        section += "log_level: debug\n"
+        section += "cache_ttl: 300\n"
+        section += "```\n\n"
+
+        section += "### Staging\n\n"
+        section += "```yaml\n"
+        section += "environment: staging\n"
+        section += "database_url: postgres://staging-db:5432/stage\n"
+        section += "log_level: info\n"
+        section += "cache_ttl: 3600\n"
+        section += "enable_monitoring: true\n"
+        section += "```\n\n"
+
+        section += "### Production\n\n"
+        section += "```yaml\n"
+        section += "environment: production\n"
+        section += "database_url: $DATABASE_URL  # From secrets\n"
+        section += "log_level: warning\n"
+        section += "cache_ttl: 86400\n"
+        section += "enable_monitoring: true\n"
+        section += "enable_backups: true\n"
+        section += "```\n\n"
+
+        return section
+
+    def _generate_secrets_section(self, analysis: Any) -> str:
+        """Generate secrets management section."""
+        section = "## Secrets Management\n\n"
+
+        section += "### Required Secrets\n\n"
+
+        section += "Create the following secrets in your CI/CD platform:\n\n"
+
+        section += "- **Database Credentials**\n"
+        section += "  - `DATABASE_URL`: Full database connection string\n"
+        section += "  - `DB_USER`: Database username\n"
+        section += "  - `DB_PASSWORD`: Database password\n\n"
+
+        section += "- **API Keys**\n"
+        section += "  - `API_KEY`: Third-party service API keys\n"
+        section += "  - `STRIPE_KEY`: Payment processor keys\n"
+        section += "  - `AWS_ACCESS_KEY_ID`: AWS credentials\n"
+        section += "  - `AWS_SECRET_ACCESS_KEY`: AWS credentials\n\n"
+
+        section += "- **Deployment Credentials**\n"
+        section += "  - `DEPLOY_KEY`: SSH key for deployment\n"
+        section += "  - `DOCKER_USERNAME`: Docker registry credentials\n"
+        section += "  - `DOCKER_PASSWORD`: Docker registry credentials\n\n"
+
+        section += "- **Notifications**\n"
+        section += "  - `SLACK_WEBHOOK`: Slack notifications\n"
+        section += "  - `GITHUB_TOKEN`: GitHub API access\n"
+        section += "  - `GITLAB_TOKEN`: GitLab API access\n\n"
+
+        section += "### Best Practices\n\n"
+
+        section += "- Never commit secrets to version control\n"
+        section += "- Use CI/CD platform secret management\n"
+        section += "- Rotate secrets regularly (every 90 days)\n"
+        section += "- Use principle of least privilege for credentials\n"
+        section += "- Audit secret access logs\n"
+        section += "- Use different secrets per environment\n\n"
+
+        return section
+
+    def _generate_best_practices(self) -> str:
+        """Generate CI/CD best practices section."""
+        section = "## CI/CD Best Practices\n\n"
+
+        section += "### Code Quality\n"
+        section += "- Run linting and code formatting checks automatically\n"
+        section += "- Enforce code coverage minimums (85%+ recommended)\n"
+        section += "- Use branch protection rules\n"
+        section += "- Require pull request reviews before merge\n\n"
+
+        section += "### Testing\n"
+        section += "- Run tests on every commit\n"
+        section += "- Maintain test coverage above 85%\n"
+        section += "- Use different test types: unit, integration, e2e\n"
+        section += "- Test in isolated environments\n\n"
+
+        section += "### Security\n"
+        section += "- Scan dependencies for vulnerabilities\n"
+        section += "- Perform SAST (static analysis) on code\n"
+        section += "- Scan container images for vulnerabilities\n"
+        section += "- Never store secrets in code\n"
+        section += "- Use temporary credentials with short TTL\n\n"
+
+        section += "### Deployment\n"
+        section += "- Use infrastructure as code (Terraform, CloudFormation)\n"
+        section += "- Implement blue-green or canary deployments\n"
+        section += "- Always deploy to staging first\n"
+        section += "- Maintain deployment rollback capability\n"
+        section += "- Document deployment procedures\n\n"
+
+        section += "### Monitoring\n"
+        section += "- Monitor pipeline performance metrics\n"
+        section += "- Set up alerts for build failures\n"
+        section += "- Track deployment frequency and lead time\n"
+        section += "- Monitor application health post-deployment\n"
+        section += "- Keep deployment logs for audit purposes\n\n"
+
+        return section
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -3416,6 +3891,7 @@ class ArtifactGeneratorRegistry:
         self.register("gitlab_ci", GitLabCIGenerator, "GitLab CI/CD pipeline generator")
         self.register("jenkins", JenkinsPipelineGenerator, "Jenkins pipeline generator")
         self.register("cicd_analyzer", CICDAnalyzer, "CI/CD analyzer for multi-platform generation")
+        self.register("cicd_generator", CICDGenerator, "Comprehensive CI/CD pipeline configuration generator")
         self.register("deployment", DeploymentGuidanceGenerator, "Deployment guidance generator")
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)

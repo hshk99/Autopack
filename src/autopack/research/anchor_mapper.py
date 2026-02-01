@@ -149,6 +149,129 @@ def _safe_list_extend(target: list[Any], source: Union[list[Any], dict[str, Any]
         logger.warning(f"Cannot extend list with {type(source).__name__}. Skipping.")
 
 
+def _get_nested_value(
+    data: dict[str, Any],
+    key_path: str,
+    expected_type: type = None,
+    default: Any = None,
+    context: str = "",
+) -> Any:
+    """Safely extract a nested value using dot notation with comprehensive validation.
+
+    Supports nested dictionary access using dot notation (e.g., "platform_policies.allowed_paths").
+    Validates both existence and type of each level in the path.
+
+    Args:
+        data: Root dictionary to traverse
+        key_path: Dot-separated key path (e.g., "resource_requirements.token_budget")
+        expected_type: Expected type of the final value (e.g., int, list, dict)
+        default: Default value if key not found or type mismatch
+        context: Human-readable context for error messages (e.g., "technical_feasibility")
+
+    Returns:
+        The value at the path, default if not found or type mismatch, or None if no default
+
+    Example:
+        >>> data = {"a": {"b": {"c": 42}}}
+        >>> _get_nested_value(data, "a.b.c", int, 0, "nested_test")
+        42
+
+        >>> _get_nested_value(data, "a.x.c", int, 0, "nested_test")
+        0  # Returns default since "x" doesn't exist
+    """
+    if not data or not isinstance(data, dict):
+        logger.warning(
+            f"Cannot traverse nested path '{key_path}'{' (' + context + ')' if context else ''}: "
+            f"root is {type(data).__name__}, not dict. Using default."
+        )
+        return default
+
+    keys = key_path.split(".")
+    current = data
+    current_path = ""
+
+    for i, key in enumerate(keys):
+        current_path = ".".join(keys[:i + 1])
+
+        if not isinstance(current, dict):
+            logger.warning(
+                f"Cannot traverse nested path '{key_path}'{' (' + context + ')' if context else ''}: "
+                f"'{current_path}' is {type(current).__name__}, not dict. Using default."
+            )
+            return default
+
+        if key not in current:
+            logger.debug(
+                f"Key '{current_path}' not found in nested path '{key_path}'"
+                f"{' (' + context + ')' if context else ''}. Using default."
+            )
+            return default
+
+        current = current[key]
+
+    # Validate final type if specified
+    if expected_type is not None and not isinstance(current, expected_type):
+        logger.warning(
+            f"Value at '{key_path}'{' (' + context + ')' if context else ''} has type "
+            f"{type(current).__name__}, expected {expected_type.__name__}. Using default."
+        )
+        return default
+
+    return current
+
+
+def _validate_dict_structure(
+    data: dict[str, Any],
+    expected_keys: list[str],
+    optional_keys: list[str] = None,
+    context: str = "",
+) -> tuple[bool, list[str]]:
+    """Validate that a dictionary contains expected keys with proper types.
+
+    Checks for existence of required keys and reports missing/unexpected structure.
+
+    Args:
+        data: Dictionary to validate
+        expected_keys: List of required key names
+        optional_keys: List of optional key names (won't trigger warnings if missing)
+        context: Human-readable context for error messages
+
+    Returns:
+        Tuple of (is_valid, list_of_missing_keys)
+        - is_valid: True if all expected keys present
+        - list_of_missing_keys: List of expected keys that are missing
+    """
+    if not isinstance(data, dict):
+        logger.warning(
+            f"Cannot validate structure{' (' + context + ')' if context else ''}: "
+            f"expected dict, got {type(data).__name__}"
+        )
+        return False, expected_keys
+
+    optional_keys = optional_keys or []
+    missing_keys = []
+
+    for key in expected_keys:
+        if key not in data:
+            missing_keys.append(key)
+            logger.debug(
+                f"Expected key '{key}' not found in dictionary"
+                f"{' (' + context + ')' if context else ''}"
+            )
+
+    # Log unexpected keys (keys that aren't in expected or optional)
+    all_known_keys = set(expected_keys) | set(optional_keys)
+    unexpected_keys = set(data.keys()) - all_known_keys
+    if unexpected_keys:
+        logger.debug(
+            f"Unexpected keys in dictionary{' (' + context + ')' if context else ''}: "
+            f"{', '.join(sorted(unexpected_keys))}"
+        )
+
+    is_valid = len(missing_keys) == 0
+    return is_valid, missing_keys
+
+
 class PivotType(str, Enum):
     """Enumeration of pivot types for mapping."""
 
@@ -606,7 +729,18 @@ class ResearchToAnchorMapper:
         session: BootstrapSession,
         idea: Optional[ParsedIdea],
     ) -> PivotMapping:
-        """Map ScopeBoundaries pivot from platform policies."""
+        """Map ScopeBoundaries pivot from platform policies.
+
+        Expected dictionary structures:
+        - technical_feasibility.data: {
+            "platform_policies": {
+              "allowed_paths": list[str],
+              "protected_paths": list[str]
+            },
+            "feature_limits": {...},
+            "network_requirements": list[str]
+          }
+        """
         sources: list[str] = []
         allowed_write_roots: list[str] = []
         protected_paths: list[str] = []
@@ -616,12 +750,20 @@ class ResearchToAnchorMapper:
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
         if not isinstance(tech_data, dict):
-            logger.warning("technical_feasibility.data is not a dict, skipping")
+            logger.warning(
+                f"technical_feasibility.data is not a dict (got {type(tech_data).__name__}), "
+                "skipping scope boundaries extraction"
+            )
             tech_data = {}
 
-        # Extract platform policies
-        policies = _get_dict_value(tech_data, "platform_policies")
+        # Extract platform policies with nested validation
+        policies = _get_dict_value(tech_data, "platform_policies", {})
         if policies:
+            # Validate expected nested structure
+            expected_keys = ["allowed_paths", "protected_paths"]
+            _validate_dict_structure(policies, expected_keys, context="scope.platform_policies")
+
+            # Extract list values from nested dict
             allowed_paths = _get_list_value(policies, "allowed_paths")
             if allowed_paths:
                 allowed_write_roots.extend(allowed_paths)
@@ -632,11 +774,18 @@ class ResearchToAnchorMapper:
             confidence_factors.append(0.8)
 
         # Feature limits can inform scope boundaries
-        if tech_data.get("feature_limits"):
-            sources.append("technical_feasibility.feature_limits")
-            confidence_factors.append(0.6)
+        feature_limits = tech_data.get("feature_limits")
+        if feature_limits:
+            if isinstance(feature_limits, dict):
+                sources.append("technical_feasibility.feature_limits")
+                confidence_factors.append(0.6)
+            else:
+                logger.warning(
+                    f"feature_limits has unexpected type {type(feature_limits).__name__}, "
+                    "expected dict. Skipping."
+                )
 
-        # Extract network requirements
+        # Extract network requirements (must be list)
         network_reqs = _get_list_value(tech_data, "network_requirements")
         if network_reqs:
             network_allowlist.extend(network_reqs)
@@ -678,7 +827,18 @@ class ResearchToAnchorMapper:
         session: BootstrapSession,
         idea: Optional[ParsedIdea],
     ) -> PivotMapping:
-        """Map BudgetCost pivot from cost estimates."""
+        """Map BudgetCost pivot from cost estimates.
+
+        Expected dictionary structures:
+        - market_research.data: {"pricing_tiers": [...], "cost_estimates": [...]}
+        - technical_feasibility.data: {
+            "resource_requirements": {
+              "token_budget": int,
+              "time_limit_seconds": int
+            },
+            "cost_estimates": {...}
+          }
+        """
         sources: list[str] = []
         token_cap_global: Optional[int] = None
         token_cap_per_call: Optional[int] = None
@@ -689,6 +849,10 @@ class ResearchToAnchorMapper:
         # Extract from market research (pricing_tiers)
         market_data = session.market_research.data
         if not isinstance(market_data, dict):
+            logger.warning(
+                "market_research.data is not a dict (got {type(market_data).__name__}), "
+                "skipping cost estimate extraction from market research"
+            )
             market_data = {}
 
         if market_data.get("pricing_tiers") or market_data.get("cost_estimates"):
@@ -698,11 +862,20 @@ class ResearchToAnchorMapper:
         # Extract from technical feasibility (resource_requirements)
         tech_data = session.technical_feasibility.data
         if not isinstance(tech_data, dict):
+            logger.warning(
+                f"technical_feasibility.data is not a dict (got {type(tech_data).__name__}), "
+                "skipping resource requirements extraction"
+            )
             tech_data = {}
 
-        # Extract resource requirements with type validation
-        reqs = _get_dict_value(tech_data, "resource_requirements")
+        # Extract resource requirements with enhanced nested validation
+        reqs = _get_dict_value(tech_data, "resource_requirements", {})
         if reqs:
+            # Validate expected structure
+            expected_keys = ["token_budget", "time_limit_seconds"]
+            _validate_dict_structure(reqs, expected_keys, context="budget_cost.resource_requirements")
+
+            # Extract with type validation
             token_budget = _get_int_value(reqs, "token_budget")
             if token_budget is not None:
                 token_cap_global = token_budget
@@ -751,7 +924,17 @@ class ResearchToAnchorMapper:
         session: BootstrapSession,
         idea: Optional[ParsedIdea],
     ) -> PivotMapping:
-        """Map MemoryContinuity pivot from session requirements."""
+        """Map MemoryContinuity pivot from session requirements.
+
+        Expected dictionary structures (polymorphic - session_requirements can be list or dict):
+        - technical_feasibility.data: {
+            "session_requirements": list[str] OR {
+              "persist": list[str],
+              "indexes": list[str]
+            },
+            "state_persistence_needs": list[str]
+          }
+        """
         sources: list[str] = []
         persist_to_sot: list[str] = []
         derived_indexes: list[str] = []
@@ -761,40 +944,51 @@ class ResearchToAnchorMapper:
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
         if not isinstance(tech_data, dict):
-            logger.warning("technical_feasibility.data is not a dict, skipping")
+            logger.warning(
+                f"technical_feasibility.data is not a dict (got {type(tech_data).__name__}), "
+                "skipping memory continuity extraction"
+            )
             tech_data = {}
 
-        # Extract session requirements (can be list or dict)
+        # Extract session requirements (polymorphic: can be list or dict)
         session_reqs = tech_data.get("session_requirements")
         if session_reqs:
             if isinstance(session_reqs, list):
+                # Simple list format: ["persist_user_data", "maintain_session_state"]
                 persist_to_sot.extend(session_reqs)
+                sources.append("technical_feasibility.session_requirements (list)")
+                confidence_factors.append(0.8)
             elif isinstance(session_reqs, dict):
+                # Structured dict format: {"persist": [...], "indexes": [...]}
+                _validate_dict_structure(
+                    session_reqs, [], ["persist", "indexes"], context="memory.session_requirements"
+                )
                 persist_list = _get_list_value(session_reqs, "persist")
                 if persist_list:
                     persist_to_sot.extend(persist_list)
                 indexes_list = _get_list_value(session_reqs, "indexes")
                 if indexes_list:
                     derived_indexes.extend(indexes_list)
+                sources.append("technical_feasibility.session_requirements (dict)")
+                confidence_factors.append(0.8)
             else:
                 logger.warning(
-                    f"session_requirements has unexpected type {type(session_reqs).__name__}"
+                    f"session_requirements has unexpected type {type(session_reqs).__name__}, "
+                    f"expected list or dict. Skipping."
                 )
-            sources.append("technical_feasibility.session_requirements")
-            confidence_factors.append(0.8)
 
-        # Extract state persistence needs
+        # Extract state persistence needs (must be list)
         persistence_needs = tech_data.get("state_persistence_needs")
         if persistence_needs:
             if isinstance(persistence_needs, list):
                 persist_to_sot.extend(persistence_needs)
+                sources.append("technical_feasibility.state_persistence_needs")
+                confidence_factors.append(0.75)
             else:
                 logger.warning(
-                    f"state_persistence_needs has unexpected type "
-                    f"{type(persistence_needs).__name__}"
+                    f"state_persistence_needs has unexpected type {type(persistence_needs).__name__}, "
+                    f"expected list. Skipping."
                 )
-            sources.append("technical_feasibility.state_persistence_needs")
-            confidence_factors.append(0.75)
 
         # Add defaults
         persist_to_sot.extend(["intention_anchor", "execution_logs"])
@@ -898,7 +1092,18 @@ class ResearchToAnchorMapper:
         session: BootstrapSession,
         idea: Optional[ParsedIdea],
     ) -> PivotMapping:
-        """Map ParallelismIsolation pivot from concurrency requirements."""
+        """Map ParallelismIsolation pivot from concurrency requirements.
+
+        Expected dictionary structures:
+        - technical_feasibility.data: {
+            "concurrency_requirements": {
+              "parallel_allowed": bool,
+              "max_concurrent": int,
+              "isolation_model": str
+            },
+            "isolation_boundaries": {...}
+          }
+        """
         sources: list[str] = []
         allowed = False  # Safe default
         isolation_model = "none"
@@ -908,42 +1113,62 @@ class ResearchToAnchorMapper:
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
         if not isinstance(tech_data, dict):
-            logger.warning("technical_feasibility.data is not a dict, skipping")
+            logger.warning(
+                f"technical_feasibility.data is not a dict (got {type(tech_data).__name__}), "
+                "skipping parallelism extraction"
+            )
             tech_data = {}
 
-        # Extract concurrency requirements
-        concurrency_reqs = _get_dict_value(tech_data, "concurrency_requirements")
+        # Extract concurrency requirements with enhanced validation
+        concurrency_reqs = _get_dict_value(tech_data, "concurrency_requirements", {})
         if concurrency_reqs:
-            # Safely get boolean value with default
+            # Validate expected structure
+            expected_keys = ["parallel_allowed", "max_concurrent", "isolation_model"]
+            _validate_dict_structure(
+                concurrency_reqs, expected_keys, context="parallelism.concurrency_requirements"
+            )
+
+            # Safely get boolean value with type validation
             parallel_allowed = concurrency_reqs.get("parallel_allowed", False)
             if isinstance(parallel_allowed, bool):
                 allowed = parallel_allowed
             else:
                 logger.warning(
-                    f"parallel_allowed has unexpected type {type(parallel_allowed).__name__}"
+                    f"parallel_allowed in concurrency_requirements has unexpected type "
+                    f"{type(parallel_allowed).__name__}, expected bool. Using default False."
                 )
 
-            # Safely get max_concurrent with type conversion
+            # Safely get max_concurrent with type conversion and validation
             max_concurrent = _get_int_value(concurrency_reqs, "max_concurrent")
             if max_concurrent is not None:
                 max_concurrent_runs = max(1, max_concurrent)
 
-            # Safely get isolation_model as string
+            # Safely get isolation_model as string with type validation
             iso_model = concurrency_reqs.get("isolation_model")
             if isinstance(iso_model, str):
                 isolation_model = iso_model
             elif iso_model is not None:
-                logger.warning(f"isolation_model has unexpected type {type(iso_model).__name__}")
+                logger.warning(
+                    f"isolation_model in concurrency_requirements has unexpected type "
+                    f"{type(iso_model).__name__}, expected str. Using default 'none'."
+                )
 
             sources.append("technical_feasibility.concurrency_requirements")
             confidence_factors.append(0.85)
 
         # Check for isolation boundaries
-        if tech_data.get("isolation_boundaries"):
-            allowed = True
-            isolation_model = "four_layer"
-            sources.append("technical_feasibility.isolation_boundaries")
-            confidence_factors.append(0.8)
+        isolation_boundaries = tech_data.get("isolation_boundaries")
+        if isolation_boundaries:
+            if isinstance(isolation_boundaries, dict):
+                allowed = True
+                isolation_model = "four_layer"
+                sources.append("technical_feasibility.isolation_boundaries")
+                confidence_factors.append(0.8)
+            else:
+                logger.warning(
+                    f"isolation_boundaries has unexpected type {type(isolation_boundaries).__name__}, "
+                    "expected dict. Skipping."
+                )
 
         confidence_score = (
             sum(confidence_factors) / len(confidence_factors) if confidence_factors else 0.4

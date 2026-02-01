@@ -9,7 +9,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class BuildDecisionType(str, Enum):
@@ -93,10 +93,7 @@ class BuildDecision(BaseModel):
         """Check if the decision is to NOT build."""
         return self.decision == BuildDecisionType.DO_NOT_BUILD
 
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def extract_build_decision_from_synthesis(synthesis: dict[str, Any]) -> BuildDecision:

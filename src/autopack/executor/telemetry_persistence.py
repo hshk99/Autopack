@@ -284,14 +284,8 @@ class TelemetryPersistenceManager:
             return 0
 
         # Check if task generation is enabled
-        try:
-            task_gen_config = getattr(config_settings, "task_generation", {})
-            if not task_gen_config:
-                task_gen_config = {"enabled": False}
-        except Exception:
-            task_gen_config = {"enabled": False}
-
-        if not task_gen_config.get("enabled", False):
+        # Use direct attribute access to match autonomous_loop.py pattern
+        if not getattr(config_settings, "task_generation_enabled", False):
             logger.debug("[IMP-INT-003] Task generation not enabled in settings")
             return 0
 
@@ -317,8 +311,8 @@ class TelemetryPersistenceManager:
             # IMP-LOOP-003: Pass current run phases as backlog for same-run injection
             # of high-priority (critical) tasks
             result = generator.generate_tasks(
-                max_tasks=task_gen_config.get("max_tasks_per_run", 10),
-                min_confidence=task_gen_config.get("min_confidence", 0.7),
+                max_tasks=getattr(config_settings, "task_generation_max_tasks_per_run", 10),
+                min_confidence=getattr(config_settings, "task_generation_min_confidence", 0.7),
                 telemetry_insights=ranked_issues,
                 run_id=run_id,
                 backlog=current_run_phases,

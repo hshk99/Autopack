@@ -21,7 +21,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field
 
@@ -42,6 +42,111 @@ from .idea_parser import ParsedIdea, ProjectType, RiskProfile
 from .models.bootstrap_session import BootstrapSession
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def _get_list_value(
+    data: dict[str, Any], key: str, default: Optional[list[Any]] = None
+) -> list[Any]:
+    """Safely extract a list value from a dictionary with type validation.
+
+    Args:
+        data: Dictionary to extract from
+        key: Key to look up
+        default: Default value if key not found or type is wrong
+
+    Returns:
+        List value or default
+    """
+    if not data or not isinstance(data, dict):
+        return default or []
+
+    value = data.get(key)
+    if value is None:
+        return default or []
+
+    if isinstance(value, list):
+        return value
+
+    logger.warning(f"Expected list for key '{key}', got {type(value).__name__}. Using default.")
+    return default or []
+
+
+def _get_dict_value(
+    data: dict[str, Any], key: str, default: Optional[dict[str, Any]] = None
+) -> dict[str, Any]:
+    """Safely extract a dict value from a dictionary with type validation.
+
+    Args:
+        data: Dictionary to extract from
+        key: Key to look up
+        default: Default value if key not found or type is wrong
+
+    Returns:
+        Dict value or default
+    """
+    if not data or not isinstance(data, dict):
+        return default or {}
+
+    value = data.get(key)
+    if value is None:
+        return default or {}
+
+    if isinstance(value, dict):
+        return value
+
+    logger.warning(f"Expected dict for key '{key}', got {type(value).__name__}. Using default.")
+    return default or {}
+
+
+def _get_int_value(data: dict[str, Any], key: str, default: Optional[int] = None) -> Optional[int]:
+    """Safely extract an int value from a dictionary with type coercion.
+
+    Args:
+        data: Dictionary to extract from
+        key: Key to look up
+        default: Default value if key not found or conversion fails
+
+    Returns:
+        Int value or default
+    """
+    if not data or not isinstance(data, dict):
+        return default
+
+    value = data.get(key)
+    if value is None:
+        return default
+
+    if isinstance(value, int):
+        return value
+
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        logger.warning(f"Could not convert '{key}' value {repr(value)} to int. Using default.")
+        return default
+
+
+def _safe_list_extend(target: list[Any], source: Union[list[Any], dict[str, Any], Any]) -> None:
+    """Safely extend a list with values from source, validating types.
+
+    Args:
+        target: Target list to extend
+        source: Source to extend from (list, dict keys, or scalar)
+    """
+    if source is None:
+        return
+
+    if isinstance(source, list):
+        target.extend(source)
+    elif isinstance(source, dict):
+        # If dict, extend with keys
+        target.extend(source.keys())
+    elif isinstance(source, str):
+        target.append(source)
+    else:
+        logger.warning(f"Cannot extend list with {type(source).__name__}. Skipping.")
 
 
 class PivotType(str, Enum):
@@ -243,26 +348,38 @@ class ResearchToAnchorMapper:
 
         # Extract from market research
         market_data = session.market_research.data
-        if market_data.get("user_needs"):
-            desired_outcomes.extend(market_data["user_needs"])
+        if not isinstance(market_data, dict):
+            logger.warning("market_research.data is not a dict, skipping market research mapping")
+            market_data = {}
+
+        # Extract user needs
+        user_needs = _get_list_value(market_data, "user_needs")
+        if user_needs:
+            desired_outcomes.extend(user_needs)
             sources.append("market_research.user_needs")
             confidence_factors.append(0.8)
 
-        if market_data.get("core_value_proposition"):
-            if isinstance(market_data["core_value_proposition"], list):
-                desired_outcomes.extend(market_data["core_value_proposition"])
+        # Extract core value proposition (handle both list and string)
+        core_prop = market_data.get("core_value_proposition")
+        if core_prop:
+            if isinstance(core_prop, list):
+                desired_outcomes.extend(core_prop)
             else:
-                desired_outcomes.append(str(market_data["core_value_proposition"]))
+                desired_outcomes.append(str(core_prop))
             sources.append("market_research.core_value_proposition")
             confidence_factors.append(0.9)
 
-        if market_data.get("success_metrics"):
-            success_signals.extend(market_data["success_metrics"])
+        # Extract success metrics
+        success_metrics = _get_list_value(market_data, "success_metrics")
+        if success_metrics:
+            success_signals.extend(success_metrics)
             sources.append("market_research.success_metrics")
             confidence_factors.append(0.85)
 
-        if market_data.get("non_goals"):
-            non_goals.extend(market_data["non_goals"])
+        # Extract non-goals
+        non_goals_data = _get_list_value(market_data, "non_goals")
+        if non_goals_data:
+            non_goals.extend(non_goals_data)
             sources.append("market_research.non_goals")
             confidence_factors.append(0.9)
 
@@ -323,36 +440,40 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
 
         # Check for explicit never_allow data (if research phase identified hard constraints)
-        if tech_data.get("never_allow"):
-            never_allow_data = tech_data["never_allow"]
-            if isinstance(never_allow_data, list):
-                never_allow.extend(never_allow_data)
-                sources.append("technical_feasibility.never_allow")
-                confidence_factors.append(0.95)
+        never_allow_data = _get_list_value(tech_data, "never_allow")
+        if never_allow_data:
+            never_allow.extend(never_allow_data)
+            sources.append("technical_feasibility.never_allow")
+            confidence_factors.append(0.95)
 
         # Check for exclusion patterns that describe what should NOT be researched
-        if tech_data.get("exclusion_patterns"):
-            excl_patterns = tech_data["exclusion_patterns"]
-            if isinstance(excl_patterns, list):
-                never_allow.extend(excl_patterns)
-                sources.append("technical_feasibility.exclusion_patterns")
-                confidence_factors.append(0.85)
+        excl_patterns = _get_list_value(tech_data, "exclusion_patterns")
+        if excl_patterns:
+            never_allow.extend(excl_patterns)
+            sources.append("technical_feasibility.exclusion_patterns")
+            confidence_factors.append(0.85)
 
         # Extract operations requiring approval (but not hard blocks)
-        if tech_data.get("api_restrictions"):
-            requires_approval.extend(tech_data["api_restrictions"])
+        api_restrictions = _get_list_value(tech_data, "api_restrictions")
+        if api_restrictions:
+            requires_approval.extend(api_restrictions)
             sources.append("technical_feasibility.api_restrictions")
             confidence_factors.append(0.8)
 
-        if tech_data.get("security_concerns"):
-            requires_approval.extend(tech_data["security_concerns"])
+        security_concerns = _get_list_value(tech_data, "security_concerns")
+        if security_concerns:
+            requires_approval.extend(security_concerns)
             sources.append("technical_feasibility.security_concerns")
             confidence_factors.append(0.85)
 
-        if tech_data.get("legal_requirements"):
-            requires_approval.extend(tech_data["legal_requirements"])
+        legal_requirements = _get_list_value(tech_data, "legal_requirements")
+        if legal_requirements:
+            requires_approval.extend(legal_requirements)
             sources.append("technical_feasibility.legal_requirements")
             confidence_factors.append(0.9)
 
@@ -409,14 +530,22 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
-        if tech_data.get("hard_blocks") or tech_data.get("blockers"):
-            blocks = tech_data.get("hard_blocks", []) + tech_data.get("blockers", [])
-            hard_blocks.extend(blocks)
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
+
+        # Extract hard blocks and blockers (both are lists)
+        hard_blocks_data = _get_list_value(tech_data, "hard_blocks")
+        blockers_data = _get_list_value(tech_data, "blockers")
+        if hard_blocks_data or blockers_data:
+            hard_blocks.extend(hard_blocks_data)
+            hard_blocks.extend(blockers_data)
             sources.append("technical_feasibility.hard_blocks")
             confidence_factors.append(0.9)
 
-        if tech_data.get("proof_of_concept_results"):
-            results = tech_data["proof_of_concept_results"]
+        # Extract proof of concept results (handle both list and string)
+        results = tech_data.get("proof_of_concept_results")
+        if results:
             if isinstance(results, list):
                 required_proofs.extend(results)
             else:
@@ -424,13 +553,17 @@ class ResearchToAnchorMapper:
             sources.append("technical_feasibility.proof_of_concept_results")
             confidence_factors.append(0.85)
 
-        if tech_data.get("verification_requirements"):
-            verification_gates.extend(tech_data["verification_requirements"])
+        # Extract verification requirements
+        verification_reqs = _get_list_value(tech_data, "verification_requirements")
+        if verification_reqs:
+            verification_gates.extend(verification_reqs)
             sources.append("technical_feasibility.verification_requirements")
             confidence_factors.append(0.85)
 
-        if tech_data.get("required_proofs"):
-            required_proofs.extend(tech_data["required_proofs"])
+        # Extract required proofs
+        required_proofs_data = _get_list_value(tech_data, "required_proofs")
+        if required_proofs_data:
+            required_proofs.extend(required_proofs_data)
             sources.append("technical_feasibility.required_proofs")
             confidence_factors.append(0.9)
 
@@ -482,23 +615,31 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
-        if tech_data.get("platform_policies"):
-            policies = tech_data["platform_policies"]
-            if isinstance(policies, dict):
-                if policies.get("allowed_paths"):
-                    allowed_write_roots.extend(policies["allowed_paths"])
-                if policies.get("protected_paths"):
-                    protected_paths.extend(policies["protected_paths"])
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
+
+        # Extract platform policies
+        policies = _get_dict_value(tech_data, "platform_policies")
+        if policies:
+            allowed_paths = _get_list_value(policies, "allowed_paths")
+            if allowed_paths:
+                allowed_write_roots.extend(allowed_paths)
+            protected_paths_data = _get_list_value(policies, "protected_paths")
+            if protected_paths_data:
+                protected_paths.extend(protected_paths_data)
             sources.append("technical_feasibility.platform_policies")
             confidence_factors.append(0.8)
 
+        # Feature limits can inform scope boundaries
         if tech_data.get("feature_limits"):
-            # Feature limits can inform scope boundaries
             sources.append("technical_feasibility.feature_limits")
             confidence_factors.append(0.6)
 
-        if tech_data.get("network_requirements"):
-            network_allowlist.extend(tech_data["network_requirements"])
+        # Extract network requirements
+        network_reqs = _get_list_value(tech_data, "network_requirements")
+        if network_reqs:
+            network_allowlist.extend(network_reqs)
             sources.append("technical_feasibility.network_requirements")
             confidence_factors.append(0.75)
 
@@ -547,19 +688,27 @@ class ResearchToAnchorMapper:
 
         # Extract from market research (pricing_tiers)
         market_data = session.market_research.data
+        if not isinstance(market_data, dict):
+            market_data = {}
+
         if market_data.get("pricing_tiers") or market_data.get("cost_estimates"):
             sources.append("market_research.cost_estimates")
             confidence_factors.append(0.6)
 
         # Extract from technical feasibility (resource_requirements)
         tech_data = session.technical_feasibility.data
-        if tech_data.get("resource_requirements"):
-            reqs = tech_data["resource_requirements"]
-            if isinstance(reqs, dict):
-                if reqs.get("token_budget"):
-                    token_cap_global = int(reqs["token_budget"])
-                if reqs.get("time_limit_seconds"):
-                    time_cap_seconds = int(reqs["time_limit_seconds"])
+        if not isinstance(tech_data, dict):
+            tech_data = {}
+
+        # Extract resource requirements with type validation
+        reqs = _get_dict_value(tech_data, "resource_requirements")
+        if reqs:
+            token_budget = _get_int_value(reqs, "token_budget")
+            if token_budget is not None:
+                token_cap_global = token_budget
+            time_limit = _get_int_value(reqs, "time_limit_seconds")
+            if time_limit is not None:
+                time_cap_seconds = time_limit
             sources.append("technical_feasibility.resource_requirements")
             confidence_factors.append(0.8)
 
@@ -611,22 +760,39 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
-        if tech_data.get("session_requirements"):
-            reqs = tech_data["session_requirements"]
-            if isinstance(reqs, list):
-                persist_to_sot.extend(reqs)
-            elif isinstance(reqs, dict):
-                if reqs.get("persist"):
-                    persist_to_sot.extend(reqs["persist"])
-                if reqs.get("indexes"):
-                    derived_indexes.extend(reqs["indexes"])
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
+
+        # Extract session requirements (can be list or dict)
+        session_reqs = tech_data.get("session_requirements")
+        if session_reqs:
+            if isinstance(session_reqs, list):
+                persist_to_sot.extend(session_reqs)
+            elif isinstance(session_reqs, dict):
+                persist_list = _get_list_value(session_reqs, "persist")
+                if persist_list:
+                    persist_to_sot.extend(persist_list)
+                indexes_list = _get_list_value(session_reqs, "indexes")
+                if indexes_list:
+                    derived_indexes.extend(indexes_list)
+            else:
+                logger.warning(
+                    f"session_requirements has unexpected type {type(session_reqs).__name__}"
+                )
             sources.append("technical_feasibility.session_requirements")
             confidence_factors.append(0.8)
 
-        if tech_data.get("state_persistence_needs"):
-            needs = tech_data["state_persistence_needs"]
-            if isinstance(needs, list):
-                persist_to_sot.extend(needs)
+        # Extract state persistence needs
+        persistence_needs = tech_data.get("state_persistence_needs")
+        if persistence_needs:
+            if isinstance(persistence_needs, list):
+                persist_to_sot.extend(persistence_needs)
+            else:
+                logger.warning(
+                    f"state_persistence_needs has unexpected type "
+                    f"{type(persistence_needs).__name__}"
+                )
             sources.append("technical_feasibility.state_persistence_needs")
             confidence_factors.append(0.75)
 
@@ -674,15 +840,18 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
+
         if tech_data.get("compliance_requirements"):
             sources.append("technical_feasibility.compliance_requirements")
             confidence_factors.append(0.8)
 
-        if tech_data.get("review_checkpoints"):
-            checkpoints = tech_data["review_checkpoints"]
-            if isinstance(checkpoints, list):
-                # Convert checkpoints to approval channels
-                approval_channels.extend(checkpoints)
+        # Extract review checkpoints
+        checkpoints = _get_list_value(tech_data, "review_checkpoints")
+        if checkpoints:
+            approval_channels.extend(checkpoints)
             sources.append("technical_feasibility.review_checkpoints")
             confidence_factors.append(0.75)
 
@@ -738,19 +907,39 @@ class ResearchToAnchorMapper:
 
         # Extract from technical feasibility
         tech_data = session.technical_feasibility.data
-        if tech_data.get("concurrency_requirements"):
-            reqs = tech_data["concurrency_requirements"]
-            if isinstance(reqs, dict):
-                allowed = reqs.get("parallel_allowed", False)
-                if reqs.get("max_concurrent"):
-                    max_concurrent_runs = int(reqs["max_concurrent"])
-                if reqs.get("isolation_model"):
-                    isolation_model = reqs["isolation_model"]
+        if not isinstance(tech_data, dict):
+            logger.warning("technical_feasibility.data is not a dict, skipping")
+            tech_data = {}
+
+        # Extract concurrency requirements
+        concurrency_reqs = _get_dict_value(tech_data, "concurrency_requirements")
+        if concurrency_reqs:
+            # Safely get boolean value with default
+            parallel_allowed = concurrency_reqs.get("parallel_allowed", False)
+            if isinstance(parallel_allowed, bool):
+                allowed = parallel_allowed
+            else:
+                logger.warning(
+                    f"parallel_allowed has unexpected type {type(parallel_allowed).__name__}"
+                )
+
+            # Safely get max_concurrent with type conversion
+            max_concurrent = _get_int_value(concurrency_reqs, "max_concurrent")
+            if max_concurrent is not None:
+                max_concurrent_runs = max(1, max_concurrent)
+
+            # Safely get isolation_model as string
+            iso_model = concurrency_reqs.get("isolation_model")
+            if isinstance(iso_model, str):
+                isolation_model = iso_model
+            elif iso_model is not None:
+                logger.warning(f"isolation_model has unexpected type {type(iso_model).__name__}")
+
             sources.append("technical_feasibility.concurrency_requirements")
             confidence_factors.append(0.85)
 
+        # Check for isolation boundaries
         if tech_data.get("isolation_boundaries"):
-            # If isolation boundaries are defined, enable isolation
             allowed = True
             isolation_model = "four_layer"
             sources.append("technical_feasibility.isolation_boundaries")

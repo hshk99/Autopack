@@ -3867,16 +3867,9 @@ class AutonomousLoop:
             logger.debug("[IMP-ARCH-004] ROAD-C module not available")
             return []
 
-        # Load task generation configuration
-        try:
-            # Try to load from settings if available
-            task_gen_config = getattr(config_settings, "task_generation", {})
-            if not task_gen_config:
-                task_gen_config = {"enabled": False}
-        except Exception:
-            task_gen_config = {"enabled": False}
-
-        if not task_gen_config.get("enabled", False):
+        # Check if task generation is enabled
+        # Use direct attribute access for consistent config pattern
+        if not getattr(config_settings, "task_generation_enabled", False):
             logger.debug("[IMP-ARCH-004] Task generation not enabled")
             return []
 

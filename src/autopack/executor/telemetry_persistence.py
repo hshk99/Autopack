@@ -284,14 +284,8 @@ class TelemetryPersistenceManager:
             return 0
 
         # Check if task generation is enabled
-        try:
-            task_gen_config = getattr(config_settings, "task_generation", {})
-            if not task_gen_config:
-                task_gen_config = {"enabled": False}
-        except Exception:
-            task_gen_config = {"enabled": False}
-
-        if not task_gen_config.get("enabled", False):
+        # Use direct attribute access to match autonomous_loop.py pattern
+        if not getattr(config_settings, "task_generation_enabled", False):
             logger.debug("[IMP-INT-003] Task generation not enabled in settings")
             return 0
 

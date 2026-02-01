@@ -19,6 +19,10 @@ anyio==4.12.0
     #   openai
     #   starlette
     #   watchfiles
+attrs==25.4.0
+    # via
+    #   jsonschema
+    #   referencing
 bcrypt==5.0.0
     # via autopack (pyproject.toml)
 beautifulsoup4==4.14.3
@@ -127,6 +131,7 @@ httpx[http2]==0.28.1
     #   anthropic
     #   autopack (pyproject.toml)
     #   openai
+    #   python-telegram-bot
     #   qdrant-client
 hyperframe==6.1.0
     # via h2
@@ -142,6 +147,10 @@ jiter==0.12.0
     # via
     #   anthropic
     #   openai
+jsonschema==4.26.0
+    # via autopack (pyproject.toml)
+jsonschema-specifications==2025.9.1
+    # via jsonschema
 librt==0.7.7
     # via mypy
 limits==5.6.0
@@ -203,6 +212,8 @@ protobuf==5.29.5
     #   grpcio-status
     #   proto-plus
     #   qdrant-client
+psutil==7.2.2
+    # via autopack (pyproject.toml)
 psycopg2-binary==2.9.11
     # via autopack (pyproject.toml)
 pyasn1==0.6.1
@@ -262,9 +273,9 @@ python-jose[cryptography]==3.5.0
     # via autopack (pyproject.toml)
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
-python-magic>=0.4.27 ; sys_platform != "win32"
-    # via autopack (pyproject.toml)
 python-multipart==0.0.21
+    # via autopack (pyproject.toml)
+python-telegram-bot==22.6
     # via autopack (pyproject.toml)
 pytokens==0.3.0
     # via black
@@ -282,6 +293,10 @@ redis==7.1.0
     # via
     #   autopack (pyproject.toml)
     #   fakeredis
+referencing==0.37.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 requests==2.32.5
     # via
     #   autopack (pyproject.toml)
@@ -291,6 +306,10 @@ requests==2.32.5
     #   update-checker
 rich==14.2.0
     # via autopack (pyproject.toml)
+rpds-py==0.30.0
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9.1
     # via
     #   google-auth
@@ -341,6 +360,7 @@ typing-extensions==4.15.0
     #   pydantic-core
     #   pygithub
     #   pytest-asyncio
+    #   referencing
     #   sqlalchemy
     #   starlette
     #   typing-inspection

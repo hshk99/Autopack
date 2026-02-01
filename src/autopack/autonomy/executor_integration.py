@@ -128,6 +128,14 @@ class ExecutorContext:
         self._last_health_transition: Optional[datetime] = None
         self._health_transition_count: int = 0
 
+        # IMP-RESEARCH-002: Research gap detection and pause tracking
+        self._gap_detection_count: int = 0
+        self._gap_pause_count: int = 0
+        self._total_gaps_detected: int = 0
+        self._total_gaps_addressed: int = 0
+        self._last_gap_pause_details: Optional[Dict[str, Any]] = None
+        self._gap_pause_history: List[Dict[str, Any]] = []
+
         logger.debug(
             f"[ExecutorContext] Initialized for project={anchor.project_id}, run={layout.run_id}. "
             f"[IMP-HIGH-001] Circuit breaker initialized with failure_threshold={self.circuit_breaker.failure_threshold}"
@@ -887,6 +895,112 @@ class ExecutorContext:
             ),
         }
 
+    # === IMP-RESEARCH-002: Research Gap Detection Metrics ===
+
+    def record_gap_detection(
+        self,
+        gaps_detected: int,
+        gaps_addressed: int = 0,
+        gap_types: Optional[List[str]] = None,
+    ) -> None:
+        """Record research gap detection event.
+
+        IMP-RESEARCH-002: Tracks gap detection events for monitoring and
+        decision-making about whether execution should be paused.
+
+        Args:
+            gaps_detected: Number of gaps detected
+            gaps_addressed: Number of gaps already addressed
+            gap_types: Optional list of gap type strings
+        """
+        self._gap_detection_count += 1
+        self._total_gaps_detected += gaps_detected
+        self._total_gaps_addressed += gaps_addressed
+
+        gap_info = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'gaps_detected': gaps_detected,
+            'gaps_addressed': gaps_addressed,
+            'remaining_gaps': gaps_detected - gaps_addressed,
+            'gap_types': gap_types or [],
+        }
+
+        logger.info(
+            f"[IMP-RESEARCH-002] Gap detection recorded: "
+            f"{gaps_detected} detected, {gaps_addressed} addressed, "
+            f"{gaps_detected - gaps_addressed} remaining"
+        )
+
+    def record_gap_pause(
+        self,
+        gaps_remaining: int,
+        reason: str,
+        gaps_addressed: int = 0,
+    ) -> None:
+        """Record execution pause due to research gaps.
+
+        IMP-RESEARCH-002: Tracks pause events caused by gap detection
+        to understand execution flow and decision impact.
+
+        Args:
+            gaps_remaining: Number of gaps remaining
+            reason: Reason for pause
+            gaps_addressed: Number of gaps addressed
+        """
+        self._gap_pause_count += 1
+
+        pause_info = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'gaps_remaining': gaps_remaining,
+            'gaps_addressed': gaps_addressed,
+            'reason': reason,
+            'pause_number': self._gap_pause_count,
+        }
+
+        self._last_gap_pause_details = pause_info
+        self._gap_pause_history.append(pause_info)
+
+        logger.warning(
+            f"[IMP-RESEARCH-002] Execution paused for gaps: "
+            f"pause_count={self._gap_pause_count}, gaps_remaining={gaps_remaining}, "
+            f"reason={reason}"
+        )
+
+    def get_gap_detection_metrics(self) -> Dict[str, Any]:
+        """Get research gap detection and pause metrics.
+
+        IMP-RESEARCH-002: Provides comprehensive gap detection metrics for
+        monitoring, debugging, and decision-making.
+
+        Returns:
+            Dictionary with gap detection and pause metrics
+        """
+        return {
+            'gap_detection_count': self._gap_detection_count,
+            'gap_pause_count': self._gap_pause_count,
+            'total_gaps_detected': self._total_gaps_detected,
+            'total_gaps_addressed': self._total_gaps_addressed,
+            'gaps_remaining': self._total_gaps_detected - self._total_gaps_addressed,
+            'last_gap_pause': self._last_gap_pause_details,
+            'gap_pause_history': self._gap_pause_history[-5:] if self._gap_pause_history else [],
+        }
+
+    def has_detected_gaps(self) -> bool:
+        """Check if gaps have been detected during execution.
+
+        Returns:
+            True if gaps detected, False otherwise
+        """
+        return self._gap_detection_count > 0
+
+    def get_remaining_gaps(self) -> int:
+        """Get count of remaining gaps.
+
+        Returns:
+            Number of gaps still remaining
+        """
+        return max(0, self._total_gaps_detected - self._total_gaps_addressed)
+
     # === Integration Helpers ===
 
     def should_block_action(self, action_risk_score: float) -> bool:
@@ -964,12 +1078,14 @@ class ExecutorContext:
 
         IMP-RESEARCH-001: Includes budget status in summary.
         IMP-TRIGGER-001: Includes health transition metrics in summary.
+        IMP-RESEARCH-002: Includes gap detection and pause metrics in summary.
 
         Returns:
             Summary dictionary
         """
         budget_status = self.get_budget_status()
         health_metrics = self.get_health_transition_metrics()
+        gap_metrics = self.get_gap_detection_metrics()
         return {
             "project_id": self.anchor.project_id,
             "run_id": self.layout.run_id,
@@ -984,6 +1100,7 @@ class ExecutorContext:
             "consecutive_failures": self._consecutive_failures,
             "replan_attempted": self._replan_attempted,
             "health_transitions": health_metrics,
+            "gap_detection": gap_metrics,
         }
 
 

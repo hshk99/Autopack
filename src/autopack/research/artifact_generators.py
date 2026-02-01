@@ -1874,7 +1874,6 @@ class ProjectBriefGenerator:
         # Add specific cost details if available
         section += "### Monthly Cost Breakdown\n\n"
 
-        total_cost = 0
         if "breakdown" in costs:
             breakdown = costs["breakdown"]
             section += "| Component | Monthly Cost | Notes |\n"

@@ -3521,16 +3521,12 @@ class CICDGenerator:
         section += "Your CI/CD pipeline will include the following stages:\n\n"
         section += "### 1. **Lint & Format Checking**\n"
         section += "   - Code quality analysis\n"
-        section += (
-            f"   - Tool: {safe_get_string(analysis.lint_tool, 'built-in linter')}\n"
-        )
+        section += f"   - Tool: {safe_get_string(analysis.lint_tool, 'built-in linter')}\n"
         section += "   - Runs on every commit\n\n"
 
         section += "### 2. **Unit & Integration Testing**\n"
         section += "   - Automated test execution\n"
-        section += (
-            f"   - Framework: {safe_get_string(analysis.test_framework, 'built-in tests')}\n"
-        )
+        section += f"   - Framework: {safe_get_string(analysis.test_framework, 'built-in tests')}\n"
         section += "   - Coverage reporting\n\n"
 
         section += "### 3. **Build & Compilation**\n"
@@ -3647,7 +3643,7 @@ class CICDGenerator:
         instructions += "4. **Push to repository**:\n"
         instructions += "   ```bash\n"
         instructions += "   git add .github/workflows/ci-cd.yml\n"
-        instructions += "   git commit -m \"ci: Add GitHub Actions CI/CD pipeline\"\n"
+        instructions += '   git commit -m "ci: Add GitHub Actions CI/CD pipeline"\n'
         instructions += "   git push\n"
         instructions += "   ```\n\n"
 
@@ -3677,7 +3673,7 @@ class CICDGenerator:
         instructions += "5. **Push to repository**:\n"
         instructions += "   ```bash\n"
         instructions += "   git add .gitlab-ci.yml\n"
-        instructions += "   git commit -m \"ci: Add GitLab CI/CD pipeline\"\n"
+        instructions += '   git commit -m "ci: Add GitLab CI/CD pipeline"\n'
         instructions += "   git push\n"
         instructions += "   ```\n\n"
 
@@ -3708,7 +3704,7 @@ class CICDGenerator:
         instructions += "5. **Push to repository**:\n"
         instructions += "   ```bash\n"
         instructions += "   git add Jenkinsfile\n"
-        instructions += "   git commit -m \"ci: Add Jenkins pipeline\"\n"
+        instructions += '   git commit -m "ci: Add Jenkins pipeline"\n'
         instructions += "   git push\n"
         instructions += "   ```\n\n"
 
@@ -3891,7 +3887,9 @@ class ArtifactGeneratorRegistry:
         self.register("gitlab_ci", GitLabCIGenerator, "GitLab CI/CD pipeline generator")
         self.register("jenkins", JenkinsPipelineGenerator, "Jenkins pipeline generator")
         self.register("cicd_analyzer", CICDAnalyzer, "CI/CD analyzer for multi-platform generation")
-        self.register("cicd_generator", CICDGenerator, "Comprehensive CI/CD pipeline configuration generator")
+        self.register(
+            "cicd_generator", CICDGenerator, "Comprehensive CI/CD pipeline configuration generator"
+        )
         self.register("deployment", DeploymentGuidanceGenerator, "Deployment guidance generator")
         self.register("monetization", MonetizationStrategyGenerator)
         self.register("readme", ProjectReadmeGenerator)

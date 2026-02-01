@@ -231,9 +231,7 @@ class TestCICDGeneratorDocumentation:
         result = generator.generate(basic_tech_stack)
         assert "Jenkinsfile" in result
 
-    def test_setup_instructions_are_provided_for_all_platforms(
-        self, generator, basic_tech_stack
-    ):
+    def test_setup_instructions_are_provided_for_all_platforms(self, generator, basic_tech_stack):
         """Test that setup instructions are provided for each platform."""
         result = generator.generate(basic_tech_stack)
         assert result.count("Setup Instructions") >= 3  # One for each platform

@@ -101,11 +101,12 @@ flags:
     requires: ["AUTOPACK_ENABLE_MEMORY=true"]
 
   AUTOPACK_ENABLE_FAILURE_HARDENING:
-    description: "Enable advanced failure recovery mechanisms"
+    description: "Enable advanced failure recovery mechanisms (IMP-BLOCKED-006)"
     category: feature_toggle
-    default: "false"
+    default: "true"
     values: ["true", "false"]
-    affects: ["autonomous_executor.py"]
+    affects: ["executor/phase_orchestrator.py"]
+    notes: "IMP-BLOCKED-006: When enabled, automatically detects and mitigates common failure patterns without requiring expensive diagnostics or Doctor invocation. Includes retry logic, fallback execution paths, and comprehensive error isolation."
 
   AUTOPACK_ENABLE_INTENTION_CONTEXT:
     description: "Enable intention-based context enrichment"

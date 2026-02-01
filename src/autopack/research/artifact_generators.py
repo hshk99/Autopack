@@ -2705,6 +2705,421 @@ variable "region" {
         return terraform
 
 
+class CodeGenerator:
+    """Generates starter code and project skeletons from research findings.
+
+    Produces language-specific project scaffolding with:
+    - Multiple language support (Python, JavaScript/TypeScript, Go, Java)
+    - Project structure templates (monorepo, microservices, MVC)
+    - Configuration file generation (requirements.txt, package.json, etc.)
+    - Code quality checks and linting configuration
+    """
+
+    # Language-specific defaults
+    LANGUAGE_TEMPLATES = {
+        "python": {
+            "ext": ".py",
+            "package_manager": "pip",
+            "config_files": ["requirements.txt", "setup.py", "pyproject.toml"],
+            "entry_point": "main.py",
+            "frameworks": ["Django", "FastAPI", "Flask"],
+        },
+        "javascript": {
+            "ext": ".js",
+            "package_manager": "npm",
+            "config_files": ["package.json", "package-lock.json", ".npmrc"],
+            "entry_point": "index.js",
+            "frameworks": ["React", "Vue", "Angular", "Node.js", "Next.js"],
+        },
+        "typescript": {
+            "ext": ".ts",
+            "package_manager": "npm",
+            "config_files": ["package.json", "tsconfig.json", ".npmrc"],
+            "entry_point": "index.ts",
+            "frameworks": ["React", "Next.js", "Angular", "Express"],
+        },
+        "go": {
+            "ext": ".go",
+            "package_manager": "go",
+            "config_files": ["go.mod", "go.sum", ".env.example"],
+            "entry_point": "main.go",
+            "frameworks": ["Gin", "Echo", "standard"],
+        },
+        "java": {
+            "ext": ".java",
+            "package_manager": "maven",
+            "config_files": ["pom.xml", "build.gradle"],
+            "entry_point": "Main.java",
+            "frameworks": ["Spring Boot", "Gradle", "Maven"],
+        },
+    }
+
+    # Project structure templates
+    PROJECT_STRUCTURES = {
+        "monorepo": {
+            "description": "Monorepo structure with multiple packages/services",
+            "directories": [
+                "packages/",
+                "services/",
+                "shared/",
+                "tools/",
+                "docs/",
+                ".github/",
+            ],
+        },
+        "microservices": {
+            "description": "Microservices architecture with separate services",
+            "directories": [
+                "services/",
+                "shared/",
+                "infrastructure/",
+                "docs/",
+                ".github/",
+            ],
+        },
+        "mvc": {
+            "description": "Traditional MVC structure",
+            "directories": [
+                "src/",
+                "src/models/",
+                "src/views/",
+                "src/controllers/",
+                "src/routes/",
+                "src/middleware/",
+                "public/",
+                "tests/",
+                "docs/",
+            ],
+        },
+    }
+
+    def __init__(self):
+        """Initialize the code generator."""
+        self.logger = logger
+
+    def generate(
+        self,
+        research_findings: Dict[str, Any],
+        tech_stack: Dict[str, Any],
+        project_brief: str,
+        project_structure: str = "mvc",
+    ) -> str:
+        """Generate project scaffolding code and configuration.
+
+        Args:
+            research_findings: Research findings dict with project context
+            tech_stack: Tech stack proposal dict with technologies
+            project_brief: Project brief description
+            project_structure: Type of structure: 'monorepo', 'microservices', or 'mvc'
+
+        Returns:
+            Markdown string with code generation guide and configuration files
+        """
+        logger.info(f"[CodeGenerator] Generating code scaffolding (structure: {project_structure})")
+
+        content = "# Code Generation Guide\n\n"
+
+        # Overview
+        content += f"## Project Overview\n\n{project_brief}\n\n"
+
+        # Technology Stack
+        content += self._generate_tech_section(tech_stack)
+
+        # Project Structure
+        content += self._generate_structure_section(project_structure)
+
+        # Language-specific setup
+        content += self._generate_language_setup(tech_stack, project_structure)
+
+        # Configuration files
+        content += self._generate_config_section(tech_stack)
+
+        # Code quality setup
+        content += self._generate_quality_section(tech_stack)
+
+        # Development workflow
+        content += self._generate_workflow_section()
+
+        return content
+
+    def _generate_tech_section(self, tech_stack: Dict[str, Any]) -> str:
+        """Generate technology stack section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Technology Stack\n\n"
+
+        languages = tech_stack.get("languages", [])
+        if languages:
+            section += f"**Languages**: {', '.join(languages)}\n\n"
+
+        frameworks = tech_stack.get("frameworks", [])
+        if frameworks:
+            section += f"**Frameworks**: {', '.join(frameworks)}\n\n"
+
+        tools = tech_stack.get("tools", [])
+        if tools:
+            section += f"**Tools**: {', '.join(tools)}\n\n"
+
+        database = tech_stack.get("database", [])
+        if database:
+            section += f"**Databases**: {', '.join(database)}\n\n"
+
+        return section
+
+    def _generate_structure_section(self, project_structure: str) -> str:
+        """Generate project structure section.
+
+        Args:
+            project_structure: Type of structure
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Project Structure\n\n"
+
+        structure_info = self.PROJECT_STRUCTURES.get(
+            project_structure, self.PROJECT_STRUCTURES["mvc"]
+        )
+        section += f"**Structure Type**: {project_structure.title()}\n\n"
+        section += f"{structure_info['description']}\n\n"
+
+        section += "### Directory Layout\n\n"
+        section += "```\nproject/\n"
+        for directory in structure_info["directories"]:
+            indent = "  " * (directory.count("/"))
+            section += f"{indent}├── {directory}\n"
+        section += "```\n\n"
+
+        return section
+
+    def _generate_language_setup(self, tech_stack: Dict[str, Any], project_structure: str) -> str:
+        """Generate language-specific setup instructions.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+            project_structure: Type of structure
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Language-Specific Setup\n\n"
+
+        languages = tech_stack.get("languages", ["python"])
+        if not languages:
+            languages = ["python"]
+
+        for language in languages:
+            lang_lower = language.lower()
+            if lang_lower not in self.LANGUAGE_TEMPLATES:
+                continue
+
+            template = self.LANGUAGE_TEMPLATES[lang_lower]
+            section += f"### {language}\n\n"
+
+            # Package manager setup
+            pm = template["package_manager"]
+            section += f"**Package Manager**: {pm}\n\n"
+
+            # Frameworks
+            section += "**Recommended Frameworks**:\n"
+            for framework in template["frameworks"][:3]:
+                section += f"- {framework}\n"
+            section += "\n"
+
+            # Configuration files
+            section += "**Configuration Files**:\n"
+            for config in template["config_files"]:
+                section += f"- `{config}`\n"
+            section += "\n"
+
+            # Entry point
+            section += f"**Entry Point**: `{template['entry_point']}`\n\n"
+
+        return section
+
+    def _generate_config_section(self, tech_stack: Dict[str, Any]) -> str:
+        """Generate configuration files section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Configuration Files\n\n"
+
+        # requirements.txt (Python)
+        section += "### Python Dependencies (requirements.txt)\n\n"
+        section += "```\n"
+        section += "# Core dependencies\n"
+        section += "python-dotenv>=0.19.0\n"
+        section += "pydantic>=1.8.0\n\n"
+        section += "# Framework-specific (add based on selection)\n"
+        section += "# FastAPI: fastapi>=0.68.0, uvicorn>=0.15.0\n"
+        section += "# Django: django>=3.2, djangorestframework>=3.12.0\n"
+        section += "# Flask: flask>=2.0.0, flask-cors>=3.0.0\n\n"
+        section += "# Database\n"
+        section += "sqlalchemy>=1.4.0\n"
+        section += "psycopg2-binary>=2.9.0\n\n"
+        section += "# Development\n"
+        section += "pytest>=6.2.0\n"
+        section += "black>=21.0.0\n"
+        section += "flake8>=3.9.0\n"
+        section += "```\n\n"
+
+        # package.json (JavaScript/TypeScript)
+        section += "### Node.js Dependencies (package.json)\n\n"
+        section += "```json\n"
+        section += "{\n"
+        section += '  "name": "project-name",\n'
+        section += '  "version": "1.0.0",\n'
+        section += '  "scripts": {\n'
+        section += '    "start": "node index.js",\n'
+        section += '    "dev": "nodemon index.js",\n'
+        section += '    "test": "jest",\n'
+        section += '    "lint": "eslint ."\n'
+        section += "  },\n"
+        section += '  "dependencies": {\n'
+        section += '    "express": "^4.17.0",\n'
+        section += '    "dotenv": "^10.0.0"\n'
+        section += "  },\n"
+        section += '  "devDependencies": {\n'
+        section += '    "eslint": "^8.0.0",\n'
+        section += '    "jest": "^27.0.0",\n'
+        section += '    "nodemon": "^2.0.0"\n'
+        section += "  }\n"
+        section += "}\n"
+        section += "```\n\n"
+
+        # .env.example
+        section += "### Environment Configuration (.env.example)\n\n"
+        section += "```\n"
+        section += "# Application\n"
+        section += "NODE_ENV=development\n"
+        section += "DEBUG=true\n\n"
+        section += "# Database\n"
+        section += "DATABASE_URL=postgresql://user:password@localhost:5432/dbname\n"
+        section += "DATABASE_POOL_SIZE=10\n\n"
+        section += "# API Configuration\n"
+        section += "API_PORT=3000\n"
+        section += "API_HOST=localhost\n\n"
+        section += "# Logging\n"
+        section += "LOG_LEVEL=info\n"
+        section += "```\n\n"
+
+        return section
+
+    def _generate_quality_section(self, tech_stack: Dict[str, Any]) -> str:
+        """Generate code quality configuration section.
+
+        Args:
+            tech_stack: Tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Code Quality Setup\n\n"
+
+        section += "### ESLint Configuration (.eslintrc.json)\n\n"
+        section += "```json\n"
+        section += "{\n"
+        section += '  "env": {\n'
+        section += '    "node": true,\n'
+        section += '    "es2021": true\n'
+        section += "  },\n"
+        section += '  "extends": ["eslint:recommended"],\n'
+        section += '  "rules": {\n'
+        section += '    "indent": ["error", 2],\n'
+        section += '    "quotes": ["error", "single"],\n'
+        section += '    "semi": ["error", "always"]\n'
+        section += "  }\n"
+        section += "}\n"
+        section += "```\n\n"
+
+        section += "### Python Linting (setup.cfg)\n\n"
+        section += "```ini\n"
+        section += "[flake8]\n"
+        section += "max-line-length = 100\n"
+        section += "exclude = .git, __pycache__, tests\n\n"
+        section += "[tool:pytest]\n"
+        section += "testpaths = tests\n"
+        section += "addopts = -v --cov=src\n"
+        section += "```\n\n"
+
+        section += "### Pre-commit Hooks (.pre-commit-config.yaml)\n\n"
+        section += "```yaml\n"
+        section += "repos:\n"
+        section += "  - repo: https://github.com/pre-commit/pre-commit-hooks\n"
+        section += "    rev: v4.0.0\n"
+        section += "    hooks:\n"
+        section += "      - id: trailing-whitespace\n"
+        section += "      - id: end-of-file-fixer\n"
+        section += "      - id: check-yaml\n"
+        section += "      - id: check-added-large-files\n"
+        section += "```\n\n"
+
+        section += "### Code Formatting\n\n"
+        section += "**Python**: Install and use `black` for consistent formatting:\n"
+        section += "```bash\n"
+        section += "pip install black\n"
+        section += "black src/\n"
+        section += "```\n\n"
+        section += "**JavaScript/TypeScript**: Use Prettier for code formatting:\n"
+        section += "```bash\n"
+        section += "npm install -D prettier\n"
+        section += "npx prettier --write .\n"
+        section += "```\n\n"
+
+        return section
+
+    def _generate_workflow_section(self) -> str:
+        """Generate development workflow section.
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Development Workflow\n\n"
+
+        section += "### Setup\n\n"
+        section += "1. Clone the repository\n"
+        section += "2. Install dependencies\n"
+        section += "3. Create `.env` file from `.env.example`\n"
+        section += "4. Run database migrations (if applicable)\n"
+        section += "5. Start development server\n\n"
+
+        section += "### Running Tests\n\n"
+        section += "```bash\n"
+        section += "# Python\n"
+        section += "pytest tests/ -v --cov=src\n\n"
+        section += "# JavaScript\n"
+        section += "npm test\n"
+        section += "```\n\n"
+
+        section += "### Code Quality Checks\n\n"
+        section += "```bash\n"
+        section += "# Python\n"
+        section += "flake8 src/\n"
+        section += "black src/ --check\n\n"
+        section += "# JavaScript\n"
+        section += "npm run lint\n"
+        section += "```\n\n"
+
+        section += "### Building for Production\n\n"
+        section += "```bash\n"
+        section += "# Python\n"
+        section += "python setup.py build\n\n"
+        section += "# JavaScript\n"
+        section += "npm run build\n"
+        section += "```\n\n"
+
+        return section
+
+
 class ArtifactGeneratorRegistry:
     """Registry for artifact generators.
 
@@ -2728,6 +3143,9 @@ class ArtifactGeneratorRegistry:
         self.register("readme", ProjectReadmeGenerator)
         self.register("project_brief", ProjectBriefGenerator)
         self.register("mcp_tools", MCPToolRecommendationGenerator)
+        self.register(
+            "code", CodeGenerator, "Code generator for project scaffolding and starter code"
+        )
         self.register(
             "post_build",
             PostBuildArtifactGenerator,
@@ -3041,6 +3459,28 @@ def get_post_build_generator(**kwargs: Any) -> PostBuildArtifactGenerator:
     if generator is None:
         # Fallback to direct instantiation
         return PostBuildArtifactGenerator(**kwargs)
+    return generator
+
+
+def get_code_generator(**kwargs: Any) -> CodeGenerator:
+    """Convenience function to get the code generator.
+
+    Generates project scaffolding and starter code for multiple languages
+    including Python, JavaScript/TypeScript, Go, and Java with support for
+    different project structures (monorepo, microservices, MVC).
+
+    Implements IMP-ARTIFACT-001: Missing CodeGenerator.
+
+    Args:
+        **kwargs: Arguments to pass to CodeGenerator
+
+    Returns:
+        CodeGenerator instance
+    """
+    generator = get_registry().get("code", **kwargs)
+    if generator is None:
+        # Fallback to direct instantiation
+        return CodeGenerator(**kwargs)
     return generator
 
 

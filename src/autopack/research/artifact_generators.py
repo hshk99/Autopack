@@ -1124,8 +1124,17 @@ class ProjectBriefGenerator:
         # Monetization Strategy
         content += self.generate_monetization(research_findings)
 
+        # Deployment Architecture
+        content += self._generate_deployment_architecture(research_findings, tech_stack)
+
+        # Hosting & Infrastructure Costs
+        content += self._generate_hosting_costs(research_findings)
+
         # Market Positioning
         content += self.generate_market_positioning(research_findings, competitive_data or {})
+
+        # Market Entry Plan
+        content += self._generate_market_entry_plan(research_findings)
 
         # Unit Economics
         content += self.analyze_unit_economics(research_findings)
@@ -1738,6 +1747,276 @@ class ProjectBriefGenerator:
         expansion = growth.get("expansion", "")
         if expansion:
             section += f"### Expansion Strategy\n\n{expansion}\n\n"
+
+        return section
+
+    def _generate_deployment_architecture(
+        self, research_findings: Dict[str, Any], tech_stack: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Generate deployment architecture section.
+
+        Args:
+            research_findings: Research findings dict
+            tech_stack: Optional tech stack proposal dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Deployment Architecture\n\n"
+
+        deployment = research_findings.get("deployment_architecture", {})
+        if not deployment and not tech_stack:
+            section += "### Recommended Deployment Options\n\n"
+            section += "#### Docker & Kubernetes\n"
+            section += "- **Best for**: Scalable, containerized deployments\n"
+            section += "- **Complexity**: Medium to High\n"
+            section += "- **Cost**: Moderate (depends on infrastructure)\n"
+            section += "- **Scaling**: Horizontal scaling with orchestration\n\n"
+
+            section += "#### Serverless (AWS Lambda, Google Cloud Functions)\n"
+            section += "- **Best for**: Event-driven, variable load applications\n"
+            section += "- **Complexity**: Low to Medium\n"
+            section += "- **Cost**: Pay-per-execution\n"
+            section += "- **Scaling**: Automatic, built-in\n\n"
+
+            section += "#### Platform-as-a-Service (Heroku, Vercel)\n"
+            section += "- **Best for**: Rapid development and deployment\n"
+            section += "- **Complexity**: Low\n"
+            section += "- **Cost**: Fixed monthly tiers\n"
+            section += "- **Scaling**: Limited, may require migration for enterprise\n\n"
+
+            section += "#### Virtual Machines (AWS EC2, Google Compute Engine)\n"
+            section += "- **Best for**: Full control, traditional applications\n"
+            section += "- **Complexity**: High\n"
+            section += "- **Cost**: Predictable, hourly billing\n"
+            section += "- **Scaling**: Manual or with auto-scaling groups\n\n"
+
+            return section
+
+        # Add specific deployment details if available
+        if deployment:
+            section += "### Architecture Overview\n\n"
+            if "type" in deployment:
+                section += f"**Deployment Type**: {deployment['type']}\n\n"
+            if "cloud_provider" in deployment:
+                section += f"**Cloud Provider**: {deployment['cloud_provider']}\n\n"
+
+            if "components" in deployment:
+                section += "### Components\n\n"
+                for component in deployment["components"]:
+                    if isinstance(component, dict):
+                        name = component.get("name", "Unknown")
+                        description = component.get("description", "")
+                        technology = component.get("technology", "")
+                        section += f"- **{name}**: {description}"
+                        if technology:
+                            section += f" ({technology})"
+                        section += "\n"
+                section += "\n"
+
+            if "scaling_strategy" in deployment:
+                section += "### Scaling Strategy\n\n"
+                strategy = deployment["scaling_strategy"]
+                if isinstance(strategy, dict):
+                    if "horizontal" in strategy:
+                        section += f"- **Horizontal Scaling**: {strategy['horizontal']}\n"
+                    if "vertical" in strategy:
+                        section += f"- **Vertical Scaling**: {strategy['vertical']}\n"
+                else:
+                    section += f"{strategy}\n"
+                section += "\n"
+
+            if "high_availability" in deployment:
+                section += "### High Availability\n\n"
+                ha = deployment["high_availability"]
+                if isinstance(ha, dict):
+                    if "replicas" in ha:
+                        section += f"- **Replicas**: {ha['replicas']}\n"
+                    if "failover" in ha:
+                        section += f"- **Failover**: {ha['failover']}\n"
+                else:
+                    section += f"{ha}\n"
+                section += "\n"
+
+        return section
+
+    def _generate_hosting_costs(self, research_findings: Dict[str, Any]) -> str:
+        """Generate hosting and infrastructure costs section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Hosting & Infrastructure Costs\n\n"
+
+        costs = research_findings.get("infrastructure_costs", {})
+        if not costs:
+            section += "### Cost Estimation Framework\n\n"
+            section += "#### Typical Monthly Infrastructure Costs by Scale\n\n"
+            section += "| Scale | Monthly Cost Range | Compute | Storage | Data Transfer |\n"
+            section += "|-------|-------------------|---------|---------|----------------|\n"
+            section += "| MVP (0-1k users) | $50-500 | $30-300 | $5-50 | $10-150 |\n"
+            section += "| Growth (1k-10k users) | $500-5,000 | $300-3k | $50-500 | $100-1.5k |\n"
+            section += "| Scale (10k-100k users) | $5k-50k | $3k-30k | $500-5k | $1.5k-15k |\n"
+            section += "| Enterprise (100k+ users) | $50k+ | $30k+ | $5k+ | $15k+ |\n\n"
+
+            section += "### Cost Optimization Tips\n\n"
+            section += "- **Reserved Instances**: 30-40% savings with 1-3 year commitments\n"
+            section += "- **Spot Instances**: 70-90% discount for non-critical workloads\n"
+            section += "- **Auto-scaling**: Scale down during low-traffic periods\n"
+            section += "- **CDN Usage**: Reduce bandwidth costs with content delivery networks\n"
+            section += "- **Database Optimization**: Use read replicas and connection pooling\n\n"
+
+            return section
+
+        # Add specific cost details if available
+        section += "### Monthly Cost Breakdown\n\n"
+
+        total_cost = 0
+        if "breakdown" in costs:
+            breakdown = costs["breakdown"]
+            section += "| Component | Monthly Cost | Notes |\n"
+            section += "|-----------|--------------|-------|\n"
+
+            for component, cost_info in breakdown.items():
+                if isinstance(cost_info, dict):
+                    amount = cost_info.get("amount", "$0")
+                    notes = cost_info.get("notes", "")
+                    section += f"| {component} | {amount} | {notes} |\n"
+                else:
+                    section += f"| {component} | {cost_info} | |\n"
+            section += "\n"
+
+        if "estimated_total" in costs:
+            section += f"**Estimated Monthly Total**: {costs['estimated_total']}\n\n"
+
+        if "cost_per_user" in costs:
+            section += f"**Cost Per User**: {costs['cost_per_user']}\n\n"
+
+        if "optimization_opportunities" in costs:
+            section += "### Optimization Opportunities\n\n"
+            for opportunity in costs["optimization_opportunities"]:
+                if isinstance(opportunity, dict):
+                    title = opportunity.get("title", "Opportunity")
+                    savings = opportunity.get("savings", "")
+                    implementation = opportunity.get("implementation", "")
+                    section += f"- **{title}**: {savings}\n"
+                    if implementation:
+                        section += f"  - Implementation: {implementation}\n"
+                else:
+                    section += f"- {opportunity}\n"
+            section += "\n"
+
+        return section
+
+    def _generate_market_entry_plan(self, research_findings: Dict[str, Any]) -> str:
+        """Generate market entry plan section.
+
+        Args:
+            research_findings: Research findings dict
+
+        Returns:
+            Markdown section string
+        """
+        section = "## Market Entry Plan\n\n"
+
+        plan = research_findings.get("market_entry_plan", {})
+        if not plan:
+            section += "### Go-To-Market Strategy Framework\n\n"
+            section += "#### Phase 1: Preparation (Weeks 1-4)\n\n"
+            section += "- Finalize product MVP\n"
+            section += "- Complete regulatory and legal checks\n"
+            section += "- Prepare marketing materials\n"
+            section += "- Set up analytics and tracking\n\n"
+
+            section += "#### Phase 2: Soft Launch (Weeks 5-8)\n\n"
+            section += "- Release to limited user group (beta)\n"
+            section += "- Gather initial feedback\n"
+            section += "- Make rapid iterations\n"
+            section += "- Document edge cases and bugs\n\n"
+
+            section += "#### Phase 3: Public Launch (Weeks 9-12)\n\n"
+            section += "- Announce to target market\n"
+            section += "- Execute marketing campaign\n"
+            section += "- Scale customer support\n"
+            section += "- Monitor performance and metrics\n\n"
+
+            section += "#### Phase 4: Growth (Month 4+)\n\n"
+            section += "- Expand to adjacent markets\n"
+            section += "- Optimize conversion funnel\n"
+            section += "- Build partnership ecosystem\n"
+            section += "- Plan next feature roadmap\n\n"
+
+            return section
+
+        # Add specific market entry plan if available
+        if "launch_timeline" in plan:
+            section += "### Launch Timeline\n\n"
+            timeline = plan["launch_timeline"]
+            for phase, details in timeline.items():
+                if isinstance(details, dict):
+                    duration = details.get("duration", "")
+                    activities = details.get("activities", [])
+                    section += f"**{phase}**"
+                    if duration:
+                        section += f" ({duration})"
+                    section += "\n\n"
+
+                    for activity in activities:
+                        section += f"- {activity}\n"
+                    section += "\n"
+                else:
+                    section += f"**{phase}**: {details}\n\n"
+
+        if "target_segments" in plan:
+            section += "### Target Customer Segments\n\n"
+            segments = plan["target_segments"]
+            for segment in segments:
+                if isinstance(segment, dict):
+                    name = segment.get("name", "Segment")
+                    size = segment.get("size", "")
+                    characteristics = segment.get("characteristics", [])
+                    section += f"**{name}**"
+                    if size:
+                        section += f" (~{size} market)"
+                    section += "\n\n"
+
+                    for char in characteristics:
+                        section += f"- {char}\n"
+                    section += "\n"
+                else:
+                    section += f"- {segment}\n"
+            section += "\n"
+
+        if "channels" in plan:
+            section += "### Distribution Channels\n\n"
+            channels = plan["channels"]
+            section += "| Channel | Priority | Effort | Expected Reach |\n"
+            section += "|---------|----------|--------|----------------|\n"
+
+            for channel in channels:
+                if isinstance(channel, dict):
+                    name = channel.get("name", "Channel")
+                    priority = channel.get("priority", "Medium")
+                    effort = channel.get("effort", "Medium")
+                    reach = channel.get("reach", "TBD")
+                    section += f"| {name} | {priority} | {effort} | {reach} |\n"
+            section += "\n"
+
+        if "success_metrics" in plan:
+            section += "### Success Metrics\n\n"
+            metrics = plan["success_metrics"]
+            for metric in metrics:
+                if isinstance(metric, dict):
+                    name = metric.get("name", "Metric")
+                    target = metric.get("target", "TBD")
+                    timeline = metric.get("timeline", "30 days")
+                    section += f"- **{name}**: {target} ({timeline})\n"
+                else:
+                    section += f"- {metric}\n"
+            section += "\n"
 
         return section
 

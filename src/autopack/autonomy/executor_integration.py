@@ -24,27 +24,40 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from ..approvals.service import (ApprovalRequest, ApprovalResult,
-                                 ApprovalService, ApprovalTriggerReason,
-                                 get_approval_service, should_trigger_approval)
+from ..approvals.service import (
+    ApprovalRequest,
+    ApprovalResult,
+    ApprovalService,
+    ApprovalTriggerReason,
+    get_approval_service,
+    should_trigger_approval,
+)
 from ..executor.circuit_breaker import CircuitBreaker
-from ..executor.coverage_metrics import (CoverageInfo, compute_coverage_info,
-                                         format_coverage_for_display,
-                                         should_trust_coverage)
-from ..executor.patch_correction import (CorrectedPatchResult,
-                                         PatchCorrectionTracker,
-                                         should_attempt_patch_correction)
-from ..executor.safety_profile import (SafetyProfile, derive_safety_profile,
-                                       requires_elevated_review)
-from ..executor.scope_reduction_flow import (ScopeReductionProposal,
-                                             generate_scope_reduction_proposal,
-                                             write_scope_reduction_proposal)
-from ..executor.usage_accounting import (UsageEvent, UsageTotals,
-                                         aggregate_usage,
-                                         compute_budget_remaining,
-                                         save_usage_events)
-from ..stuck_handling import (StuckHandlingPolicy, StuckReason,
-                              StuckResolutionDecision)
+from ..executor.coverage_metrics import (
+    CoverageInfo,
+    compute_coverage_info,
+    format_coverage_for_display,
+    should_trust_coverage,
+)
+from ..executor.patch_correction import (
+    CorrectedPatchResult,
+    PatchCorrectionTracker,
+    should_attempt_patch_correction,
+)
+from ..executor.safety_profile import SafetyProfile, derive_safety_profile, requires_elevated_review
+from ..executor.scope_reduction_flow import (
+    ScopeReductionProposal,
+    generate_scope_reduction_proposal,
+    write_scope_reduction_proposal,
+)
+from ..executor.usage_accounting import (
+    UsageEvent,
+    UsageTotals,
+    aggregate_usage,
+    compute_budget_remaining,
+    save_usage_events,
+)
+from ..stuck_handling import StuckHandlingPolicy, StuckReason, StuckResolutionDecision
 
 if TYPE_CHECKING:
     from ..file_layout import RunFileLayout
@@ -107,6 +120,13 @@ class ExecutorContext:
         self._escalations_used: int = 0
         self._consecutive_failures: int = 0
         self._replan_attempted: bool = False
+
+        # IMP-TRIGGER-001: Health transition tracking for task regeneration
+        self._health_states: Dict[str, bool] = (
+            {}
+        )  # Track provider health states for transition detection
+        self._last_health_transition: Optional[datetime] = None
+        self._health_transition_count: int = 0
 
         logger.debug(
             f"[ExecutorContext] Initialized for project={anchor.project_id}, run={layout.run_id}. "
@@ -580,8 +600,7 @@ class ExecutorContext:
             return False
 
         try:
-            from ..research.analysis.followup_trigger import \
-                FollowupResearchTrigger
+            from ..research.analysis.followup_trigger import FollowupResearchTrigger
 
             followup_trigger = FollowupResearchTrigger()
             trigger_result = followup_trigger.analyze(
@@ -698,6 +717,176 @@ class ExecutorContext:
         )
         return result
 
+    # === IMP-TRIGGER-001: Health Transition & Task Regeneration ===
+
+    def on_health_transition(
+        self,
+        provider_name: str,
+        new_health_state: bool,
+        trigger_task_regen: bool = True,
+    ) -> Optional[Dict[str, Any]]:
+        """Handle health transition event and optionally trigger task regeneration.
+
+        IMP-TRIGGER-001: Detects health state changes for a provider and
+        automatically triggers task regeneration to capitalize on new opportunities
+        or mitigate degradation.
+
+        Args:
+            provider_name: Name of the provider experiencing health transition
+            new_health_state: New health state (True=healthy, False=unhealthy)
+            trigger_task_regen: Whether to trigger task regeneration (default: True)
+
+        Returns:
+            Dictionary with transition details and task regeneration result,
+            or None if no transition detected
+        """
+        # Check if this is a transition (state changed)
+        previous_state = self._health_states.get(provider_name)
+        is_transition = previous_state is not None and previous_state != new_health_state
+
+        # Update tracked state
+        self._health_states[provider_name] = new_health_state
+
+        if not is_transition:
+            logger.debug(
+                f"[IMP-TRIGGER-001] Health state for {provider_name} unchanged: {new_health_state}"
+            )
+            return None
+
+        # Log transition
+        transition_type = "recovered" if new_health_state else "degraded"
+        self._last_health_transition = datetime.now(timezone.utc)
+        self._health_transition_count += 1
+
+        logger.info(
+            f"[IMP-TRIGGER-001] Health transition detected for {provider_name}: "
+            f"{transition_type} (was {previous_state}, now {new_health_state}). "
+            f"Total transitions: {self._health_transition_count}"
+        )
+
+        # Trigger task regeneration if enabled
+        task_regen_result = None
+        if trigger_task_regen:
+            task_regen_result = self.trigger_task_regeneration(
+                trigger_reason=f"health_{transition_type}",
+                provider_name=provider_name,
+            )
+
+        return {
+            "provider_name": provider_name,
+            "previous_state": previous_state,
+            "new_state": new_health_state,
+            "transition_type": transition_type,
+            "timestamp": self._last_health_transition.isoformat(),
+            "task_regeneration": task_regen_result,
+        }
+
+    def trigger_task_regeneration(
+        self,
+        trigger_reason: str,
+        provider_name: Optional[str] = None,
+        db_session: Optional[Any] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Trigger immediate task regeneration via TelemetryTaskDaemon.
+
+        IMP-TRIGGER-001: Uses the telemetry-to-task daemon to automatically
+        generate new tasks in response to health state changes.
+
+        Args:
+            trigger_reason: Reason for regeneration (e.g., "health_recovered")
+            provider_name: Optional provider name that triggered regeneration
+            db_session: Optional database session (lazy-initialized if None)
+
+        Returns:
+            Dictionary with regeneration result (cycle metrics) or None on error
+        """
+        try:
+            from ..roadc.task_daemon import TelemetryTaskDaemon
+
+            # Create daemon with appropriate configuration
+            daemon = TelemetryTaskDaemon(
+                db_session=db_session,
+                interval_seconds=300,  # Not used for run_once()
+                min_confidence=0.65,  # Slightly lower confidence for triggered regeneration
+                max_tasks_per_cycle=3,  # Limit tasks to avoid overwhelming executor
+                project_id=self.anchor.project_id,
+                auto_persist=True,
+                auto_queue=True,
+            )
+
+            # Run a single cycle immediately
+            logger.debug(
+                f"[IMP-TRIGGER-001] Triggering task regeneration: reason={trigger_reason}, "
+                f"provider={provider_name}"
+            )
+
+            cycle_result = daemon.run_once()
+
+            # Convert result to dictionary
+            regen_result = {
+                "cycle_number": cycle_result.cycle_number,
+                "timestamp": cycle_result.timestamp.isoformat(),
+                "trigger_reason": trigger_reason,
+                "provider_name": provider_name,
+                "insights_found": cycle_result.insights_found,
+                "tasks_generated": cycle_result.tasks_generated,
+                "tasks_persisted": cycle_result.tasks_persisted,
+                "tasks_queued": cycle_result.tasks_queued,
+                "cycle_duration_ms": cycle_result.cycle_duration_ms,
+                "error": cycle_result.error,
+                "skipped_reason": cycle_result.skipped_reason,
+            }
+
+            if cycle_result.error:
+                logger.warning(
+                    f"[IMP-TRIGGER-001] Task regeneration cycle {cycle_result.cycle_number} "
+                    f"failed: {cycle_result.error}"
+                )
+            elif cycle_result.skipped_reason:
+                logger.debug(
+                    f"[IMP-TRIGGER-001] Task regeneration cycle {cycle_result.cycle_number} "
+                    f"skipped: {cycle_result.skipped_reason}"
+                )
+            else:
+                logger.info(
+                    f"[IMP-TRIGGER-001] Task regeneration completed: "
+                    f"{cycle_result.insights_found} insights -> {cycle_result.tasks_generated} tasks "
+                    f"({cycle_result.tasks_persisted} persisted, {cycle_result.tasks_queued} queued)"
+                )
+
+            return regen_result
+
+        except ImportError as e:
+            logger.warning(
+                f"[IMP-TRIGGER-001] TelemetryTaskDaemon not available: {e}. "
+                f"Task regeneration cannot be triggered."
+            )
+            return None
+        except Exception as e:
+            logger.error(
+                f"[IMP-TRIGGER-001] Error triggering task regeneration: {e}. "
+                f"Reason: {trigger_reason}, Provider: {provider_name}"
+            )
+            return None
+
+    def get_health_transition_metrics(self) -> Dict[str, Any]:
+        """Get metrics about health transitions and task regeneration.
+
+        IMP-TRIGGER-001: Provides observability into health-driven task regeneration.
+
+        Returns:
+            Dictionary with health transition metrics
+        """
+        return {
+            "health_states_tracked": len(self._health_states),
+            "healthy_providers": sum(1 for state in self._health_states.values() if state),
+            "degraded_providers": sum(1 for state in self._health_states.values() if not state),
+            "total_transitions": self._health_transition_count,
+            "last_transition": (
+                self._last_health_transition.isoformat() if self._last_health_transition else None
+            ),
+        }
+
     # === Integration Helpers ===
 
     def should_block_action(self, action_risk_score: float) -> bool:
@@ -774,11 +963,13 @@ class ExecutorContext:
         """Generate summary for logging/artifacts.
 
         IMP-RESEARCH-001: Includes budget status in summary.
+        IMP-TRIGGER-001: Includes health transition metrics in summary.
 
         Returns:
             Summary dictionary
         """
         budget_status = self.get_budget_status()
+        health_metrics = self.get_health_transition_metrics()
         return {
             "project_id": self.anchor.project_id,
             "run_id": self.layout.run_id,
@@ -792,6 +983,7 @@ class ExecutorContext:
             "escalations_used": self._escalations_used,
             "consecutive_failures": self._consecutive_failures,
             "replan_attempted": self._replan_attempted,
+            "health_transitions": health_metrics,
         }
 
 

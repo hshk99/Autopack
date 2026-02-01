@@ -66,6 +66,7 @@ from .freshness_filter import (
 )
 from .insight_retrieval import InsightRetriever
 from .memory_patterns import (
+    ProjectNamespaceError,  # noqa: F401 - Re-exported for public API
     ProjectNamespaceMiddleware,
     SafeOperationExecutor,
 )

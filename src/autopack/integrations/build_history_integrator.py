@@ -21,6 +21,10 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from autopack.integrations.pattern_library import PatternLibrary, ReusablePattern
+    from autopack.research.analysis.build_history_analyzer import (
+        BuildHistoryAnalysisResult,
+        FeasibilityFeedback,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +67,47 @@ class BuildHistoryInsight:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class ResearchContextEnrichment:
+    """Research context enriched with build history data.
+
+    This class bridges build history insights with the research pipeline,
+    providing historical context for research decisions.
+    """
+
+    feasibility_adjustment: float  # -1.0 to 1.0
+    confidence: float  # 0.0 to 1.0
+    historical_success_rate: float  # 0.0 to 1.0
+    recommended_research_scope: str  # "minimal", "standard", "comprehensive"
+    risk_factors: List[str] = field(default_factory=list)
+    success_factors: List[str] = field(default_factory=list)
+    cost_optimization_tips: List[str] = field(default_factory=list)
+    time_estimate_adjustment_percent: float = 0.0
+    research_focus_areas: List[str] = field(default_factory=list)
+
+
+@dataclass
+class BuildInformedMetrics:
+    """Metrics tracking build-informed decisions."""
+
+    total_research_sessions: int = 0
+    sessions_using_build_history: int = 0
+    avg_research_time_saved_percent: float = 0.0
+    successful_pattern_applications: int = 0
+    failed_pattern_applications: int = 0
+    avg_feasibility_adjustment: float = 0.0
+    recommendation_acceptance_rate: float = 0.0
+
+
 class BuildHistoryIntegrator:
-    """Integrates BUILD_HISTORY with research system."""
+    """Integrates BUILD_HISTORY with research system.
+
+    This integrator bridges build history with the research pipeline by:
+    1. Extracting historical patterns and feasibility signals
+    2. Wiring build data into research context for informed decisions
+    3. Generating recommendations based on historical success patterns
+    4. Tracking metrics for build-informed decision effectiveness
+    """
 
     def __init__(
         self,
@@ -81,6 +124,10 @@ class BuildHistoryIntegrator:
         self._cache: Optional[BuildHistoryInsight] = None
         self._cache_time: Optional[datetime] = None
         self._pattern_library = pattern_library
+        self._metrics = BuildInformedMetrics()
+
+        # Lazy-load BuildHistoryAnalyzer when needed
+        self._analyzer: Optional[Any] = None
 
     def get_insights_for_task(
         self, task_description: str, category: Optional[str] = None
@@ -553,3 +600,423 @@ class BuildHistoryIntegrator:
             return
 
         self._pattern_library.record_pattern_application(pattern_id, success)
+
+    def _get_analyzer(self) -> Any:
+        """Get or create BuildHistoryAnalyzer instance."""
+        if self._analyzer is None:
+            try:
+                from autopack.research.analysis.build_history_analyzer import BuildHistoryAnalyzer
+
+                self._analyzer = BuildHistoryAnalyzer(build_history_path=self.build_history_path)
+            except ImportError:
+                logger.warning("BuildHistoryAnalyzer not available, some features will be limited")
+                return None
+        return self._analyzer
+
+    def enrich_research_context(
+        self,
+        task_description: str,
+        category: Optional[str] = None,
+        project_type: Optional[str] = None,
+        tech_stack: Optional[List[str]] = None,
+    ) -> ResearchContextEnrichment:
+        """Enrich research context with build history data.
+
+        This method wires historical build patterns into the research pipeline
+        to inform research scope, focus areas, and expectations.
+
+        Args:
+            task_description: Description of the task for research
+            category: Optional task category for filtering
+            project_type: Optional project type for feasibility assessment
+            tech_stack: Optional list of technologies involved
+
+        Returns:
+            ResearchContextEnrichment with historical data
+        """
+        analyzer = self._get_analyzer()
+        if analyzer is None:
+            # Return neutral enrichment if analyzer unavailable
+            return ResearchContextEnrichment(
+                feasibility_adjustment=0.0,
+                confidence=0.0,
+                historical_success_rate=0.5,
+                recommended_research_scope="standard",
+            )
+
+        # Get analysis from build history
+        analysis_result = analyzer.analyze(project_type=project_type, tech_stack=tech_stack)
+
+        # Get basic insights
+        insights = self.get_insights_for_task(task_description, category)
+
+        # Calculate feasibility adjustment from signals
+        feasibility_adjustment = 0.0
+        confidence = 0.0
+        if analysis_result.feasibility_signals:
+            total_weight = sum(s.confidence for s in analysis_result.feasibility_signals)
+            if total_weight > 0:
+                weighted_adjustment = sum(
+                    (s.signal_value - 0.5) * s.confidence for s in analysis_result.feasibility_signals
+                )
+                feasibility_adjustment = (weighted_adjustment / total_weight) * 0.3
+                confidence = min(total_weight / len(analysis_result.feasibility_signals), 1.0)
+
+        # Determine research scope
+        recommended_scope = self._determine_research_scope(
+            analysis_result.overall_success_rate, insights, feasibility_adjustment
+        )
+
+        # Extract risk and success factors
+        risk_factors = [
+            w for w in analysis_result.warnings[:3]
+        ]  # Top 3 warnings are risk factors
+        success_factors = self._extract_success_factors(analysis_result)
+
+        # Get cost optimization tips
+        cost_tips = analysis_result.cost_effectiveness.cost_optimization_opportunities
+
+        # Calculate time estimate adjustment
+        time_adjustment = 0.0
+        if analysis_result.avg_time_estimate_accuracy > 0:
+            # If historical estimates are poor, we need more research time
+            time_adjustment = max(-20.0, (1.0 - analysis_result.avg_time_estimate_accuracy) * 50)
+
+        # Identify research focus areas
+        focus_areas = self._identify_research_focus_areas(
+            analysis_result, insights, category
+        )
+
+        self._metrics.sessions_using_build_history += 1
+        self._metrics.avg_feasibility_adjustment = (
+            (self._metrics.avg_feasibility_adjustment * (self._metrics.sessions_using_build_history - 1) +
+             feasibility_adjustment)
+            / self._metrics.sessions_using_build_history
+        )
+
+        return ResearchContextEnrichment(
+            feasibility_adjustment=feasibility_adjustment,
+            confidence=confidence,
+            historical_success_rate=analysis_result.overall_success_rate,
+            recommended_research_scope=recommended_scope,
+            risk_factors=risk_factors,
+            success_factors=success_factors,
+            cost_optimization_tips=cost_tips[:5],
+            time_estimate_adjustment_percent=time_adjustment,
+            research_focus_areas=focus_areas,
+        )
+
+    def _determine_research_scope(
+        self,
+        success_rate: float,
+        insights: BuildHistoryInsights,
+        feasibility_adjustment: float,
+    ) -> str:
+        """Determine recommended research scope based on history.
+
+        Args:
+            success_rate: Historical success rate (0-1)
+            insights: Build history insights
+            feasibility_adjustment: Feasibility adjustment factor (-1 to 1)
+
+        Returns:
+            Recommended scope: "minimal", "standard", or "comprehensive"
+        """
+        # Low success rate or many pitfalls = comprehensive
+        if success_rate < 0.5 or len(insights.common_pitfalls) >= 3:
+            return "comprehensive"
+
+        # Negative adjustment = comprehensive
+        if feasibility_adjustment < -0.1:
+            return "comprehensive"
+
+        # High success rate = minimal
+        if success_rate > 0.8 and len(insights.common_pitfalls) < 2:
+            return "minimal"
+
+        # Default to standard
+        return "standard"
+
+    def _extract_success_factors(self, analysis_result: "BuildHistoryAnalysisResult") -> List[str]:
+        """Extract factors that correlate with success.
+
+        Args:
+            analysis_result: Build history analysis result
+
+        Returns:
+            List of success factors
+        """
+        factors = []
+
+        # Extract from recommendations
+        if analysis_result.recommendations:
+            for rec in analysis_result.recommendations[:2]:
+                if any(
+                    word in rec.lower()
+                    for word in ["success", "high", "positive", "leverage", "prioritize"]
+                ):
+                    factors.append(rec)
+
+        # Extract from signals
+        for signal in analysis_result.feasibility_signals:
+            if signal.signal_value > 0.7 and signal.confidence > 0.5:
+                factors.append(f"{signal.signal_type.value}: {signal.supporting_evidence[0]}")
+
+        return factors[:5]
+
+    def _identify_research_focus_areas(
+        self,
+        analysis_result: "BuildHistoryAnalysisResult",
+        insights: BuildHistoryInsights,
+        category: Optional[str],
+    ) -> List[str]:
+        """Identify key research focus areas based on history.
+
+        Args:
+            analysis_result: Build history analysis result
+            insights: Build history insights
+            category: Task category
+
+        Returns:
+            List of recommended research focus areas
+        """
+        focus_areas = []
+
+        # Focus on high-risk areas
+        if analysis_result.warnings:
+            focus_areas.append("Risk mitigation strategies")
+
+        # Focus on common issues if many failures
+        if insights.common_pitfalls:
+            focus_areas.append("Avoiding common pitfalls")
+
+        # Focus on optimization if cost issues
+        if (
+            analysis_result.cost_effectiveness.cost_overrun_rate > 0.3
+            or analysis_result.cost_effectiveness.high_cost_factors
+        ):
+            focus_areas.append("Cost optimization approaches")
+
+        # Focus on time estimation if poor accuracy
+        if analysis_result.avg_time_estimate_accuracy < 0.6:
+            focus_areas.append("Realistic timeline planning")
+
+        # Add category-specific focus
+        if category:
+            focus_areas.append(f"Best practices for {category} tasks")
+
+        return focus_areas[:5]
+
+    def get_research_recommendations_from_history(
+        self,
+        task_description: str,
+        category: Optional[str] = None,
+        project_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get research recommendations informed by build history.
+
+        This method generates recommendations for how to approach research
+        based on patterns identified in the build history.
+
+        Args:
+            task_description: Description of the task
+            category: Optional task category
+            project_type: Optional project type
+
+        Returns:
+            Dictionary with research recommendations
+        """
+        insights = self.get_insights_for_task(task_description, category)
+        analyzer = self._get_analyzer()
+
+        if analyzer is None:
+            return {
+                "research_approach": "standard",
+                "research_agents": [],
+                "validation_requirements": [],
+                "estimated_research_time_hours": 4,
+            }
+
+        analysis = analyzer.analyze(project_type=project_type)
+
+        # Determine research agents to use based on history
+        agents = self._recommend_research_agents(
+            insights, analysis, category
+        )
+
+        # Determine validation requirements
+        validation_reqs = self._determine_validation_requirements(
+            insights, analysis
+        )
+
+        # Estimate research time
+        estimated_time = self._estimate_research_time(
+            insights, analysis
+        )
+
+        return {
+            "research_approach": self._determine_research_scope(
+                analysis.overall_success_rate, insights, 0.0
+            ),
+            "research_agents": agents,
+            "validation_requirements": validation_reqs,
+            "estimated_research_time_hours": estimated_time,
+            "cost_research_priority": "high"
+            if analysis.cost_effectiveness.cost_overrun_rate > 0.3
+            else "standard",
+            "feasibility_research_priority": "high"
+            if analysis.overall_success_rate < 0.6
+            else "standard",
+        }
+
+    def _recommend_research_agents(
+        self,
+        insights: BuildHistoryInsights,
+        analysis: "BuildHistoryAnalysisResult",
+        category: Optional[str],
+    ) -> List[str]:
+        """Recommend which research agents to prioritize.
+
+        Args:
+            insights: Build history insights
+            analysis: Build history analysis result
+            category: Task category
+
+        Returns:
+            List of recommended research agent types
+        """
+        agents = []
+
+        # Add feasibility research if low success rate
+        if analysis.overall_success_rate < 0.6:
+            agents.append("product_feasibility_agent")
+
+        # Add cost research if high overruns
+        if analysis.cost_effectiveness.cost_overrun_rate > 0.3:
+            agents.append("cost_effectiveness_analyzer")
+
+        # Add competitive research if mentioned in warnings
+        if any("compet" in w.lower() for w in analysis.warnings):
+            agents.append("competitive_analysis_agent")
+
+        # Add market research if category suggests
+        if category and any(kw in category.lower() for kw in ["market", "demand", "trend"]):
+            agents.append("market_research_agent")
+
+        # Add tech stack research if issues detected
+        if any(tech in " ".join(a for a in analysis.metrics_by_tech_stack.keys())
+               for tech in ["deprecated", "experimental"]):
+            agents.append("technical_feasibility_agent")
+
+        return agents[:5] if agents else ["general_research_agent"]
+
+    def _determine_validation_requirements(
+        self,
+        insights: BuildHistoryInsights,
+        analysis: "BuildHistoryAnalysisResult",
+    ) -> List[str]:
+        """Determine validation requirements based on history.
+
+        Args:
+            insights: Build history insights
+            analysis: Build history analysis result
+
+        Returns:
+            List of validation requirements
+        """
+        requirements = []
+
+        # Require citation validation if many common issues
+        if len(insights.common_pitfalls) > 2:
+            requirements.append("citation_validation")
+
+        # Require evidence validation if low success rate
+        if analysis.overall_success_rate < 0.5:
+            requirements.append("evidence_validation")
+
+        # Require quality validation if cost overruns
+        if analysis.cost_effectiveness.cost_overrun_rate > 0.5:
+            requirements.append("quality_validation")
+
+        # Require recency validation for tech stack decisions
+        if analysis.metrics_by_tech_stack:
+            requirements.append("recency_validation")
+
+        return requirements if requirements else ["standard_validation"]
+
+    def _estimate_research_time(
+        self,
+        insights: BuildHistoryInsights,
+        analysis: "BuildHistoryAnalysisResult",
+    ) -> float:
+        """Estimate research time needed based on history.
+
+        Args:
+            insights: Build history insights
+            analysis: Build history analysis result
+
+        Returns:
+            Estimated research time in hours
+        """
+        base_time = 4.0  # Standard research is 4 hours
+
+        # Increase if low success rate
+        if analysis.overall_success_rate < 0.5:
+            base_time += 4.0
+
+        # Increase if many common pitfalls
+        base_time += min(len(insights.common_pitfalls) * 0.5, 2.0)
+
+        # Increase if cost overruns common
+        if analysis.cost_effectiveness.cost_overrun_rate > 0.5:
+            base_time += 2.0
+
+        # Reduce if high success rate and no issues
+        if (
+            analysis.overall_success_rate > 0.8
+            and len(insights.common_pitfalls) == 0
+        ):
+            base_time = 2.0
+
+        return base_time
+
+    def get_metrics(self) -> BuildInformedMetrics:
+        """Get current metrics for build-informed decisions.
+
+        Returns:
+            Current build-informed metrics
+        """
+        return self._metrics
+
+    def record_decision_outcome(
+        self,
+        decision_id: str,
+        was_successful: bool,
+        pattern_applied: Optional[str] = None,
+    ) -> None:
+        """Record the outcome of a build-informed decision.
+
+        Args:
+            decision_id: Identifier for the decision
+            was_successful: Whether the decision resulted in success
+            pattern_applied: Optional pattern ID that was applied
+        """
+        if pattern_applied:
+            if was_successful:
+                self._metrics.successful_pattern_applications += 1
+            else:
+                self._metrics.failed_pattern_applications += 1
+
+            total_apps = (
+                self._metrics.successful_pattern_applications +
+                self._metrics.failed_pattern_applications
+            )
+            if total_apps > 0:
+                self._metrics.recommendation_acceptance_rate = (
+                    self._metrics.successful_pattern_applications / total_apps
+                )
+
+        logger.info(
+            f"Recorded build-informed decision outcome: {decision_id} "
+            f"(success={was_successful}, pattern={pattern_applied})"
+        )

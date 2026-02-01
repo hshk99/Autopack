@@ -5,6 +5,7 @@ omit =
     */tests/*
     */__pycache__/*
     */migrations/*
+    tests/docs/*
 
 [report]
 fail_under = 70

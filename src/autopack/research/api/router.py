@@ -351,6 +351,145 @@ def bootstrap_guard(func):
 
 
 # =============================================================================
+# Objective Validation (IMP-SCHEMA-008)
+# =============================================================================
+
+
+def validate_objective_format(objective: str, index: int) -> None:
+    """Validate the format and content of a single objective.
+
+    Args:
+        objective: The objective string to validate
+        index: Index of the objective in the list (for error messages)
+
+    Raises:
+        ValueError: If the objective format is invalid
+    """
+    if not isinstance(objective, str):
+        raise ValueError(
+            f"Objective at index {index}: Must be a string, got {type(objective).__name__}"
+        )
+
+    stripped = objective.strip()
+    if not stripped:
+        raise ValueError(f"Objective at index {index}: Cannot be empty or whitespace only")
+
+    # Check for meaningful content (no single words, must have substance)
+    words = stripped.split()
+    if len(words) < 2:
+        raise ValueError(
+            f"Objective at index {index}: Must contain at least 2 words for meaningful content"
+        )
+
+
+def _infer_research_type(title: str, description: str) -> str:
+    """Infer the research type from title and description.
+
+    Args:
+        title: Research session title
+        description: Research session description
+
+    Returns:
+        Inferred research type (general, technical, market, competitive, feasibility)
+    """
+    combined = (title + " " + description).lower()
+
+    # Check for research type keywords in priority order
+    # Competitive research is checked first to avoid conflict with market
+    if any(kw in combined for kw in ["competitor", "competitive", "comparison", "vs "]):
+        return "competitive"
+
+    # Market research
+    if any(kw in combined for kw in ["market", "customer", "demand", "growth", "size", "user"]):
+        return "market"
+
+    # Feasibility research is checked before technical to avoid conflict with "implement"
+    if any(kw in combined for kw in ["feasibility", "viable", "capability", "complexity"]):
+        return "feasibility"
+
+    # Technical research (checked last to avoid conflicts)
+    if any(
+        kw in combined
+        for kw in ["technical", "architecture", "implementation", "build", "technology"]
+    ):
+        return "technical"
+
+    return "general"
+
+
+def validate_objective_compatibility(
+    objectives: List[str], research_type: str = "general"
+) -> List[str]:
+    """Validate objectives for compatibility with research type.
+
+    Args:
+        objectives: List of objective strings to validate
+        research_type: Type of research (general, technical, market, competitive, etc.)
+
+    Returns:
+        List of validation warnings if any
+
+    Raises:
+        ValueError: If objectives are incompatible with research type
+    """
+    warnings = []
+
+    if not objectives:
+        return warnings
+
+    # Basic research type validation
+    valid_types = {"general", "technical", "market", "competitive", "feasibility"}
+    research_type = research_type.lower() if research_type else "general"
+
+    if research_type not in valid_types:
+        logger.warning(
+            f"Unknown research type '{research_type}'. Valid types: {valid_types}. "
+            f"Defaulting to 'general' validation."
+        )
+        research_type = "general"
+
+    # Validate based on research type
+    if research_type == "technical":
+        # Technical research should have specific keywords
+        tech_keywords = {"implement", "build", "develop", "architecture", "design", "technical"}
+        tech_count = sum(1 for obj in objectives if any(kw in obj.lower() for kw in tech_keywords))
+        if tech_count == 0 and len(objectives) > 0:
+            warnings.append(
+                "Technical research detected but objectives lack technical keywords "
+                "(implement, build, develop, architecture, design, technical). "
+                "Ensure objectives align with technical research."
+            )
+
+    elif research_type == "market":
+        # Market research should reference market, customers, size, etc.
+        market_keywords = {"market", "customer", "user", "demand", "size", "growth"}
+        market_count = sum(
+            1 for obj in objectives if any(kw in obj.lower() for kw in market_keywords)
+        )
+        if market_count == 0 and len(objectives) > 0:
+            warnings.append(
+                "Market research detected but objectives lack market-related keywords "
+                "(market, customer, user, demand, size, growth). "
+                "Ensure objectives align with market research."
+            )
+
+    elif research_type == "competitive":
+        # Competitive research should reference competitors, alternatives, etc.
+        competitive_keywords = {"competitor", "alternative", "competitive", "market", "position"}
+        competitive_count = sum(
+            1 for obj in objectives if any(kw in obj.lower() for kw in competitive_keywords)
+        )
+        if competitive_count == 0 and len(objectives) > 0:
+            warnings.append(
+                "Competitive research detected but objectives lack competitive keywords "
+                "(competitor, alternative, competitive, market, position). "
+                "Ensure objectives align with competitive research."
+            )
+
+    return warnings
+
+
+# =============================================================================
 # Anchor Serialization Validation
 # =============================================================================
 
@@ -732,10 +871,66 @@ class FullSessionRequest(BaseModel):
     @field_validator("objectives")
     @classmethod
     def validate_objectives(cls, v: List[str]) -> List[str]:
-        """Validate objectives list."""
+        """Validate objectives list.
+
+        Validates:
+        - Minimum of 1 objective when objectives are provided
+        - Maximum of 10 objectives
+        - Each objective is a non-empty string with 10-500 characters
+        - No duplicate objectives
+
+        Returns:
+            Cleaned and validated list of objectives
+
+        Raises:
+            ValueError: If validation fails
+        """
+        # Return empty list if not provided
+        if not v:
+            return []
+
+        # Check maximum count
         if len(v) > 10:
             raise ValueError("Maximum 10 objectives allowed")
-        return [obj.strip() for obj in v if obj.strip()]
+
+        # Validate each objective
+        cleaned_objectives = []
+        seen_objectives = set()
+
+        for i, obj in enumerate(v):
+            # Strip whitespace
+            obj_stripped = obj.strip() if isinstance(obj, str) else str(obj).strip()
+
+            # Validate non-empty
+            if not obj_stripped:
+                raise ValueError(f"Objective at index {i}: Cannot be empty or whitespace only")
+
+            # Validate length
+            if len(obj_stripped) < 10:
+                raise ValueError(
+                    f"Objective at index {i}: Must be at least 10 characters long "
+                    f"(got {len(obj_stripped)})"
+                )
+
+            if len(obj_stripped) > 500:
+                raise ValueError(
+                    f"Objective at index {i}: Must not exceed 500 characters "
+                    f"(got {len(obj_stripped)})"
+                )
+
+            # Check for duplicates (case-insensitive, whitespace-normalized)
+            # Normalize whitespace for duplicate detection: convert multiple spaces to single space
+            obj_normalized = " ".join(obj_stripped.split()).lower()
+            if obj_normalized in seen_objectives:
+                raise ValueError(
+                    f"Objective at index {i}: Duplicate objective detected. "
+                    f"Each objective must be unique"
+                )
+
+            seen_objectives.add(obj_normalized)
+            cleaned_objectives.append(obj_stripped)
+
+        return cleaned_objectives
 
 
 class FullSessionResponse(BaseModel):
@@ -804,12 +999,17 @@ async def start_full_session(request: FullSessionRequest):
     This endpoint is only accessible in FULL mode and includes safety gates:
     - Rate limiting (configurable via RESEARCH_API_RATE_LIMIT)
     - Audit logging (configurable via RESEARCH_API_AUDIT_LOGGING)
+    - Objective field validation (format, structure, and compatibility)
 
     Args:
         request: FullSessionRequest with title, description, and objectives
 
     Returns:
         FullSessionResponse with session_id and status
+
+    Raises:
+        HTTPException: If objectives fail validation (status 400)
+        HTTPException: If session creation fails (status 500)
     """
     if not _bootstrap_available or not _orchestrator:
         raise HTTPException(
@@ -817,11 +1017,69 @@ async def start_full_session(request: FullSessionRequest):
             detail="Research components not available. Check server logs.",
         )
 
+    # Validate objective field structure
+    try:
+        # Check if objectives are provided
+        if not request.objectives:
+            logger.warning(
+                f"[FULL_MODE] Session start attempt with no objectives: title='{request.title}'"
+            )
+            raise HTTPException(
+                status_code=400,
+                detail="At least one objective is required for a research session. "
+                "Objectives help guide the research direction and focus.",
+            )
+
+        # Validate each objective format
+        for i, objective in enumerate(request.objectives):
+            try:
+                validate_objective_format(objective, i)
+            except ValueError as e:
+                logger.warning(f"[FULL_MODE] Objective format validation failed: {e}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Objective validation failed: {str(e)}",
+                )
+
+        # Check objective compatibility with session context
+        # (inferred from title and description)
+        research_type = _infer_research_type(request.title, request.description)
+        compatibility_warnings = validate_objective_compatibility(request.objectives, research_type)
+
+        # Log warnings but don't fail on them
+        for warning in compatibility_warnings:
+            logger.info(f"[FULL_MODE] Objective compatibility warning: {warning}")
+
+        # Log successful objective validation
+        logger.info(
+            f"[FULL_MODE] Objectives validated successfully: "
+            f"count={len(request.objectives)}, "
+            f"research_type={research_type}"
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors)
+        raise
+    except Exception as e:
+        logger.error(f"[FULL_MODE] Unexpected error during objective validation: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to validate objectives: {str(e)}",
+        )
+
+    # Create the research session
     try:
         session_id = _orchestrator.start_session(
             intent_title=request.title,
             intent_description=request.description,
             intent_objectives=request.objectives,
+        )
+
+        logger.info(
+            f"[FULL_MODE] Full research session created: "
+            f"session_id={session_id}, "
+            f"title='{request.title[:50]}...', "
+            f"objectives={len(request.objectives)}"
         )
 
         return FullSessionResponse(

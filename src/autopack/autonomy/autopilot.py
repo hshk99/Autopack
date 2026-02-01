@@ -17,6 +17,8 @@ BUILD-181 Integration:
 IMP-REL-001: Health-gated task generation with auto-resume support.
 """
 
+from __future__ import annotations
+
 import asyncio
 import copy
 import logging

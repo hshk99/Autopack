@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
 if TYPE_CHECKING:
     from ..telemetry.meta_metrics import FeedbackLoopHealth
+    from .approval_service import ApprovalService
 
 from ..file_layout import RunFileLayout
 from ..gaps.scanner import scan_workspace
@@ -1632,6 +1633,94 @@ class AutopilotController:
 
         logger.info(f"[Autopilot] Blocked: {self.session.blocked_reason}")
 
+    def _validate_approval_ids(
+        self, approval_ids: list[str], approval_svc: ApprovalService
+    ) -> tuple[list[str], list[str]]:
+        """Validate approval IDs before processing.
+
+        IMP-REL-008: Comprehensive approval ID validation with format checking,
+        database lookup, and error handling.
+
+        Args:
+            approval_ids: List of approval IDs to validate
+            approval_svc: ApprovalService instance for lookups
+
+        Returns:
+            Tuple of (valid_ids, invalid_ids)
+        """
+        valid_ids = []
+        invalid_ids = []
+
+        logger.info(
+            f"[IMP-REL-008] Validating {len(approval_ids)} approval IDs: "
+            f"{approval_ids[:3]}{'...' if len(approval_ids) > 3 else ''}"
+        )
+
+        for approval_id in approval_ids:
+            validation_error = self._validate_single_approval_id(approval_id, approval_svc)
+            if validation_error:
+                logger.warning(
+                    f"[IMP-REL-008] Invalid approval ID '{approval_id}': {validation_error}"
+                )
+                invalid_ids.append(approval_id)
+            else:
+                logger.debug(f"[IMP-REL-008] Approval ID '{approval_id}' is valid")
+                valid_ids.append(approval_id)
+
+        if invalid_ids:
+            logger.error(
+                f"[IMP-REL-008] Found {len(invalid_ids)} invalid approval IDs: "
+                f"{invalid_ids[:5]}{'...' if len(invalid_ids) > 5 else ''}"
+            )
+        else:
+            logger.info(f"[IMP-REL-008] All {len(valid_ids)} approval IDs validated successfully")
+
+        return valid_ids, invalid_ids
+
+    def _validate_single_approval_id(
+        self, approval_id: str, approval_svc: ApprovalService
+    ) -> Optional[str]:
+        """Validate a single approval ID.
+
+        IMP-REL-008: Check format, existence in approval service, and consistency.
+
+        Args:
+            approval_id: Approval ID to validate
+            approval_svc: ApprovalService instance
+
+        Returns:
+            None if valid, error message if invalid
+        """
+        # Step 1: Check format - must be non-empty string
+        if not approval_id:
+            return "Approval ID cannot be empty"
+
+        if not isinstance(approval_id, str):
+            return f"Approval ID must be string, got {type(approval_id).__name__}"
+
+        approval_id = approval_id.strip()
+        if not approval_id:
+            return "Approval ID is whitespace-only"
+
+        # Step 2: Check if approval exists in the approval service
+        # Look through all decisions to verify this ID exists
+        if not hasattr(approval_svc, "queue"):
+            return "Approval service has no queue attribute"
+
+        decision_ids = {d.action_id for d in approval_svc.queue.decisions}
+
+        if approval_id not in decision_ids:
+            return "Approval ID not found in approval service decisions"
+
+        # Step 3: Check if the decision is actually "approved"
+        for decision in approval_svc.queue.decisions:
+            if decision.action_id == approval_id:
+                if decision.decision != "approve":
+                    return f"Approval ID has decision '{decision.decision}', " "not 'approve'"
+                break
+
+        return None
+
     def _execute_bounded_batch(self, proposal: PlanProposalV1) -> None:
         """Execute bounded batch of auto-approved actions.
 
@@ -1966,6 +2055,24 @@ class AutopilotController:
             return 0
 
         logger.info(f"[IMP-FEAT-004] Found {len(approved_ids)} approved actions")
+
+        # IMP-REL-008: Validate approval IDs before processing
+        valid_ids, invalid_ids = self._validate_approval_ids(approved_ids, approval_svc)
+
+        if invalid_ids:
+            logger.error(
+                f"[IMP-REL-008] Execution blocked: {len(invalid_ids)} invalid approval IDs"
+            )
+            # Continue with only valid IDs
+            approved_ids = valid_ids
+
+        if not approved_ids:
+            logger.error(
+                "[IMP-REL-008] All approval IDs were invalid. No valid actions to execute."
+            )
+            return 0
+
+        logger.info(f"[IMP-REL-008] Proceeding with {len(approved_ids)} valid approval IDs")
 
         # Step 1: Load the original session to get plan_proposal_id
         session_path = self.layout.base_dir / "autonomy" / f"{session_id}.json"

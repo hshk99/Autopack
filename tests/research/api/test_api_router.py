@@ -8,18 +8,11 @@ Tests the objective field validation in the full research session endpoint:
 - Logging of validation failures
 """
 
-import os
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-from fastapi import HTTPException
-from fastapi.testclient import TestClient
 
 from autopack.research.api.router import (
     FullSessionRequest,
-    ResearchAPIMode,
     _infer_research_type,
-    research_router,
     validate_objective_compatibility,
     validate_objective_format,
 )

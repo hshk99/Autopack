@@ -80,7 +80,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["autopack*", "memory*"]
+include = ["autopack*", "memory*", "discovery*", "research*", "automation*", "decision_logging*", "feedback*", "telemetry*"]
 
 [tool.black]
 line-length = 100

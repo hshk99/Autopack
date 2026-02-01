@@ -9,7 +9,6 @@ Tests for:
 from __future__ import annotations
 
 import re
-from unittest.mock import MagicMock, patch
 
 import pytest
 

@@ -31,25 +31,44 @@ from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 # IMP-MEM-005: Import retrieval quality tracker for metrics collection
 from ..telemetry.meta_metrics import RetrievalQualityTracker
+
 # IMP-LOOP-034: Import confidence manager for decay lifecycle
 from .confidence_manager import ConfidenceManager
+
 # IMP-MAINT-003: Import extracted helper modules
 from .deduplication import ContentDeduplicator
 from .embeddings import EMBEDDING_SIZE, MAX_EMBEDDING_CHARS, sync_embed_text
 from .faiss_store import FaissStore
+
 # IMP-MAINT-005: Import extracted freshness and vector store modules
-from .freshness_filter import (COLLECTION_CODE_DOCS, COLLECTION_DOCTOR_HINTS,
-                               COLLECTION_ERRORS_CI, COLLECTION_PLANNING,
-                               COLLECTION_RUN_SUMMARIES, COLLECTION_SOT_DOCS)
-from .freshness_filter import \
-    DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
-from .freshness_filter import (FRESH_AGE_HOURS, LOW_CONFIDENCE_THRESHOLD,
-                               MEDIUM_CONFIDENCE_THRESHOLD, STALE_AGE_HOURS,
-                               ContextMetadata, FreshnessFilter,
-                               calculate_age_hours, calculate_confidence,
-                               enrich_with_metadata, get_freshness_threshold,
-                               is_fresh, parse_timestamp)
+from .freshness_filter import (
+    COLLECTION_CODE_DOCS,
+    COLLECTION_DOCTOR_HINTS,
+    COLLECTION_ERRORS_CI,
+    COLLECTION_PLANNING,
+    COLLECTION_RUN_SUMMARIES,
+    COLLECTION_SOT_DOCS,
+)
+from .freshness_filter import DEFAULT_MEMORY_FRESHNESS_HOURS as _FF_DEFAULT_FRESHNESS_HOURS
+from .freshness_filter import (
+    FRESH_AGE_HOURS,
+    LOW_CONFIDENCE_THRESHOLD,
+    MEDIUM_CONFIDENCE_THRESHOLD,
+    STALE_AGE_HOURS,
+    ContextMetadata,
+    FreshnessFilter,
+    calculate_age_hours,
+    calculate_confidence,
+    enrich_with_metadata,
+    get_freshness_threshold,
+    is_fresh,
+    parse_timestamp,
+)
 from .insight_retrieval import InsightRetriever
+from .memory_patterns import (
+    ProjectNamespaceMiddleware,
+    SafeOperationExecutor,
+)
 from .qdrant_store import QDRANT_AVAILABLE, QdrantStore
 from .vector_store_ops import VectorStoreOperations
 
@@ -58,24 +77,15 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # IMP-MEM-015: Project Namespace Isolation Validation
+# IMP-XPROJECT-001: Replaced with ProjectNamespaceMiddleware from memory_patterns
 # ---------------------------------------------------------------------------
-
-
-class ProjectNamespaceError(ValueError):
-    """Raised when project_id is missing or empty for memory operations.
-
-    IMP-MEM-015: All memory operations require a valid project_id to prevent
-    cross-project contamination in vector memory.
-    """
-
-    pass
 
 
 def _validate_project_id(project_id: str, operation: str = "memory operation") -> None:
     """Validate that project_id is provided and non-empty.
 
     IMP-MEM-015: Project isolation is critical for multi-project usage.
-    This validator ensures all memory operations are properly namespaced.
+    IMP-XPROJECT-001: Now delegates to ProjectNamespaceMiddleware for reusability.
 
     Args:
         project_id: The project identifier to validate
@@ -84,12 +94,7 @@ def _validate_project_id(project_id: str, operation: str = "memory operation") -
     Raises:
         ProjectNamespaceError: If project_id is None, empty, or whitespace-only
     """
-    if not project_id or not project_id.strip():
-        raise ProjectNamespaceError(
-            f"[IMP-MEM-015] project_id is required for {operation}. "
-            "All memory operations must be namespaced by project to prevent "
-            "cross-project contamination."
-        )
+    ProjectNamespaceMiddleware.validate_project_id(project_id, operation)
 
 
 # ---------------------------------------------------------------------------
@@ -905,11 +910,24 @@ class MemoryService:
         )
 
     def _safe_store_call(self, label: str, fn, default):
-        try:
-            return fn()
-        except Exception as exc:
-            logger.warning(f"[MemoryService] {label} failed; continuing without memory op: {exc}")
-            return default
+        """Execute store operation safely with error handling.
+
+        IMP-XPROJECT-001: Now delegates to SafeOperationExecutor for reusability.
+
+        Args:
+            label: Label for the operation
+            fn: Function to execute
+            default: Default value on failure
+
+        Returns:
+            Result of fn() or default on failure
+        """
+        return SafeOperationExecutor.execute(
+            f"[MemoryService] {label}",
+            fn,
+            default,
+            logger,
+        )
 
     # -------------------------------------------------------------------------
     # IMP-MEM-005: Retrieval Quality Metrics

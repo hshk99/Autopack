@@ -1,6 +1,5 @@
 """Tests for bootstrap session phase result schema validation."""
 
-
 import pytest
 
 from autopack.research.models.bootstrap_session import (

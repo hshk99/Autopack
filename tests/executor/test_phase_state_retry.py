@@ -18,8 +18,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from sqlalchemy.exc import InterfaceError, OperationalError
 
-from autopack.executor.phase_state_manager import (OptimisticLockError,
-                                                   PhaseStateManager)
+from autopack.executor.phase_state_manager import OptimisticLockError, PhaseStateManager
 
 
 class TestRetryOnOperationalError:

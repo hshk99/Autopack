@@ -6,7 +6,6 @@ in all exception scenarios, preventing resource leaks and connection exhaustion.
 
 from unittest import mock
 
-
 from autopack.executor import db_events
 
 

@@ -7,8 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
-from typing import (TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Set,
-                    runtime_checkable)
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Set, runtime_checkable
 
 from sqlalchemy.orm import Session
 
@@ -16,8 +15,7 @@ if TYPE_CHECKING:
     from ..telemetry.meta_metrics import MetaMetricsTracker
 
 from ..memory.confidence_manager import ConfidenceManager
-from ..memory.memory_service import (DEFAULT_MEMORY_FRESHNESS_HOURS,
-                                     MemoryService)
+from ..memory.memory_service import DEFAULT_MEMORY_FRESHNESS_HOURS, MemoryService
 from ..roadi import RegressionProtector
 from ..roadi.regression_protector import RiskAssessment
 from ..telemetry.analyzer import RankedIssue, TelemetryAnalyzer

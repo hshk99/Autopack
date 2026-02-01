@@ -20,8 +20,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
-from tenacity import (retry, retry_if_exception_type, stop_after_attempt,
-                      wait_exponential)
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 

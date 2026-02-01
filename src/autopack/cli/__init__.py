@@ -25,6 +25,7 @@ import click
 from .commands.autopilot import autopilot_group
 from .commands.backup import backup
 from .commands.bootstrap import bootstrap_group
+
 # Import command groups for registration
 from .commands.gaps import gaps_group
 from .commands.planning import plan_group

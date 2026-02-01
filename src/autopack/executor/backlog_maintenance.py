@@ -17,13 +17,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
-from autopack.backlog_maintenance import (create_git_checkpoint,
-                                          parse_patch_stats)
+from autopack.backlog_maintenance import create_git_checkpoint, parse_patch_stats
 from autopack.governed_apply import GovernedApplyPath
 from autopack.maintenance_auditor import AuditorInput, DiffStats, TestResult
 from autopack.maintenance_auditor import evaluate as audit_evaluate
-from autopack.roadi.regression_protector import (RegressionProtector,
-                                                 RiskSeverity)
+from autopack.roadi.regression_protector import RegressionProtector, RiskSeverity
 
 if TYPE_CHECKING:
     from autopack.autonomous_executor import AutonomousExecutor
@@ -325,8 +323,7 @@ class BacklogMaintenance:
                                 logger.info(
                                     "[Backlog][Apply] Reverting to checkpoint due to failure"
                                 )
-                                from autopack.backlog_maintenance import \
-                                    revert_to_checkpoint
+                                from autopack.backlog_maintenance import revert_to_checkpoint
 
                                 revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
                 else:
@@ -352,8 +349,7 @@ class BacklogMaintenance:
                         logger.warning(f"[Backlog][Apply] Failed for {phase_id}: {err}")
                         if checkpoint_hash:
                             logger.info("[Backlog][Apply] Reverting to checkpoint due to failure")
-                            from autopack.backlog_maintenance import \
-                                revert_to_checkpoint
+                            from autopack.backlog_maintenance import revert_to_checkpoint
 
                             revert_to_checkpoint(Path(self.executor.workspace), checkpoint_hash)
             elif apply and patch_path is None:

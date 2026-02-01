@@ -11,8 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.memory.maintenance import (calculate_memory_freshness_metrics,
-                                         run_maintenance)
+from autopack.memory.maintenance import calculate_memory_freshness_metrics, run_maintenance
 
 
 class TestMemoryFreshnessMetrics:

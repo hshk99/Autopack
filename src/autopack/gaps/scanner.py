@@ -11,15 +11,22 @@ import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+
 # Import for type hints - lazy import to avoid circular dependencies
 from typing import TYPE_CHECKING, List, Literal
 
-from .doc_drift import (run_doc_drift_check, run_doc_tests,
-                        run_sot_summary_check)
+from .doc_drift import run_doc_drift_check, run_doc_tests, run_sot_summary_check
 from .gap_plugin import GapResult, PluginRegistry
 from .gap_telemetry import GapDetectionEvent, GapTelemetryRecorder
-from .models import (CommandEvidence, Gap, GapEvidence, GapMetadata,
-                     GapReportV1, GapSummary, SafeRemediation)
+from .models import (
+    CommandEvidence,
+    Gap,
+    GapEvidence,
+    GapMetadata,
+    GapReportV1,
+    GapSummary,
+    SafeRemediation,
+)
 
 if TYPE_CHECKING:
     from ..intention_anchor.v2 import IntentionAnchorV2

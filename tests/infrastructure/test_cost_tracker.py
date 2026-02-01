@@ -1,7 +1,11 @@
 """Tests for infrastructure cost tracking utilities."""
 
-
-from autopack.infrastructure.cost_tracker import CostEstimate, InfrastructureCostTracker, ProviderType, WorkloadType
+from autopack.infrastructure.cost_tracker import (
+    CostEstimate,
+    InfrastructureCostTracker,
+    ProviderType,
+    WorkloadType,
+)
 
 
 class TestCostEstimation:
@@ -32,7 +36,9 @@ class TestCostEstimation:
         """Test cost estimation with custom duration."""
         tracker = InfrastructureCostTracker()
         custom_duration = 5.0
-        estimate = tracker.estimate_cost(WorkloadType.BATCH_PROCESSING, duration_hours=custom_duration)
+        estimate = tracker.estimate_cost(
+            WorkloadType.BATCH_PROCESSING, duration_hours=custom_duration
+        )
 
         assert estimate.estimated_duration_hours == custom_duration
 

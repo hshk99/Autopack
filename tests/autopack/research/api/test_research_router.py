@@ -29,7 +29,11 @@ def mock_bootstrap_session():
     session = MagicMock()
     session.session_id = "test-session-123"
     session.is_complete.return_value = True
-    session.get_completed_phases.return_value = ["market_research", "competitive_analysis", "technical_feasibility"]
+    session.get_completed_phases.return_value = [
+        "market_research",
+        "competitive_analysis",
+        "technical_feasibility",
+    ]
     return session
 
 
@@ -202,10 +206,9 @@ def test_get_api_mode():
 
 def test_get_cost_effectiveness_analysis(mock_orchestrator):
     """Test GET /research/full/session/{id}/analysis/cost-effectiveness returns analysis."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis/cost-effectiveness")
         assert response.status_code == 200
@@ -221,10 +224,9 @@ def test_get_cost_effectiveness_analysis_incomplete_session(mock_orchestrator):
     """Test cost effectiveness analysis returns 400 for incomplete session."""
     mock_orchestrator.get_bootstrap_session.return_value.is_complete.return_value = False
 
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis/cost-effectiveness")
         assert response.status_code == 400
@@ -235,10 +237,9 @@ def test_get_cost_effectiveness_analysis_session_not_found(mock_orchestrator):
     """Test cost effectiveness analysis returns 404 for nonexistent session."""
     mock_orchestrator.get_bootstrap_session.return_value = None
 
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/nonexistent/analysis/cost-effectiveness")
         assert response.status_code == 404
@@ -246,10 +247,9 @@ def test_get_cost_effectiveness_analysis_session_not_found(mock_orchestrator):
 
 def test_get_cost_effectiveness_analysis_with_query_params(mock_orchestrator):
     """Test cost effectiveness analysis with include_optimization_roadmap parameter."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis/cost-effectiveness?include_optimization_roadmap=false"
@@ -261,10 +261,9 @@ def test_get_cost_effectiveness_analysis_with_query_params(mock_orchestrator):
 
 def test_get_build_vs_buy_analysis(mock_orchestrator):
     """Test GET /research/full/session/{id}/analysis/build-vs-buy returns analysis."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis/build-vs-buy")
         assert response.status_code == 200
@@ -277,10 +276,9 @@ def test_get_build_vs_buy_analysis(mock_orchestrator):
 
 def test_get_followup_triggers(mock_orchestrator):
     """Test GET /research/full/session/{id}/analysis/followup-triggers returns triggers."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis/followup-triggers")
         assert response.status_code == 200
@@ -294,10 +292,9 @@ def test_get_followup_triggers(mock_orchestrator):
 
 def test_get_followup_triggers_with_priority_filter(mock_orchestrator):
     """Test followup triggers with priority_filter parameter."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis/followup-triggers?priority_filter=high"
@@ -311,10 +308,9 @@ def test_get_followup_triggers_with_priority_filter(mock_orchestrator):
 
 def test_get_followup_triggers_with_invalid_priority(mock_orchestrator):
     """Test followup triggers rejects invalid priority filter."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis/followup-triggers?priority_filter=invalid"
@@ -325,10 +321,9 @@ def test_get_followup_triggers_with_invalid_priority(mock_orchestrator):
 
 def test_get_followup_triggers_with_limit(mock_orchestrator):
     """Test followup triggers respects limit parameter."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis/followup-triggers?limit=5"
@@ -340,10 +335,9 @@ def test_get_followup_triggers_with_limit(mock_orchestrator):
 
 def test_get_research_state(mock_orchestrator):
     """Test GET /research/full/session/{id}/analysis/research-state returns state."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis/research-state")
         assert response.status_code == 200
@@ -357,10 +351,9 @@ def test_get_research_state(mock_orchestrator):
 
 def test_get_research_state_without_details(mock_orchestrator):
     """Test research state with include_details=false."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis/research-state?include_details=false"
@@ -372,10 +365,9 @@ def test_get_research_state_without_details(mock_orchestrator):
 
 def test_get_all_analysis_results(mock_orchestrator):
     """Test GET /research/full/session/{id}/analysis returns aggregated results."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get("/research/full/session/test-session-123/analysis")
         assert response.status_code == 200
@@ -390,10 +382,9 @@ def test_get_all_analysis_results(mock_orchestrator):
 
 def test_get_all_analysis_results_selective(mock_orchestrator):
     """Test aggregated analysis with selective inclusion."""
-    with patch(
-        "autopack.research.api.router._orchestrator", mock_orchestrator
-    ), patch(
-        "autopack.research.api.router._bootstrap_available", True
+    with (
+        patch("autopack.research.api.router._orchestrator", mock_orchestrator),
+        patch("autopack.research.api.router._bootstrap_available", True),
     ):
         response = client.get(
             "/research/full/session/test-session-123/analysis?"

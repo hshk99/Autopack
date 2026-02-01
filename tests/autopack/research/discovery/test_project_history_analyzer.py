@@ -190,9 +190,7 @@ class TestProjectHistoryAnalyzer:
         history_analyzer.set_learning_db(mock_learning_db)
         assert history_analyzer._learning_db is mock_learning_db
 
-    def test_analyze_history_from_file(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_analyze_history_from_file(self, sample_history_file: Path, temp_history_path: Path):
         """Test analyzing history from file."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -211,9 +209,7 @@ class TestProjectHistoryAnalyzer:
         assert isinstance(result, HistoryAnalysisResult)
         assert result.projects_analyzed > 0
 
-    def test_decision_patterns_extraction(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_decision_patterns_extraction(self, sample_history_file: Path, temp_history_path: Path):
         """Test extraction of decision patterns."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -225,9 +221,7 @@ class TestProjectHistoryAnalyzer:
         if result.decision_patterns.get("tech_stack"):
             assert len(result.decision_patterns["tech_stack"]) > 0
 
-    def test_success_correlations(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_success_correlations(self, sample_history_file: Path, temp_history_path: Path):
         """Test extraction of success correlations."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -235,9 +229,7 @@ class TestProjectHistoryAnalyzer:
         # Should identify success correlations
         assert isinstance(result.success_correlations, list)
 
-    def test_failure_correlations(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_failure_correlations(self, sample_history_file: Path, temp_history_path: Path):
         """Test extraction of failure correlations."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -259,9 +251,7 @@ class TestProjectHistoryAnalyzer:
             for category, insights in result.category_insights.items():
                 assert "total_improvements" in insights or isinstance(insights, dict)
 
-    def test_recommendations_generation(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_recommendations_generation(self, sample_history_file: Path, temp_history_path: Path):
         """Test generation of recommendations."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -269,9 +259,7 @@ class TestProjectHistoryAnalyzer:
         # Should generate recommendations
         assert isinstance(result.recommendations, list)
 
-    def test_get_project_by_type(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_get_project_by_type(self, sample_history_file: Path, temp_history_path: Path):
         """Test filtering projects by type."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
         result = analyzer.analyze_history()
@@ -307,9 +295,7 @@ class TestProjectHistoryAnalyzer:
         assert len(data["projects"]) == 1
         assert data["projects"][0]["project_id"] == "new-proj-001"
 
-    def test_save_project_summary_append(
-        self, sample_history_file: Path, temp_history_path: Path
-    ):
+    def test_save_project_summary_append(self, sample_history_file: Path, temp_history_path: Path):
         """Test appending a project summary to existing file."""
         analyzer = ProjectHistoryAnalyzer(project_history_path=temp_history_path)
 

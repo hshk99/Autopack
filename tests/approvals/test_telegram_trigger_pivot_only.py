@@ -12,7 +12,6 @@ failures and ensure deterministic execution.
 from __future__ import annotations
 
 
-
 def test_telegram_triggers_on_pivot_intention_change(sample_approval_request):
     """Telegram approval requested when pivot intention is changed.
 

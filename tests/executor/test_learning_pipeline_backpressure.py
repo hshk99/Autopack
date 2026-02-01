@@ -10,9 +10,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.executor.learning_pipeline import (MAX_BATCH_SIZE, MAX_MEMORY_MB,
-                                                 LearningHint,
-                                                 LearningPipeline)
+from autopack.executor.learning_pipeline import (
+    MAX_BATCH_SIZE,
+    MAX_MEMORY_MB,
+    LearningHint,
+    LearningPipeline,
+)
 
 
 class TestLearningPipelineBackpressure:

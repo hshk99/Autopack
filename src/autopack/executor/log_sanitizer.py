@@ -4,9 +4,8 @@ IMP-SEC-007: Removes environment variables, API keys, credentials, and other
 sensitive information from error messages and debug logs to prevent exposure.
 """
 
-import os
 import re
-from typing import Any, Optional
+from typing import Any
 
 
 class LogSanitizer:

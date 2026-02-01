@@ -7,9 +7,7 @@ calculation, persistence, and Prometheus export.
 
 import json
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
 
 import pytest
 
@@ -20,17 +18,16 @@ from autopack.telemetry.autopilot_metrics import (
     CircuitBreakerMetrics,
     HealthTransitionMetrics,
     ResearchCycleSummary,
-    SessionHealthSnapshot,
-    HealthGateType,
-    SessionOutcome,
     ResearchDecisionType,
+    SessionHealthSnapshot,
+    SessionOutcome,
     get_global_collector,
 )
-
 
 # ============================================================================
 # DATACLASS TESTS
 # ============================================================================
+
 
 class TestCircuitBreakerMetrics:
     """Tests for CircuitBreakerMetrics dataclass."""
@@ -206,6 +203,7 @@ class TestAutopilotHealthMetrics:
 # ============================================================================
 # COLLECTOR TESTS
 # ============================================================================
+
 
 class TestAutopilotHealthCollector:
     """Tests for AutopilotHealthCollector class."""
@@ -521,6 +519,7 @@ class TestAutopilotHealthCollector:
 # ANALYSIS AND CALCULATION TESTS
 # ============================================================================
 
+
 class TestHealthScoreCalculation:
     """Tests for health score calculation."""
 
@@ -629,6 +628,7 @@ class TestHealthScoreCalculation:
 # EXPORT TESTS
 # ============================================================================
 
+
 class TestPrometheusExport:
     """Tests for Prometheus metrics export."""
 
@@ -707,6 +707,7 @@ class TestPrometheusExport:
 # FILE PERSISTENCE TESTS
 # ============================================================================
 
+
 class TestFilePersistence:
     """Tests for file persistence of metrics."""
 
@@ -722,7 +723,7 @@ class TestFilePersistence:
 
             assert file_path.exists()
 
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 data = json.load(f)
 
             assert data["format_version"] == "v1"
@@ -739,7 +740,7 @@ class TestFilePersistence:
             file_path = Path(tmpdir) / "metrics.json"
             collector.save_to_file(str(file_path))
 
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 data = json.load(f)
 
             assert "format_version" in data
@@ -787,6 +788,7 @@ class TestFilePersistence:
 # ============================================================================
 # DASHBOARD TESTS
 # ============================================================================
+
 
 class TestDashboardSummary:
     """Tests for dashboard summary generation."""
@@ -903,6 +905,7 @@ class TestDashboardSummary:
 # ============================================================================
 # GLOBAL COLLECTOR TESTS
 # ============================================================================
+
 
 class TestGlobalCollector:
     """Tests for global collector singleton."""

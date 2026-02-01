@@ -4,8 +4,6 @@ Tests verify that sensitive data like API keys, credentials, and environment
 variables are properly redacted from logs.
 """
 
-import pytest
-
 from autopack.executor.log_sanitizer import LogSanitizer
 
 
@@ -179,7 +177,7 @@ class TestLogSanitizerDictSanitization:
         data = {
             "api_key": "openai_api_key=sk-abc123xyz456",
             "password": "password=secret123",
-            "name": "test_user"
+            "name": "test_user",
         }
         result = LogSanitizer.sanitize_dict(data)
         assert result["name"] == "test_user"
@@ -191,7 +189,7 @@ class TestLogSanitizerDictSanitization:
         """Sanitize nested dictionaries."""
         data = {
             "user": {"name": "john", "password": "password=secret123"},
-            "api": {"key": "api_key=abc123xyz456"}
+            "api": {"key": "api_key=abc123xyz456"},
         }
         result = LogSanitizer.sanitize_dict(data)
         assert result["user"]["name"] == "john"

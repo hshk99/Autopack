@@ -214,7 +214,7 @@ class PostBuildArtifactGenerator:
                 "### Recommended Configuration",
                 "",
                 "```bash",
-                f"# Application port",
+                "# Application port",
                 f"PORT={build_characteristics.port}",
                 "",
                 "# Environment",

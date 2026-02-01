@@ -10,16 +10,21 @@ Contains discovery integration modules for various sources including:
 """
 
 from autopack.research.discovery.github_discovery import GitHubDiscovery
-from autopack.research.discovery.mcp_discovery import (MCPRegistryCache,
-                                                       MCPRegistryScanner,
-                                                       MCPScanResult,
-                                                       MCPToolCapability,
-                                                       MCPToolDescriptor,
-                                                       MCPToolMaintainer,
-                                                       MCPToolMaturity)
+from autopack.research.discovery.mcp_discovery import (
+    MCPRegistryCache,
+    MCPRegistryScanner,
+    MCPScanResult,
+    MCPToolCapability,
+    MCPToolDescriptor,
+    MCPToolMaintainer,
+    MCPToolMaturity,
+)
 from autopack.research.discovery.project_history_analyzer import (
-    HistoryAnalysisResult, ProjectDecision, ProjectHistoryAnalyzer,
-    ProjectSummary)
+    HistoryAnalysisResult,
+    ProjectDecision,
+    ProjectHistoryAnalyzer,
+    ProjectSummary,
+)
 from autopack.research.discovery.reddit_discovery import RedditDiscovery
 from autopack.research.discovery.web_discovery import WebDiscovery
 

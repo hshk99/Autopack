@@ -436,12 +436,8 @@ class TestMonetizationStrategyGenerator(unittest.TestCase):
                     "median": "$19/month",
                 }
             },
-            "conversion_benchmarks": {
-                "free_to_paid": {"industry_average": "2-5%"}
-            },
-            "revenue_potential": {
-                "moderate": {"monthly": "$50,000", "assumptions": ["500 users"]}
-            },
+            "conversion_benchmarks": {"free_to_paid": {"industry_average": "2-5%"}},
+            "revenue_potential": {"moderate": {"monthly": "$50,000", "assumptions": ["500 users"]}},
             "recommended_model": {
                 "model": "freemium",
                 "rationale": "Best fit",
@@ -879,15 +875,9 @@ class TestCICDAnalyzer(unittest.TestCase):
         }
 
         # Test each platform
-        github_config = self.analyzer.generate_for_platform(
-            tech_stack, CICDPlatform.GITHUB_ACTIONS
-        )
-        gitlab_config = self.analyzer.generate_for_platform(
-            tech_stack, CICDPlatform.GITLAB_CI
-        )
-        jenkins_config = self.analyzer.generate_for_platform(
-            tech_stack, CICDPlatform.JENKINS
-        )
+        github_config = self.analyzer.generate_for_platform(tech_stack, CICDPlatform.GITHUB_ACTIONS)
+        gitlab_config = self.analyzer.generate_for_platform(tech_stack, CICDPlatform.GITLAB_CI)
+        jenkins_config = self.analyzer.generate_for_platform(tech_stack, CICDPlatform.JENKINS)
 
         # Verify each is non-empty and valid
         self.assertTrue(github_config)

@@ -905,8 +905,7 @@ class AnthropicPhaseExecutor:
 
                     # BUILD-129 Phase 3: Write telemetry to DB for validation
                     # Import telemetry function to avoid circular import
-                    from ...anthropic_clients import \
-                        _write_token_estimation_v2_telemetry
+                    from ...anthropic_clients import _write_token_estimation_v2_telemetry
 
                     token_pred_meta = phase_spec.get("metadata", {}).get("token_prediction", {})
                     _write_token_estimation_v2_telemetry(
@@ -963,8 +962,7 @@ class AnthropicPhaseExecutor:
 
                     # BUILD-129 Phase 3: Write telemetry to DB (fallback case)
                     # Import telemetry function to avoid circular import
-                    from ...anthropic_clients import \
-                        _write_token_estimation_v2_telemetry
+                    from ...anthropic_clients import _write_token_estimation_v2_telemetry
 
                     token_pred_meta_fallback = phase_spec.get("metadata", {}).get(
                         "token_prediction", {}

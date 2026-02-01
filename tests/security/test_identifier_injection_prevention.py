@@ -8,9 +8,12 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from autopack.break_glass_repair import (ALLOWED_COLUMNS, ALLOWED_TABLES,
-                                         BreakGlassRepair,
-                                         _validate_identifier)
+from autopack.break_glass_repair import (
+    ALLOWED_COLUMNS,
+    ALLOWED_TABLES,
+    BreakGlassRepair,
+    _validate_identifier,
+)
 from autopack.schema_validator import SchemaValidationResult
 
 

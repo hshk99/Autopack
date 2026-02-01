@@ -12,19 +12,16 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
-from autopack.research.analysis.research_state import (CompletedQuery,
-                                                       DiscoveredSource,
-                                                       GapPriority, GapType,
-                                                       ResearchCheckpoint,
-                                                       ResearchDepth,
-                                                       ResearchGap,
-                                                       ResearchRequirements,
-                                                       ResearchState,
-                                                       ResearchStateTracker)
+from autopack.research.analysis.research_state import (
+    GapPriority,
+    GapType,
+    ResearchCheckpoint,
+    ResearchGap,
+    ResearchStateTracker,
+)
 
 
 @pytest.fixture

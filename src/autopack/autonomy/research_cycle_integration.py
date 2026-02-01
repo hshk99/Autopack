@@ -19,21 +19,20 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from ..research.orchestrator import ResearchOrchestrator
     from .autopilot import AutopilotController
     from .executor_integration import ExecutorContext
 
-from ..research.analysis.budget_enforcement import (BudgetEnforcer,
-                                                    BudgetStatus, PhaseType)
-from ..research.analysis.followup_trigger import (FollowupResearchTrigger,
-                                                  FollowupTrigger,
-                                                  TriggerAnalysisResult,
-                                                  TriggerExecutionResult,
-                                                  TriggerPriority)
+from ..research.analysis.budget_enforcement import BudgetEnforcer
+from ..research.analysis.followup_trigger import (
+    FollowupResearchTrigger,
+    FollowupTrigger,
+    TriggerAnalysisResult,
+    TriggerExecutionResult,
+    TriggerPriority,
+)
 
 logger = logging.getLogger(__name__)
 

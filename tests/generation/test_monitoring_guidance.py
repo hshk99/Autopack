@@ -7,7 +7,9 @@ from pathlib import Path
 import pytest
 
 from autopack.generation.monitoring_guidance_generator import (
-    MonitoringGuidanceGenerator, MonitoringGuide)
+    MonitoringGuidanceGenerator,
+    MonitoringGuide,
+)
 
 
 class TestMonitoringGuide:

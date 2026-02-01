@@ -10,14 +10,19 @@ Provides:
 BUILD-197: Claude Code sub-agent glue work
 """
 
-from autopack.subagent.context import (ContextFile, ContextFileManager,
-                                       SubagentFinding, SubagentProposal)
-from autopack.subagent.guardrails import (GuardrailResult, GuardrailViolation,
-                                          SubagentGuardrails)
-from autopack.subagent.output_contract import (OutputContract, SubagentOutput,
-                                               SubagentOutputValidator)
-from autopack.subagent.task_brief import (TaskBrief, TaskBriefGenerator,
-                                          TaskConstraint)
+from autopack.subagent.context import (
+    ContextFile,
+    ContextFileManager,
+    SubagentFinding,
+    SubagentProposal,
+)
+from autopack.subagent.guardrails import GuardrailResult, GuardrailViolation, SubagentGuardrails
+from autopack.subagent.output_contract import (
+    OutputContract,
+    SubagentOutput,
+    SubagentOutputValidator,
+)
+from autopack.subagent.task_brief import TaskBrief, TaskBriefGenerator, TaskConstraint
 
 __all__ = [
     # Context management

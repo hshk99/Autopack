@@ -5,11 +5,8 @@ Tests for contract building and validation (IMP-GOD-001).
 Verifies that deliverables contracts are correctly built from phase scope.
 """
 
-import tempfile
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import pytest
 
 from autopack.executor.deliverables_contract import DeliverablesContractBuilder
 

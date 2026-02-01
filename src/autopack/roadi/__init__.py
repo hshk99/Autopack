@@ -6,9 +6,13 @@ preventing previously resolved problems from recurring.
 IMP-LOOP-018: Added RiskSeverity and RiskAssessment for task generation gating.
 """
 
-from .regression_protector import (ProtectionResult, RegressionProtector,
-                                   RegressionTest, RiskAssessment,
-                                   RiskSeverity)
+from .regression_protector import (
+    ProtectionResult,
+    RegressionProtector,
+    RegressionTest,
+    RiskAssessment,
+    RiskSeverity,
+)
 
 __all__ = [
     "RegressionProtector",

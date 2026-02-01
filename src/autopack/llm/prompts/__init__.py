@@ -6,13 +6,17 @@ to separate prompt logic from transport and parsing concerns.
 """
 
 import importlib.util
+
 # Re-export classes from prompts.py module for backward compatibility
 # When both prompts.py and prompts/ directory exist, Python picks the directory
 import sys
 from pathlib import Path
 
-from .anthropic_builder_prompts import (build_minimal_system_prompt,
-                                        build_system_prompt, build_user_prompt)
+from .anthropic_builder_prompts import (
+    build_minimal_system_prompt,
+    build_system_prompt,
+    build_user_prompt,
+)
 
 _prompts_file = Path(__file__).parent.parent / "prompts.py"
 _spec = importlib.util.spec_from_file_location("autopack.llm._prompts_impl", _prompts_file)

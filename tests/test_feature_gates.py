@@ -11,12 +11,12 @@ Tests cover:
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 from autopack.feature_gates import (
     FeatureDisabledError,
-    FeatureInfo,
     check_feature_dependencies,
     get_disabled_features,
     get_disabled_graceful,
@@ -69,9 +69,7 @@ class TestFeatureGateBasics:
         ]
 
         for env_value, expected in test_cases:
-            with patch.dict(
-                os.environ, {"AUTOPACK_ENABLE_MONETIZATION_GUIDANCE": env_value}
-            ):
+            with patch.dict(os.environ, {"AUTOPACK_ENABLE_MONETIZATION_GUIDANCE": env_value}):
                 reset_feature_overrides()
                 assert is_feature_enabled("monetization_guidance") == expected, (
                     f"Feature should be {'enabled' if expected else 'disabled'} "
@@ -118,9 +116,7 @@ class TestRuntimeFeatureToggles:
     def test_set_feature_disabled_runtime(self):
         """Verify feature can be disabled at runtime (kill switch)."""
         # Enable via env var
-        with patch.dict(
-            os.environ, {"AUTOPACK_ENABLE_DEPLOYMENT_GUIDANCE": "1"}
-        ):
+        with patch.dict(os.environ, {"AUTOPACK_ENABLE_DEPLOYMENT_GUIDANCE": "1"}):
             reset_feature_overrides()
             assert is_feature_enabled("deployment_guidance")
 
@@ -406,9 +402,7 @@ class TestFeatureValidation:
 
     def test_validate_invalid_env_var_value(self):
         """Verify validation detects invalid environment variable values."""
-        with patch.dict(
-            os.environ, {"AUTOPACK_ENABLE_PHASE6_METRICS": "invalid"}
-        ):
+        with patch.dict(os.environ, {"AUTOPACK_ENABLE_PHASE6_METRICS": "invalid"}):
             validation = validate_feature_state()
 
             # Should detect invalid value
@@ -502,10 +496,7 @@ class TestLogFeatureUsage:
         log_feature_usage("phase6_metrics", "started")
 
         # Check that something was logged with feature name
-        assert any(
-            "phase6_metrics" in record.message
-            for record in caplog.records
-        )
+        assert any("phase6_metrics" in record.message for record in caplog.records)
 
     def test_log_feature_usage_disabled(self, caplog):
         """Verify log_feature_usage logs correctly for disabled features."""
@@ -517,7 +508,4 @@ class TestLogFeatureUsage:
         log_feature_usage("research_cycle_triggering", "accessed")
 
         # Check that something was logged with feature name
-        assert any(
-            "research_cycle_triggering" in record.message
-            for record in caplog.records
-        )
+        assert any("research_cycle_triggering" in record.message for record in caplog.records)

@@ -14,8 +14,6 @@ Tests cover:
 """
 
 import pytest
-from datetime import datetime, timezone
-from typing import List
 
 from autopack.research.analysis.research_effectiveness import (
     DecisionQualityLevel,
@@ -209,9 +207,13 @@ class TestResearchEffectivenessAnalyzer:
             ResearchCycleOutcome(
                 cycle_id=f"cycle_{i:03d}",
                 research_session_id=f"session_{i:03d}",
-                outcome_type=ResearchOutcomeType.DECISION_MADE if i % 2 == 0 else ResearchOutcomeType.BLOCKED,
+                outcome_type=(
+                    ResearchOutcomeType.DECISION_MADE if i % 2 == 0 else ResearchOutcomeType.BLOCKED
+                ),
                 decision_quality_before=DecisionQualityLevel.POOR,
-                decision_quality_after=DecisionQualityLevel.GOOD if i % 2 == 0 else DecisionQualityLevel.POOR,
+                decision_quality_after=(
+                    DecisionQualityLevel.GOOD if i % 2 == 0 else DecisionQualityLevel.POOR
+                ),
                 confidence_before=30 + i,
                 confidence_after=80 + i if i % 2 == 0 else 30 + i,
                 time_spent_seconds=1800,
@@ -292,9 +294,7 @@ class TestResearchEffectivenessAnalyzer:
         decision_made = analyzer.get_outcomes_by_type(ResearchOutcomeType.DECISION_MADE)
         assert len(decision_made) == 3
 
-        confidence_improved = analyzer.get_outcomes_by_type(
-            ResearchOutcomeType.CONFIDENCE_IMPROVED
-        )
+        confidence_improved = analyzer.get_outcomes_by_type(ResearchOutcomeType.CONFIDENCE_IMPROVED)
         assert len(confidence_improved) == 2
 
     def test_get_recent_outcomes(self, analyzer):
@@ -426,7 +426,7 @@ class TestResearchEffectivenessAnalyzer:
         assert metrics.successful_cycles == 5
         assert metrics.success_rate() == 100.0
         assert metrics.confidence_improvement_avg == 50.0
-        assert metrics.follow_up_trigger_success_rate == pytest.approx(2/3, rel=0.01)
+        assert metrics.follow_up_trigger_success_rate == pytest.approx(2 / 3, rel=0.01)
         assert metrics.cost_per_successful_decision == 50.0
         assert metrics.time_per_successful_decision == 3600.0
 

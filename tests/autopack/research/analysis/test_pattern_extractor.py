@@ -233,9 +233,7 @@ class TestPatternExtractor:
         )
 
         # Find tech stack patterns
-        tech_patterns = [
-            p for p in result.patterns if p.pattern_type == PatternType.TECH_STACK
-        ]
+        tech_patterns = [p for p in result.patterns if p.pattern_type == PatternType.TECH_STACK]
 
         # With min_occurrences=1, we should get tech stack patterns
         # since the sample projects have tech stack data
@@ -259,16 +257,12 @@ class TestPatternExtractor:
         )
 
         # Find architecture patterns
-        arch_patterns = [
-            p for p in result.patterns if p.pattern_type == PatternType.ARCHITECTURE
-        ]
+        arch_patterns = [p for p in result.patterns if p.pattern_type == PatternType.ARCHITECTURE]
 
         assert len(arch_patterns) > 0
 
         # microservices appears in 2 projects
-        microservices_patterns = [
-            p for p in arch_patterns if "microservices" in p.context.lower()
-        ]
+        microservices_patterns = [p for p in arch_patterns if "microservices" in p.context.lower()]
         assert len(microservices_patterns) >= 1
         if microservices_patterns:
             assert microservices_patterns[0].occurrence_count >= 2
@@ -287,9 +281,7 @@ class TestPatternExtractor:
         )
 
         # Find workflow patterns
-        workflow_patterns = [
-            p for p in result.patterns if p.pattern_type == PatternType.WORKFLOW
-        ]
+        workflow_patterns = [p for p in result.patterns if p.pattern_type == PatternType.WORKFLOW]
 
         assert len(workflow_patterns) > 0
 
@@ -299,9 +291,7 @@ class TestPatternExtractor:
 
     def test_confidence_calculation(self, pattern_extractor: PatternExtractor):
         """Test confidence level calculation based on occurrence count."""
-        assert (
-            pattern_extractor._calculate_confidence(1) == PatternConfidence.EXPERIMENTAL
-        )
+        assert pattern_extractor._calculate_confidence(1) == PatternConfidence.EXPERIMENTAL
         assert pattern_extractor._calculate_confidence(2) == PatternConfidence.LOW
         assert pattern_extractor._calculate_confidence(3) == PatternConfidence.MEDIUM
         assert pattern_extractor._calculate_confidence(5) == PatternConfidence.HIGH
@@ -341,16 +331,12 @@ class TestPatternExtractor:
             cycle_data={},
         )
 
-        ecommerce_patterns = pattern_extractor.get_patterns_for_project_type(
-            result, "ecommerce"
-        )
+        ecommerce_patterns = pattern_extractor.get_patterns_for_project_type(result, "ecommerce")
 
         # Should return patterns associated with ecommerce
         for pattern in ecommerce_patterns:
             if pattern.associated_project_types:
-                assert "ecommerce" in [
-                    t.lower() for t in pattern.associated_project_types
-                ]
+                assert "ecommerce" in [t.lower() for t in pattern.associated_project_types]
 
     def test_get_recommended_patterns(
         self,
@@ -371,9 +357,7 @@ class TestPatternExtractor:
             "keywords": ["subscription", "api", "react"],
         }
 
-        recommendations = pattern_extractor.get_recommended_patterns(
-            result, project_context
-        )
+        recommendations = pattern_extractor.get_recommended_patterns(result, project_context)
 
         # Should return list of patterns with relevance scores
         assert isinstance(recommendations, list)

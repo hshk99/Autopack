@@ -11,14 +11,16 @@ guardrails on per-phase and run-level call limits.
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import (TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set,
-                    Tuple)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple
 
 from autopack.debug_journal import log_error
-from autopack.error_recovery import (DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
-                                     DOCTOR_MIN_BUILDER_ATTEMPTS,
-                                     DoctorContextSummary, DoctorRequest,
-                                     DoctorResponse)
+from autopack.error_recovery import (
+    DOCTOR_HEALTH_BUDGET_NEAR_LIMIT_RATIO,
+    DOCTOR_MIN_BUILDER_ATTEMPTS,
+    DoctorContextSummary,
+    DoctorRequest,
+    DoctorResponse,
+)
 
 if TYPE_CHECKING:
     from autopack.llm_service import LlmService

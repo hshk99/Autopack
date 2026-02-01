@@ -11,9 +11,8 @@ Tests cover:
 - Integration with artifact generator registry
 """
 
-import pytest
-from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+
 
 from autopack.executor.post_build_generator import (
     ArtifactType,
@@ -307,9 +306,7 @@ class TestRunbookGeneration:
         generator = PostBuildArtifactGenerator()
 
         runbooks = generator.generate_runbooks(characteristics, {})
-        deployment_runbook = next(
-            r for r in runbooks if "DEPLOYMENT" in r.name
-        )
+        deployment_runbook = next(r for r in runbooks if "DEPLOYMENT" in r.name)
 
         assert "Pre-Deployment Checklist" in deployment_runbook.content
         assert "Rollback" in deployment_runbook.content
@@ -324,9 +321,7 @@ class TestRunbookGeneration:
         generator = PostBuildArtifactGenerator()
 
         runbooks = generator.generate_runbooks(characteristics, {})
-        troubleshooting_runbook = next(
-            r for r in runbooks if "TROUBLESHOOTING" in r.name
-        )
+        troubleshooting_runbook = next(r for r in runbooks if "TROUBLESHOOTING" in r.name)
 
         assert "Common Issues" in troubleshooting_runbook.content
         assert "Escalation" in troubleshooting_runbook.content
@@ -348,9 +343,7 @@ class TestRunbookGeneration:
         generator = PostBuildArtifactGenerator()
 
         runbooks = generator.generate_runbooks(characteristics, {})
-        incident_runbook = next(
-            r for r in runbooks if "INCIDENT" in r.name
-        )
+        incident_runbook = next(r for r in runbooks if "INCIDENT" in r.name)
 
         assert "Severity" in incident_runbook.content
         assert "SEV1" in incident_runbook.content

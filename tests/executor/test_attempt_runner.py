@@ -5,7 +5,7 @@ Tests for single attempt execution wrapper (IMP-ARCH-007).
 Verifies that attempts are properly executed with error recovery.
 """
 
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock
 
 import pytest
 

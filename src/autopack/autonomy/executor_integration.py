@@ -917,18 +917,11 @@ class ExecutorContext:
         self._total_gaps_detected += gaps_detected
         self._total_gaps_addressed += gaps_addressed
 
-        gap_info = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'gaps_detected': gaps_detected,
-            'gaps_addressed': gaps_addressed,
-            'remaining_gaps': gaps_detected - gaps_addressed,
-            'gap_types': gap_types or [],
-        }
-
         logger.info(
             f"[IMP-RESEARCH-002] Gap detection recorded: "
             f"{gaps_detected} detected, {gaps_addressed} addressed, "
-            f"{gaps_detected - gaps_addressed} remaining"
+            f"{gaps_detected - gaps_addressed} remaining "
+            f"(types: {', '.join(gap_types) if gap_types else 'N/A'})"
         )
 
     def record_gap_pause(

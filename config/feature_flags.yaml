@@ -74,12 +74,16 @@ flags:
   # Feature Toggles (Enable/Disable Features)
   # ============================================================================
   RESEARCH_API_ENABLED:
-    description: "Enable the quarantined research API endpoints"
+    description: "Enable the research API endpoints (IMP-BLOCKED-001)"
     category: feature_toggle
-    default: "false (production), true (development)"
+    default: "true"
     values: ["true", "false", "1", "0", "yes", "no", "enabled", "disabled"]
     affects: ["research/api/router.py"]
-    notes: "Research API is experimental and may have drift - use with caution in production"
+    notes: "IMP-BLOCKED-001: Research API endpoints are now enabled in production via RESEARCH_API_MODE environment variable. Use RESEARCH_API_MODE=bootstrap_only for limited access or RESEARCH_API_MODE=full for comprehensive access."
+    aliases: ["RESEARCH_API_MODE"]
+    security_implications:
+      bootstrap_only: "Only bootstrap endpoints accessible (safe for production)"
+      full: "All research endpoints accessible (development/testing only)"
 
   AUTOPACK_ENABLE_MEMORY:
     description: "Enable the memory/vector search subsystem"

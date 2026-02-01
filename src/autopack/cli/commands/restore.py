@@ -42,11 +42,11 @@ def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> N
 
     # Check for absolute paths in member name (Unix-style)
     if member.name.startswith("/"):
-        raise ValueError(f"Path traversal detected: {member.name}")
+        raise ValueError(f"Absolute path not allowed: {member.name}")
 
     # Check for Windows-style absolute paths
     if len(member.name) > 1 and member.name[1] == ":":
-        raise ValueError(f"Path traversal detected: {member.name}")
+        raise ValueError(f"Absolute path not allowed: {member.name}")
 
     # Resolve the full path where member would be extracted
     target_path = (base / member.name).resolve()
@@ -62,21 +62,21 @@ def safe_extract(tar: tarfile.TarFile, member: tarfile.TarInfo, base: Path) -> N
     tar.extract(member, path=base)
 
 
-def safe_extractall(tar: tarfile.TarFile, path: Path) -> None:
-    """Safely extract all members from tar archive with security validation.
+def safe_extractall(tar: tarfile.TarFile, base: Path) -> None:
+    """Safely extract all members from tar file with security validation.
 
-    Extracts all members while preventing path traversal, symlink,
-    and hardlink attacks. Each member is validated before extraction.
+    Validates each member against path traversal, symlink, and hardlink attacks
+    before extraction.
 
     Args:
         tar: TarFile object to extract from
-        path: Base directory where extraction should occur
+        base: Base directory where extraction should occur
 
     Raises:
         ValueError: If any member fails security validation
     """
     for member in tar.getmembers():
-        safe_extract(tar, member, path)
+        safe_extract(tar, member, base)
 
 
 @click.command("restore")

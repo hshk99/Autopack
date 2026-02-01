@@ -19,6 +19,26 @@ from autopack.planning.models import Action, PlanProposalV1, PlanSummary
 class TestActionIdValidation:
     """Tests for IMP-SAFETY-011: Action ID validation in approval workflow."""
 
+    def _setup_approval_service_mock(
+        self, approved_ids: list[str]
+    ) -> MagicMock:
+        """Create a properly mocked ApprovalService with queue and decisions."""
+        mock_approval_svc = MagicMock()
+        mock_approval_svc.get_approved_actions.return_value = approved_ids
+
+        # Mock the approval service queue with decisions for validation
+        mock_decisions = []
+        for action_id in approved_ids:
+            mock_decision = MagicMock()
+            mock_decision.action_id = action_id
+            mock_decision.decision = "approve"
+            mock_decisions.append(mock_decision)
+
+        mock_approval_svc.queue = MagicMock()
+        mock_approval_svc.queue.decisions = mock_decisions
+
+        return mock_approval_svc
+
     def _create_controller_with_temp_workspace(self, tmpdir: str) -> AutopilotController:
         """Create a controller with a temporary workspace."""
         workspace = Path(tmpdir)
@@ -101,8 +121,9 @@ class TestActionIdValidation:
                 controller, "plan-001", ["action-001", "action-002", "action-003"]
             )
 
-            mock_approval_svc = MagicMock()
-            mock_approval_svc.get_approved_actions.return_value = ["action-001", "action-002"]
+            mock_approval_svc = self._setup_approval_service_mock(
+                ["action-001", "action-002"]
+            )
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",
@@ -146,8 +167,12 @@ class TestActionIdValidation:
                 controller, "plan-001", ["action-001", "action-002", "action-003"]
             )
 
-            mock_approval_svc = MagicMock()
             # Mix of valid and invalid action IDs
+            # Note: mock only includes the valid ones for queue lookup
+            mock_approval_svc = self._setup_approval_service_mock(
+                ["action-001", "invalid-id", "action-003", "spoofed-action"]
+            )
+            # Override to return all IDs for approval check
             mock_approval_svc.get_approved_actions.return_value = [
                 "action-001",  # Valid
                 "invalid-id",  # Invalid

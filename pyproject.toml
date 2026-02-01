@@ -56,6 +56,8 @@ dependencies = [
     "jsonschema>=4.0.0",
     # System resource monitoring for multi-project orchestration (IMP-MULTI-001)
     "psutil>=5.9.0",
+    # Telegram bot integration for model validation approvals (IMP-NOTIFY-001)
+    "python-telegram-bot>=20.0",
 ]
 
 [project.optional-dependencies]

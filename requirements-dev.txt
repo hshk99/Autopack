@@ -131,6 +131,7 @@ httpx[http2]==0.28.1
     #   anthropic
     #   autopack (pyproject.toml)
     #   openai
+    #   python-telegram-bot
     #   qdrant-client
 hyperframe==6.1.0
     # via h2
@@ -273,6 +274,8 @@ python-jose[cryptography]==3.5.0
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
 python-multipart==0.0.21
+    # via autopack (pyproject.toml)
+python-telegram-bot==22.6
     # via autopack (pyproject.toml)
 pytokens==0.3.0
     # via black

@@ -79,6 +79,8 @@ class PhaseType(str, Enum):
     IMPLEMENTATION = "implementation"
     TESTING = "testing"
     DEPLOYMENT = "deployment"
+    MONETIZATION = "monetization"
+    POSTLAUNCH = "postlaunch"
     DOCUMENTATION = "documentation"
     REFACTORING = "refactoring"
 

@@ -1,0 +1,54 @@
+# Autopack Notifications Configuration
+# Configures all notification channels and settings
+
+# Telegram Integration (IMP-NOTIFY-001)
+telegram:
+  # Enable/disable Telegram notifications
+  enabled: false
+
+  # Configuration source: environment variables
+  # Required environment variables:
+  #   TELEGRAM_BOT_TOKEN: Bot token from @BotFather
+  #   TELEGRAM_CHAT_ID: Your Telegram user ID
+  # Optional environment variables:
+  #   TELEGRAM_WEBHOOK_URL: Webhook URL for receiving approvals
+
+  # Model validation approval settings
+  model_validation:
+    enabled: true
+    approval_timeout_hours: 24
+    rate_limit_per_minute: 5
+    batch_size: 1
+
+  # Webhook configuration
+  webhook:
+    enabled: false
+    secret_token: null  # Should be set via TELEGRAM_WEBHOOK_SECRET env var
+    timeout_seconds: 30
+    retry_attempts: 3
+
+# Email Notifications (future)
+email:
+  enabled: false
+  smtp_host: null
+  smtp_port: 587
+  from_address: null
+
+# SMS Notifications (future)
+sms:
+  enabled: false
+  provider: null
+
+# Notification Routing
+routing:
+  # Which channels to use for each notification type
+  model_validation: ["telegram"]
+  approval_requests: ["telegram"]
+  errors: ["telegram"]
+
+  # Fallback chain (try next if first fails)
+  fallback_enabled: false
+  fallback_chain:
+    - "telegram"
+    - "email"
+    - "sms"

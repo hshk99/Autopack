@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ResearchSession(BaseModel):
@@ -32,6 +32,153 @@ class UpdateResearchSession(BaseModel):
     status: str = Field(..., min_length=1, description="New session status")
 
     model_config = ConfigDict(json_schema_extra={"example": {"status": "completed"}})
+
+
+# =============================================================================
+# Confidence Report Schemas (IMP-SCHEMA-013)
+# =============================================================================
+
+
+class ConfidenceMetric(BaseModel):
+    """Individual confidence metric for a pivot type."""
+
+    score: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        description="Confidence score on a 0-100 scale",
+    )
+    reasoning: str = Field(
+        ...,
+        min_length=1,
+        max_length=500,
+        description="Explanation of the confidence score",
+    )
+
+    @field_validator("score")
+    @classmethod
+    def validate_score_range(cls, v: float) -> float:
+        """Validate that score is between 0 and 100.
+
+        Args:
+            v: The score value to validate
+
+        Returns:
+            The validated score
+
+        Raises:
+            ValueError: If score is outside 0-100 range
+        """
+        if not (0 <= v <= 100):
+            raise ValueError(f"Confidence score must be between 0 and 100, got {v}")
+        return v
+
+    @field_validator("reasoning")
+    @classmethod
+    def validate_reasoning(cls, v: str) -> str:
+        """Validate that reasoning is not empty or whitespace only.
+
+        Args:
+            v: The reasoning string to validate
+
+        Returns:
+            The validated reasoning
+
+        Raises:
+            ValueError: If reasoning is empty or whitespace only
+        """
+        if not v or not v.strip():
+            raise ValueError("Confidence reasoning cannot be empty or whitespace only")
+        return v.strip()
+
+
+class ConfidenceReport(BaseModel):
+    """Confidence report for bootstrap response with per-pivot-type scores."""
+
+    market_research: Optional[ConfidenceMetric] = Field(
+        default=None, description="Confidence in market research findings"
+    )
+    competitive_analysis: Optional[ConfidenceMetric] = Field(
+        default=None, description="Confidence in competitive analysis findings"
+    )
+    technical_feasibility: Optional[ConfidenceMetric] = Field(
+        default=None, description="Confidence in technical feasibility assessment"
+    )
+    overall_confidence: Optional[float] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Overall confidence score across all research",
+    )
+
+    @field_validator("overall_confidence")
+    @classmethod
+    def validate_overall_confidence(cls, v: Optional[float]) -> Optional[float]:
+        """Validate overall confidence score.
+
+        Args:
+            v: The overall confidence score
+
+        Returns:
+            The validated score or None
+
+        Raises:
+            ValueError: If overall_confidence is outside 0-100 range
+        """
+        if v is not None and not (0 <= v <= 100):
+            raise ValueError(f"Overall confidence score must be between 0 and 100, got {v}")
+        return v
+
+    def validate_consistency(self) -> List[str]:
+        """Validate that confidence metrics are internally consistent.
+
+        Returns:
+            List of consistency warnings (empty if all consistent)
+        """
+        warnings = []
+
+        # Check if we have any metrics at all
+        metrics = [
+            self.market_research,
+            self.competitive_analysis,
+            self.technical_feasibility,
+        ]
+        populated_metrics = [m for m in metrics if m is not None]
+
+        if not populated_metrics:
+            warnings.append(
+                "No individual confidence metrics provided. At least one should be specified."
+            )
+            return warnings
+
+        # Check if overall_confidence is consistent with individual metrics
+        if self.overall_confidence is not None and populated_metrics:
+            # Overall confidence should be within reasonable range of individual scores
+            scores = [m.score for m in populated_metrics]
+            min_score = min(scores)
+            max_score = max(scores)
+            avg_score = sum(scores) / len(scores)
+
+            # Overall confidence should be between min and max, or close to average
+            if not (min_score - 5 <= self.overall_confidence <= max_score + 5):
+                warnings.append(
+                    f"Overall confidence ({self.overall_confidence}) is inconsistent with "
+                    f"individual metrics (min={min_score}, max={max_score}, avg={avg_score:.1f}). "
+                    f"Overall confidence should be between min and max with small tolerance."
+                )
+
+        # Check for extreme disparities between individual metrics
+        if len(populated_metrics) > 1:
+            scores = [m.score for m in populated_metrics]
+            score_spread = max(scores) - min(scores)
+
+            if score_spread > 50:
+                warnings.append(
+                    f"Large disparity between confidence metrics (spread={score_spread}). "
+                    f"Consider reviewing research findings for inconsistencies."
+                )
+
+        return warnings
 
 
 # =============================================================================

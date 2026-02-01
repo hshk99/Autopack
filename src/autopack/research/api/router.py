@@ -53,6 +53,8 @@ from .schemas import (
     BuildVsBuyAnalysisResponse,
     BuildVsBuyDecision,
     ComponentCostDecision,
+    ConfidenceMetric,
+    ConfidenceReport,
     CostEffectivenessResponse,
     CostEffectivenessSummary,
     CreateResearchSession,
@@ -538,6 +540,98 @@ def validate_anchor_serialization(anchor) -> dict:
 
 
 # =============================================================================
+# Confidence Report Validation (IMP-SCHEMA-013)
+# =============================================================================
+
+
+def validate_confidence_report(confidence_data: Dict[str, Any]) -> ConfidenceReport:
+    """Validate and construct a ConfidenceReport from raw data.
+
+    Validates:
+    - All pivot type fields have valid ConfidenceMetric objects
+    - Score ranges are 0-100 for all metrics
+    - Confidence metrics are internally consistent
+    - Report structure matches expected schema
+
+    Args:
+        confidence_data: Dictionary containing confidence metrics
+
+    Returns:
+        Validated ConfidenceReport object
+
+    Raises:
+        HTTPException: If validation fails with detailed error information
+    """
+    try:
+        # Extract individual metrics, allowing None values
+        report_dict = {}
+
+        # Process market_research if present
+        if "market_research" in confidence_data and confidence_data["market_research"]:
+            mr_data = confidence_data["market_research"]
+            if isinstance(mr_data, dict):
+                report_dict["market_research"] = ConfidenceMetric(
+                    score=mr_data.get("score", 0),
+                    reasoning=mr_data.get("reasoning", ""),
+                )
+
+        # Process competitive_analysis if present
+        if "competitive_analysis" in confidence_data and confidence_data["competitive_analysis"]:
+            ca_data = confidence_data["competitive_analysis"]
+            if isinstance(ca_data, dict):
+                report_dict["competitive_analysis"] = ConfidenceMetric(
+                    score=ca_data.get("score", 0),
+                    reasoning=ca_data.get("reasoning", ""),
+                )
+
+        # Process technical_feasibility if present
+        if "technical_feasibility" in confidence_data and confidence_data["technical_feasibility"]:
+            tf_data = confidence_data["technical_feasibility"]
+            if isinstance(tf_data, dict):
+                report_dict["technical_feasibility"] = ConfidenceMetric(
+                    score=tf_data.get("score", 0),
+                    reasoning=tf_data.get("reasoning", ""),
+                )
+
+        # Calculate overall confidence as average of populated metrics
+        populated_scores = [
+            m.score for m in report_dict.values() if isinstance(m, ConfidenceMetric)
+        ]
+        if populated_scores:
+            report_dict["overall_confidence"] = sum(populated_scores) / len(populated_scores)
+
+        # Create the ConfidenceReport
+        report = ConfidenceReport(**report_dict)
+
+        # Validate internal consistency
+        consistency_warnings = report.validate_consistency()
+        if consistency_warnings:
+            for warning in consistency_warnings:
+                logger.warning(f"[BOOTSTRAP] Confidence report consistency warning: {warning}")
+
+        logger.debug(
+            f"[BOOTSTRAP] Confidence report validated successfully "
+            f"(overall_confidence={report.overall_confidence:.1f}, "
+            f"metrics_count={len(populated_scores)})"
+        )
+
+        return report
+
+    except ValueError as e:
+        logger.error(f"[BOOTSTRAP] Confidence report validation failed: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Confidence report validation failed: {str(e)}",
+        )
+    except Exception as e:
+        logger.error(f"[BOOTSTRAP] Unexpected error validating confidence report: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to validate confidence report: {str(e)}",
+        )
+
+
+# =============================================================================
 # Bootstrap Session Schemas
 # =============================================================================
 
@@ -573,15 +667,19 @@ class BootstrapStatusResponse(BaseModel):
 
 
 class DraftAnchorResponse(BaseModel):
-    """Response containing draft anchor from completed bootstrap session."""
+    """Response containing draft anchor from completed bootstrap session.
+
+    This response includes the draft IntentionAnchorV2, clarifying questions
+    for low-confidence areas, and a structured confidence report with validation.
+    """
 
     session_id: str = Field(..., description="Bootstrap session ID")
     anchor: dict = Field(..., description="Draft IntentionAnchorV2 as dict")
     clarifying_questions: List[str] = Field(
         default_factory=list, description="Questions for low-confidence pivots"
     )
-    confidence_report: dict = Field(
-        default_factory=dict, description="Confidence scores per pivot type"
+    confidence_report: ConfidenceReport = Field(
+        ..., description="Confidence scores per pivot type with validation"
     )
 
 
@@ -826,9 +924,9 @@ async def get_draft_anchor(session_id: str):
         # This ensures the anchor meets schema requirements (all required fields, correct format, etc.)
         validated_anchor = validate_anchor_serialization(anchor)
 
-        # Get confidence report
+        # Get confidence report data from mappings
         mappings = _anchor_mapper._map_all_pivots(session, None)
-        confidence_report = {
+        confidence_data = {
             m.pivot_type.value: {
                 "score": m.confidence.score,
                 "reasoning": m.confidence.reasoning,
@@ -836,11 +934,18 @@ async def get_draft_anchor(session_id: str):
             for m in mappings
         }
 
+        # Validate confidence report with typed schema
+        # This validates:
+        # - Score ranges (0-100)
+        # - Metric consistency
+        # - Overall coherence of confidence scores
+        validated_confidence_report = validate_confidence_report(confidence_data)
+
         return DraftAnchorResponse(
             session_id=session.session_id,
             anchor=validated_anchor,
             clarifying_questions=questions,
-            confidence_report=confidence_report,
+            confidence_report=validated_confidence_report,
         )
 
     except HTTPException:

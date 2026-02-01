@@ -1,9 +1,17 @@
 """Generative Model Router - main entry point for all AI capabilities."""
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Dict, Optional
 
+from .adapters import (
+    AdapterRegistry,
+    RunPodAdapter,
+    SelfHostedAdapter,
+    TogetherAIAdapter,
+    VertexAIAdapter,
+)
 from .config_loader import ConfigLoader
 from .exceptions import (
     CapabilityNotSupportedError,
@@ -77,15 +85,34 @@ class GenerativeModelRouter:
         self.registry: ModelRegistry = self.config_loader.get_registry()
         self.health_monitor = HealthMonitor()
 
+        # Initialize adapter registry and register all provider adapters
+        self.adapter_registry = AdapterRegistry()
+        self._initialize_adapters()
+
         # Initialize provider health tracking
         for provider_name in self.registry.list_providers():
             self.health_monitor.initialize_provider(provider_name)
 
         logger.info(
             f"GenerativeModelRouter initialized with "
-            f"{len(self.registry.list_providers())} providers and "
-            f"{len(self.registry.list_capabilities())} capabilities"
+            f"{len(self.registry.list_providers())} providers, "
+            f"{len(self.registry.list_capabilities())} capabilities, and "
+            f"{len(self.adapter_registry.list_providers())} adapters"
         )
+
+    def _initialize_adapters(self) -> None:
+        """Initialize and register all provider adapters.
+
+        Adapters are registered both as classes (for lazy instantiation) and
+        can be instantiated with environment-specific configuration.
+        """
+        # Register adapter classes
+        self.adapter_registry.register_adapter_class("together_ai", TogetherAIAdapter)
+        self.adapter_registry.register_adapter_class("runpod", RunPodAdapter)
+        self.adapter_registry.register_adapter_class("vertex_ai", VertexAIAdapter)
+        self.adapter_registry.register_adapter_class("self_hosted", SelfHostedAdapter)
+
+        logger.debug("Registered all provider adapters")
 
     async def generate_image(
         self,
@@ -318,42 +345,110 @@ class GenerativeModelRouter:
         generation_params: Dict,
         result_type: str,
     ):
-        """Execute actual generation call (stub for implementation).
+        """Execute actual generation call using provider adapters.
 
-        This is where actual API calls to providers would be made.
-        For now, returns mock results.
+        Routes requests to the appropriate provider adapter based on capability and model.
+
+        Args:
+            capability_type: Type of capability (image_generation, video_generation, etc.)
+            model: ModelCapability object with model metadata
+            provider: Provider object with provider metadata
+            generation_params: Generation parameters (prompt, duration, etc.)
+            result_type: Expected result type (image, video, audio)
+
+        Returns:
+            ImageResult, VideoResult, or AudioResult depending on result_type
+
+        Raises:
+            Exception: If generation fails in the adapter
         """
-        # TODO: Implement actual API calls to providers
-        # This is a placeholder that should be extended to call real provider APIs
+        logger.debug(
+            f"Executing {capability_type} with {model.model_id} on {provider.name} "
+            f"(adapter-backed)"
+        )
 
-        logger.debug(f"Executing {capability_type} with {model.model_id} " f"on {provider.name}")
+        # Get the adapter for this provider
+        adapter_config = {
+            "api_key": os.getenv(provider.api_key_env) if provider.api_key_env else None,
+            "timeout": provider.timeout_seconds,
+            "max_retries": provider.max_retries,
+        }
+        # Add provider-specific configuration if available
+        if provider.metadata:
+            adapter_config.update(provider.metadata)
 
-        # Mock implementation - replace with actual provider calls
-        if result_type == "image":
-            return ImageResult(
-                image_url=f"mock://image/{model.model_id}",
-                model_id=model.model_id,
-                provider=model.provider,
-                metadata={"capability": capability_type},
-            )
-        elif result_type == "video":
-            return VideoResult(
-                video_url=f"mock://video/{model.model_id}",
-                model_id=model.model_id,
-                provider=model.provider,
-                duration_seconds=generation_params.get("duration", 5),
-                metadata={"capability": capability_type},
-            )
-        elif result_type == "audio":
-            return AudioResult(
-                audio_url=f"mock://audio/{model.model_id}",
-                model_id=model.model_id,
-                provider=model.provider,
-                voice_profile=generation_params.get("voice_profile", "default"),
-                metadata={"capability": capability_type},
-            )
+        adapter = self.adapter_registry.get_adapter(provider.name, **adapter_config)
 
-        raise ValueError(f"Unknown result type: {result_type}")
+        # Validate adapter credentials
+        if not await adapter.validate_credentials():
+            raise ModelNotAvailableError(f"Provider {provider.name} credentials are invalid")
+
+        # Call appropriate adapter method based on capability
+        try:
+            if capability_type == "image_generation":
+                adapter_result = await adapter.generate_image(
+                    prompt=generation_params.get("prompt"),
+                    model_id=model.model_id,
+                    width=generation_params.get("width"),
+                    height=generation_params.get("height"),
+                    num_inference_steps=generation_params.get("num_inference_steps"),
+                )
+                return ImageResult(
+                    image_url=adapter_result["image_url"],
+                    model_id=model.model_id,
+                    provider=provider.name,
+                    metadata=adapter_result.get("metadata", {}),
+                )
+            elif capability_type == "video_generation":
+                adapter_result = await adapter.generate_video(
+                    prompt=generation_params.get("prompt"),
+                    model_id=model.model_id,
+                    duration=generation_params.get("duration", 5),
+                    num_frames=generation_params.get("num_frames"),
+                )
+                return VideoResult(
+                    video_url=adapter_result["video_url"],
+                    model_id=model.model_id,
+                    provider=provider.name,
+                    duration_seconds=adapter_result.get("duration_seconds", 5),
+                    metadata=adapter_result.get("metadata", {}),
+                )
+            elif capability_type == "voice_tts":
+                adapter_result = await adapter.generate_voice(
+                    text=generation_params.get("text"),
+                    model_id=model.model_id,
+                    voice_profile=generation_params.get("voice_profile", "default"),
+                    language=generation_params.get("language"),
+                )
+                return AudioResult(
+                    audio_url=adapter_result["audio_url"],
+                    model_id=model.model_id,
+                    provider=provider.name,
+                    voice_profile=adapter_result.get("voice_profile", "default"),
+                    metadata=adapter_result.get("metadata", {}),
+                )
+            elif capability_type == "background_removal":
+                adapter_result = await adapter.remove_background(
+                    image_url=generation_params.get("image_url"),
+                    model_id=model.model_id,
+                    output_format=generation_params.get("output_format", "png"),
+                )
+                return ImageResult(
+                    image_url=adapter_result["image_url"],
+                    model_id=model.model_id,
+                    provider=provider.name,
+                    metadata=adapter_result.get("metadata", {}),
+                )
+            else:
+                raise ValueError(f"Unknown capability type: {capability_type}")
+        except NotImplementedError as e:
+            logger.error(
+                f"Capability {capability_type} not supported by adapter {provider.name}: {e}"
+            )
+            raise
+        except Exception as e:
+            logger.error(f"Adapter {provider.name} failed for {capability_type}: {e}")
+            raise
 
     async def _try_fallback_chain(
         self,
@@ -417,6 +512,50 @@ class GenerativeModelRouter:
         for provider_name in self.registry.list_providers():
             results[provider_name] = self.health_monitor.is_healthy(provider_name)
         return results
+
+    def get_provider_features(self, provider_name: str) -> Dict:
+        """Get feature capabilities for a specific provider.
+
+        Args:
+            provider_name: Name of the provider
+
+        Returns:
+            Dict with feature information for the provider
+
+        Raises:
+            InvalidConfigurationError: If provider not found
+        """
+        features = self.adapter_registry.get_features(provider_name)
+        return {
+            "provider": provider_name,
+            "supports_image_generation": features.supports_image_generation,
+            "supports_video_generation": features.supports_video_generation,
+            "supports_voice_tts": features.supports_voice_tts,
+            "supports_background_removal": features.supports_background_removal,
+            "supports_async": features.supports_async,
+            "requires_authentication": features.requires_authentication,
+            "rate_limit_per_minute": features.rate_limit_per_minute,
+            "max_concurrent_requests": features.max_concurrent_requests,
+            "supported_formats": {
+                "image": features.supported_image_formats,
+                "video": features.supported_video_formats,
+                "audio": features.supported_audio_formats,
+            },
+        }
+
+    def get_all_provider_features(self) -> Dict[str, Dict]:
+        """Get feature capabilities for all providers.
+
+        Returns:
+            Dict mapping provider names to their feature information
+        """
+        features = {}
+        for provider_name in self.adapter_registry.list_providers():
+            try:
+                features[provider_name] = self.get_provider_features(provider_name)
+            except Exception as e:
+                logger.warning(f"Could not get features for {provider_name}: {e}")
+        return features
 
     def get_health_summary(self) -> Dict:
         """Get overall health summary of all providers and capabilities.

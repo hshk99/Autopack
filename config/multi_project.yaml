@@ -1,0 +1,81 @@
+# Multi-Project Orchestration Configuration
+#
+# Controls batch processing and parallel execution of multiple projects.
+# Used by MultiProjectOrchestrator for resource management and execution strategy.
+
+# Resource Limits
+# ===============
+
+# Maximum number of projects to execute in parallel
+# Limits concurrent project execution to prevent resource exhaustion
+max_parallel_projects: 4
+
+# Maximum API calls allowed per minute across all projects
+# Prevents rate limiting and quota exhaustion
+max_api_calls_per_minute: 100
+
+# Maximum concurrent memory usage in MB
+# Limits total memory footprint across all active projects
+max_concurrent_memory_mb: 2000
+
+# Maximum disk I/O throughput in MB/s
+# Prevents disk saturation and ensures system responsiveness
+max_disk_io_mbps: 50.0
+
+# Maximum wall-clock time per project in hours
+# Stops projects that exceed this timeout
+per_project_timeout_hours: 2
+
+# Maximum wall-clock time per phase in minutes
+# Stops individual phases that exceed this timeout
+phase_timeout_minutes: 30
+
+
+# Execution Strategy
+# ==================
+
+# Execution strategy for processing projects
+# Options: parallel, sequential, staged, adaptive
+# - parallel: All projects simultaneously (default)
+# - sequential: One at a time (fallback mode)
+# - staged: All research, then all builds, then deployments, etc.
+# - adaptive: Monitor resources and adjust parallelism dynamically
+execution_strategy: parallel
+
+# Enable adaptive strategy adjustments
+# Allows orchestrator to reduce parallelism if resources constrained
+enable_adaptive_strategy: true
+
+
+# Resource Tracking
+# =================
+
+# Enable real-time resource monitoring
+# Tracks CPU, memory, disk I/O, and API usage
+enable_resource_tracking: true
+
+# Interval for resource checks in seconds
+resource_check_interval_seconds: 5.0
+
+
+# Error Handling
+# ==============
+
+# Stop all projects if one fails
+# If false, failed projects are isolated and don't affect others
+fail_fast: false
+
+# Isolate project errors from batch execution
+# If true, project failures don't fail the entire batch
+error_isolation: true
+
+
+# Monitoring & Progress
+# =====================
+
+# Enable progress tracking for all projects
+# Logs real-time progress and metrics
+enable_progress_tracking: true
+
+# Interval for progress reports in seconds
+progress_report_interval_seconds: 10.0

@@ -110,9 +110,9 @@ flags:
   AUTOPACK_ENABLE_INTENTION_CONTEXT:
     description: "Enable intention-based context enrichment"
     category: feature_toggle
-    default: "false"
+    default: "true"
     values: ["true", "false"]
-    affects: ["autonomous_executor.py"]
+    affects: ["autonomous_executor.py", "executor/builder_orchestrator.py", "executor/doctor_facade.py"]
 
   AUTOPACK_AUTOPILOT_ENABLED:
     description: "Enable autopilot periodic invocation during autonomous execution (IMP-AUTOPILOT-001)"

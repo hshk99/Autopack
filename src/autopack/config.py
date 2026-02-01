@@ -651,7 +651,7 @@ class Settings(BaseSettings):
     # IMP-AUTO-002: Parallel phase execution configuration
     # Enables concurrent execution of phases with non-overlapping file scopes
     parallel_phase_execution_enabled: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "AUTOPACK_PARALLEL_PHASE_ENABLED", "PARALLEL_PHASE_EXECUTION_ENABLED"
         ),

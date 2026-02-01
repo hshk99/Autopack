@@ -215,7 +215,7 @@ flags:
   AUTOPACK_PARALLEL_PHASE_ENABLED:
     description: "Enable parallel phase execution when file scopes don't overlap (IMP-AUTO-002)"
     category: feature_toggle
-    default: "false"
+    default: "true"
     values: ["true", "false"]
     affects: ["config.py", "executor/autonomous_loop.py", "autonomy/parallelism_gate.py"]
     aliases: ["PARALLEL_PHASE_EXECUTION_ENABLED"]

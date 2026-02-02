@@ -113,6 +113,57 @@ See [docs/PROJECT_ISOLATION_ARCHITECTURE.md](docs/PROJECT_ISOLATION_ARCHITECTURE
 
 - **Memory Service Production Guide**: [docs/MEMORY_SERVICE_OPERATOR_GUIDE.md](docs/MEMORY_SERVICE_OPERATOR_GUIDE.md) - Comprehensive guide for operating the vector memory service (Qdrant/FAISS, setup, troubleshooting, performance tuning)
 
+## Autopilot Configuration (IMP-BLOCKED-002)
+
+Autopilot enables fully autonomous execution with periodic gap scanning and improvement proposals. It is **disabled by default** for safety.
+
+### Enabling Autopilot
+
+```bash
+# Option 1: Environment variable (recommended)
+export AUTOPACK_AUTOPILOT_ENABLED=true
+
+# Option 2: Alternative alias
+export AUTOPILOT_ENABLED=true
+```
+
+### Prerequisites
+
+Before enabling autopilot, ensure your environment has:
+1. **Valid workspace directory** - The project workspace must exist
+2. **Intention anchor file** - `intention_anchor.yaml` in workspace root or `.autopack/` directory
+3. **Core modules available** - Gap scanner, plan proposer, executor context
+
+### Capability Auto-Detection
+
+Check if your environment is ready for autopilot:
+
+```python
+from autopack.autonomy.autopilot import detect_autopilot_capabilities
+from pathlib import Path
+
+caps = detect_autopilot_capabilities(Path("/path/to/workspace"))
+print(caps.get_status_message())
+
+if not caps.is_ready:
+    print("Missing components:")
+    for component in caps.missing_components:
+        print(f"  - {component}")
+    print("Recommendations:")
+    for rec in caps.recommendations:
+        print(f"  - {rec}")
+```
+
+### Configuration Options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTOPACK_AUTOPILOT_ENABLED` | `true` | Enable/disable autopilot feature |
+| `AUTOPACK_AUTOPILOT_FREQUENCY` | `5` | Run gap scan every N phases |
+| `AUTOPACK_AUTOPILOT_MAX_PROPOSALS` | `3` | Max improvement proposals per session |
+
+See `config/feature_flags.yaml` for complete configuration reference.
+
 ## Project Status
 
 **Version**: 0.5.1

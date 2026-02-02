@@ -32,7 +32,6 @@ from typing import Any, Iterable, Optional
 
 import requests
 
-
 DEFAULT_RECOMMENDED_REQUIRED_CHECKS = [
     # These correspond to CI job names in .github/workflows/ci.yml.
     # Note: GitHub status check names may include workflow prefixes; matching is suffix-tolerant.

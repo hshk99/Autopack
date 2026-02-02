@@ -27,7 +27,6 @@ logging.basicConfig(
 
 from autopack.anthropic_clients import AnthropicBuilderClient
 
-
 # Test scenarios. We intentionally do NOT inject a manual token estimate:
 # the goal is to collect telemetry for the real TokenEstimator.
 TEST_SCENARIOS = [

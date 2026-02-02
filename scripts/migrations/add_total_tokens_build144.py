@@ -108,31 +108,25 @@ def upgrade(engine: Engine) -> None:
             print("[x] Column 'total_tokens' already exists, skipping column creation")
 
             # Verify backfill for existing rows with total_tokens=0
-            result = conn.execute(
-                text(
-                    """
+            result = conn.execute(text("""
                 SELECT COUNT(*) as count FROM llm_usage_events
                 WHERE total_tokens = 0
                 AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)
-            """
-                )
-            )
+            """))
             row = result.fetchone()
             zero_total_count = row[0] if row else 0
 
             if zero_total_count > 0:
-                print(f"[!]️  Found {zero_total_count} rows with total_tokens=0 but non-NULL splits")
+                print(
+                    f"[!]️  Found {zero_total_count} rows with total_tokens=0 but non-NULL splits"
+                )
                 print("    Running backfill to fix these rows...")
-                conn.execute(
-                    text(
-                        """
+                conn.execute(text("""
                     UPDATE llm_usage_events
                     SET total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
                     WHERE total_tokens = 0
                     AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)
-                """
-                    )
-                )
+                """))
                 print(f"[x] Backfilled {zero_total_count} rows with correct total_tokens")
             else:
                 print("[x] All rows have correct total_tokens values")
@@ -141,45 +135,33 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[1/3] Adding column: total_tokens (INTEGER NOT NULL DEFAULT 0)")
         print("      Purpose: Always record total tokens to avoid under-reporting")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             ALTER TABLE llm_usage_events
             ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0
-        """
-            )
-        )
+        """))
         print("      [x] Column 'total_tokens' added")
 
         print("\n[2/3] Backfilling total_tokens for existing rows")
         print(
             "      Formula: total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)"
         )
-        result = conn.execute(
-            text(
-                """
+        result = conn.execute(text("""
             UPDATE llm_usage_events
             SET total_tokens = COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
-        """
-            )
-        )
+        """))
         rows_updated = result.rowcount
         print(f"      [x] Backfilled {rows_updated} rows")
 
         print("\n[3/3] Verification")
         # Count rows by token pattern
-        result = conn.execute(
-            text(
-                """
+        result = conn.execute(text("""
             SELECT
                 COUNT(*) as total_rows,
                 SUM(CASE WHEN prompt_tokens IS NOT NULL AND completion_tokens IS NOT NULL THEN 1 ELSE 0 END) as exact_splits,
                 SUM(CASE WHEN prompt_tokens IS NULL AND completion_tokens IS NULL THEN 1 ELSE 0 END) as total_only,
                 SUM(total_tokens) as total_tokens_sum
             FROM llm_usage_events
-        """
-            )
-        )
+        """))
         row = result.fetchone()
         if row:
             print(f"      Total rows: {row[0]}")
@@ -225,14 +207,10 @@ def downgrade(engine: Engine) -> None:
             return
         else:
             # PostgreSQL and other databases support DROP COLUMN
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 ALTER TABLE llm_usage_events
                 DROP COLUMN total_tokens
-            """
-                )
-            )
+            """))
             print("      [x] Column 'total_tokens' dropped")
 
     print("\n" + "=" * 80)

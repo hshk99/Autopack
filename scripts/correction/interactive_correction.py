@@ -292,21 +292,17 @@ class InteractiveCorrector:
 
         # Check if corrections table exists
         try:
-            self.cursor.execute(
-                """
+            self.cursor.execute("""
                 SELECT COUNT(*) FROM classification_corrections
-            """
-            )
+            """)
             total = self.cursor.fetchone()[0]
 
-            self.cursor.execute(
-                """
+            self.cursor.execute("""
                 SELECT corrected_project, corrected_type, COUNT(*)
                 FROM classification_corrections
                 GROUP BY corrected_project, corrected_type
                 ORDER BY COUNT(*) DESC
-            """
-            )
+            """)
 
             corrections_by_type = self.cursor.fetchall()
 

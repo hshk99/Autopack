@@ -30,7 +30,6 @@ from autopack.database import SessionLocal  # noqa: E402
 from autopack.models import Phase, PhaseState  # noqa: E402
 from autopack.token_estimator import TokenEstimator  # noqa: E402
 
-
 RUN_TYPE_AUTOPACK_RE = re.compile(
     r"^(build\d+|build-|build_|autopack\b|autopack-|autopack_)", re.IGNORECASE
 )

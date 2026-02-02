@@ -31,7 +31,6 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy import create_engine, inspect, text
 
-
 DEFAULT_TABLES = [
     "token_estimation_v2_events",
     "token_budget_escalation_events",

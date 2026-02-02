@@ -33,8 +33,7 @@ class TidyLogger:
     def _ensure_table(self):
         conn = self.pg.connect(self.dsn)
         cur = conn.cursor()
-        cur.execute(
-            """
+        cur.execute("""
             create table if not exists tidy_activity (
                 id serial primary key,
                 run_id text,
@@ -47,16 +46,14 @@ class TidyLogger:
                 dest_sha text,
                 ts timestamptz not null default now()
             );
-            """
-        )
+            """)
         # make sure columns exist
         cur.execute("alter table tidy_activity add column if not exists project_id text;")
         cur.execute("alter table tidy_activity add column if not exists src_sha text;")
         cur.execute("alter table tidy_activity add column if not exists dest_sha text;")
 
         # Create table for validation errors (path construction bugs)
-        cur.execute(
-            """
+        cur.execute("""
             create table if not exists tidy_validation_errors (
                 id serial primary key,
                 run_id text,
@@ -66,8 +63,7 @@ class TidyLogger:
                 validation_error text not null,
                 ts timestamptz not null default now()
             );
-            """
-        )
+            """)
         conn.commit()
         cur.close()
         conn.close()

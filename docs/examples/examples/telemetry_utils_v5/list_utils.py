@@ -9,7 +9,6 @@ This module provides common list manipulation utilities including:
 
 from typing import List, Any, TypeVar
 
-
 T = TypeVar("T")
 
 

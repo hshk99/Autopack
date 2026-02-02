@@ -111,24 +111,16 @@ def upgrade(engine: Engine) -> None:
     print("\n[1] Adding new coverage tracking fields")
     with engine.begin() as conn:
         # Add new fields first
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             ALTER TABLE phase6_metrics
             ADD COLUMN estimate_coverage_n INTEGER NULL
-        """
-            )
-        )
+        """))
         print("    ✓ Added estimate_coverage_n")
 
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             ALTER TABLE phase6_metrics
             ADD COLUMN estimate_source VARCHAR(50) NULL
-        """
-            )
-        )
+        """))
         print("    ✓ Added estimate_source")
 
     print("\n[2] Renaming tokens_saved_estimate -> doctor_tokens_avoided_estimate")
@@ -139,24 +131,16 @@ def upgrade(engine: Engine) -> None:
         print("    (Using SQLite-compatible rename strategy)")
         with engine.begin() as conn:
             # Add new column
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 ALTER TABLE phase6_metrics
                 ADD COLUMN doctor_tokens_avoided_estimate INTEGER NOT NULL DEFAULT 0
-            """
-                )
-            )
+            """))
 
             # Copy data from old column
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 UPDATE phase6_metrics
                 SET doctor_tokens_avoided_estimate = tokens_saved_estimate
-            """
-                )
-            )
+            """))
 
             # Note: SQLite doesn't allow dropping columns easily
             # We'll leave tokens_saved_estimate in place but document it as deprecated
@@ -165,14 +149,10 @@ def upgrade(engine: Engine) -> None:
     else:
         # PostgreSQL supports direct rename
         with engine.begin() as conn:
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 ALTER TABLE phase6_metrics
                 RENAME COLUMN tokens_saved_estimate TO doctor_tokens_avoided_estimate
-            """
-                )
-            )
+            """))
             print("    ✓ Renamed column")
 
     print("\n" + "=" * 80)
@@ -212,14 +192,10 @@ def downgrade(engine: Engine) -> None:
     else:
         # PostgreSQL can do full revert
         with engine.begin() as conn:
-            conn.execute(
-                text(
-                    """
+            conn.execute(text("""
                 ALTER TABLE phase6_metrics
                 RENAME COLUMN doctor_tokens_avoided_estimate TO tokens_saved_estimate
-            """
-                )
-            )
+            """))
 
             conn.execute(text("ALTER TABLE phase6_metrics DROP COLUMN estimate_coverage_n"))
             conn.execute(text("ALTER TABLE phase6_metrics DROP COLUMN estimate_source"))

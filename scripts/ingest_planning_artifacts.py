@@ -23,7 +23,6 @@ from autopack.config import settings
 from autopack.database import Base
 from autopack.memory import MemoryService
 
-
 DEFAULT_ARTIFACT_PATHS = [
     "templates/hardening_phases.json",
     "templates/phase_defaults.json",

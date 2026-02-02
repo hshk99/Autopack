@@ -6,7 +6,6 @@ chunking, flattening, deduplication, and grouping operations.
 
 from typing import Any, Callable, Dict, List, TypeVar
 
-
 T = TypeVar("T")
 K = TypeVar("K")
 

@@ -310,15 +310,13 @@ class BatchCorrector:
 
         # This would ideally join with classifier confidence scores
         # For now, export recent classifications
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             SELECT src_path, project_id, doc_type, dest_path
             FROM tidy_activity
             WHERE action = 'move'
             ORDER BY created_at DESC
             LIMIT 100
-        """
-        )
+        """)
 
         rows = self.cursor.fetchall()
 

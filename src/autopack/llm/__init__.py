@@ -6,6 +6,9 @@ the god file refactoring (Item 1.1 - PR-LLM-1).
 Current modules:
 - providers: Provider-specific transport wrappers (Anthropic, OpenAI, etc.)
 - client_resolution: Client resolution and provider fallback logic (PR-SVC-1)
+- model_registry: Central model registry with capability metadata (IMP-LLM-001)
+- model_validator: Model capability validation and benchmarking (IMP-LLM-001)
+- routing_engine: Intelligent model routing and fallback (IMP-LLM-001)
 
 Future modules (to be extracted):
 - prompts: System and user prompt builders
@@ -15,6 +18,7 @@ Future modules (to be extracted):
 Usage:
     from autopack.llm.providers import AnthropicTransport
     from autopack.llm.client_resolution import resolve_client_and_model
+    from autopack.llm import get_model_registry, get_routing_engine
 """
 
 # Import client resolution functions (PR-SVC-1)
@@ -31,11 +35,74 @@ from autopack.llm.prompts.anthropic_builder_prompts import (  # noqa: F401
     build_user_prompt,
 )
 
+# Import model registry (IMP-LLM-001)
+from autopack.llm.model_registry import (  # noqa: F401
+    ModelCapabilities,
+    ModelCost,
+    ModelHealth,
+    ModelInfo,
+    ModelLimits,
+    ModelRegistry,
+    ModelStatus,
+    ModelTier,
+    get_model_registry,
+)
+
+# Import model validator (IMP-LLM-001)
+from autopack.llm.model_validator import (  # noqa: F401
+    BenchmarkResult,
+    BenchmarkTest,
+    ModelValidator,
+    ValidationResult,
+    ValidationResultStatus,
+    get_model_validator,
+)
+
+# Import routing engine (IMP-LLM-001)
+from autopack.llm.routing_engine import (  # noqa: F401
+    ComplexityEstimate,
+    FallbackChain,
+    FallbackTrigger,
+    RoutingDecision,
+    RoutingEngine,
+    RoutingRule,
+    RoutingStrategy,
+    get_routing_engine,
+)
+
 __all__ = [
+    # Client resolution
     "resolve_client_and_model",
     "resolve_builder_client",
     "resolve_auditor_client",
+    # Prompt builders
     "build_system_prompt",
     "build_minimal_system_prompt",
     "build_user_prompt",
+    # Model registry (IMP-LLM-001)
+    "ModelCapabilities",
+    "ModelCost",
+    "ModelHealth",
+    "ModelInfo",
+    "ModelLimits",
+    "ModelRegistry",
+    "ModelStatus",
+    "ModelTier",
+    "get_model_registry",
+    # Model validator (IMP-LLM-001)
+    "BenchmarkResult",
+    "BenchmarkTest",
+    "ModelValidator",
+    "ValidationResult",
+    "ValidationResultStatus",
+    "get_model_validator",
+    # Routing engine (IMP-LLM-001)
+    "ComplexityEstimate",
+    "FallbackChain",
+    "FallbackTrigger",
+    "RoutingDecision",
+    "RoutingEngine",
+    "RoutingRule",
+    "RoutingStrategy",
+    "get_routing_engine",
 ]

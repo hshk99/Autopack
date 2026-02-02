@@ -9,7 +9,6 @@ Tests cover:
 - Integration with maintenance cycle
 """
 
-import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 

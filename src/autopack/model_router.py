@@ -3,7 +3,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import yaml
 from sqlalchemy.orm import Session
@@ -631,3 +631,222 @@ class ModelRouter:
         """
         aliases = self.config.get("model_aliases", {})
         return aliases.get(alias, alias)
+
+    # =========================================================================
+    # IMP-GENAI-003: Model Degradation Strategy
+    # =========================================================================
+    # Provides a clear fallback path when primary models are unavailable.
+    # Implements cascading degradation with health checking and recovery.
+
+    def get_degradation_chain(
+        self, role: Literal["builder", "auditor"], complexity: str
+    ) -> List[str]:
+        """
+        Get the degradation chain (fallback models) for a given role and complexity.
+
+        Constructs the degradation path by combining primary model with escalation chains
+        from config. This ensures a clear path when the primary model is unavailable.
+
+        Args:
+            role: Role requesting model (builder/auditor)
+            complexity: Complexity level (low/medium/high)
+
+        Returns:
+            List of models in degradation order (primary first, then fallbacks)
+        """
+        degradation_chain = []
+
+        # Get the escalation chain from config if available
+        escalation_chains = self.config.get("escalation_chains", {})
+        if role in escalation_chains and complexity in escalation_chains[role]:
+            chain_config = escalation_chains[role][complexity]
+            if isinstance(chain_config, dict) and "models" in chain_config:
+                degradation_chain = list(chain_config["models"])
+        else:
+            # Fallback: construct from complexity models
+            baseline = self._get_baseline_model(role, None, complexity)
+            degradation_chain.append(baseline)
+
+            # Add escalation models if configured
+            escalation_key = f"escalation_{role}"
+            if (
+                complexity in self.complexity_models
+                and escalation_key in self.complexity_models[complexity]
+            ):
+                degradation_chain.append(self.complexity_models[complexity][escalation_key])
+
+        # Ensure chain is not empty and remove duplicates while preserving order
+        if not degradation_chain:
+            degradation_chain = ["claude-sonnet-4-5", "claude-opus-4-5"]
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_chain = []
+        for model in degradation_chain:
+            if model not in seen:
+                seen.add(model)
+                unique_chain.append(model)
+
+        return unique_chain
+
+    def is_model_available(self, model: str) -> bool:
+        """
+        Check if a model is available for use.
+
+        A model is considered unavailable if:
+        - Its provider has been explicitly disabled
+        - The provider is over hard limit (not just soft limit)
+
+        Args:
+            model: Model name to check
+
+        Returns:
+            True if model is available, False otherwise
+        """
+        # Check if provider is disabled
+        if self._is_provider_disabled(model):
+            provider = self._model_to_provider(model)
+            logger.debug(f"[ModelRouter] Model {model} (provider={provider}) is disabled")
+            return False
+
+        # Check if provider is over hard limit (quota exhaustion)
+        provider = self._model_to_provider(model)
+        usage = self.usage_service.get_provider_usage_summary("week")
+
+        if provider not in usage:
+            return True  # No usage yet, assume available
+
+        quota_config = self.provider_quotas.get(provider, {})
+        hard_limit = quota_config.get("weekly_token_cap", 0)
+
+        if hard_limit > 0:
+            provider_usage = usage[provider]["total_tokens"]
+            if provider_usage >= hard_limit:
+                logger.warning(
+                    f"[ModelRouter] Model {model} (provider={provider}) is over hard limit "
+                    f"({provider_usage}/{hard_limit} tokens)"
+                )
+                return False
+
+        return True
+
+    def get_next_degraded_model(
+        self, current_model: str, role: Literal["builder", "auditor"], complexity: str
+    ) -> Optional[str]:
+        """
+        Get the next model in the degradation chain after the current model.
+
+        Args:
+            current_model: Current model that is unavailable/failed
+            role: Role requesting model (builder/auditor)
+            complexity: Complexity level (low/medium/high)
+
+        Returns:
+            Next model in chain or None if no more fallbacks available
+        """
+        chain = self.get_degradation_chain(role, complexity)
+
+        try:
+            current_index = chain.index(current_model)
+            # Return the next available model in the chain
+            for next_model in chain[current_index + 1 :]:
+                if self.is_model_available(next_model):
+                    logger.info(
+                        f"[ModelRouter] Degrading from {current_model} to {next_model} "
+                        f"(role={role}, complexity={complexity})"
+                    )
+                    return next_model
+        except ValueError:
+            # Current model not in chain, try to find first available in chain
+            logger.warning(
+                f"[ModelRouter] Current model {current_model} not in degradation chain, "
+                f"selecting first available from chain"
+            )
+            for next_model in chain:
+                if self.is_model_available(next_model):
+                    return next_model
+
+        logger.error(
+            f"[ModelRouter] No available models in degradation chain for role={role}, "
+            f"complexity={complexity}. Chain was: {chain}"
+        )
+        return None
+
+    def select_model_with_degradation(
+        self,
+        role: Literal["builder", "auditor"] | str,
+        task_category: Optional[str],
+        complexity: str,
+        run_context: Optional[Dict] = None,
+        phase_id: Optional[str] = None,
+        attempt_index: int = 0,
+    ) -> tuple[str, Optional[Dict]]:
+        """
+        Select a model with comprehensive degradation strategy.
+
+        This method extends select_model with model availability checking and
+        ensures a clear degradation path if the primary model is unavailable.
+
+        Args:
+            role: Role requesting model (builder/auditor/agent:name)
+            task_category: Task category (e.g., security_auth_change)
+            complexity: Complexity level (low/medium/high)
+            run_context: Optional run context with model_overrides
+            phase_id: Optional phase ID for budget tracking
+            attempt_index: Current attempt number
+
+        Returns:
+            Tuple of (model_name, degradation_info)
+            degradation_info is None or dict with degradation details
+        """
+        # First try the standard model selection
+        selected_model, budget_warning = self.select_model(
+            role=role,
+            task_category=task_category,
+            complexity=complexity,
+            run_context=run_context,
+            phase_id=phase_id,
+            attempt_index=attempt_index,
+        )
+
+        degradation_info = None
+
+        # If the selected model is not available, degrade to next in chain
+        if not self.is_model_available(selected_model):
+            logger.warning(
+                f"[ModelRouter] Selected model {selected_model} is unavailable, "
+                f"starting degradation process"
+            )
+
+            # Normalize role for degradation chain lookup
+            degradation_role = role if role in ["builder", "auditor"] else "builder"
+
+            next_model = self.get_next_degraded_model(selected_model, degradation_role, complexity)
+
+            if next_model:
+                degradation_info = {
+                    "degraded": True,
+                    "original_model": selected_model,
+                    "degraded_model": next_model,
+                    "reason": f"Primary model {selected_model} is unavailable",
+                    "chain": self.get_degradation_chain(degradation_role, complexity),
+                }
+                logger.info(
+                    f"[ModelRouter] Degradation successful: {selected_model} -> {next_model}"
+                )
+                return next_model, degradation_info
+            else:
+                degradation_info = {
+                    "degraded": True,
+                    "original_model": selected_model,
+                    "error": "All models in degradation chain are unavailable",
+                    "chain": self.get_degradation_chain(degradation_role, complexity),
+                }
+                logger.error(
+                    f"[ModelRouter] Degradation failed: No available models in chain "
+                    f"after {selected_model}"
+                )
+                # Return original selection despite degradation failure
+                return selected_model, degradation_info
+
+        return selected_model, degradation_info

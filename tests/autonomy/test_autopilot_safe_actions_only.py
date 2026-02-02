@@ -122,13 +122,14 @@ class TestSafeActionExecutor:
         """Safe commands should be executed."""
         executor = SafeActionExecutor(workspace_root=Path("."))
 
-        # Mock subprocess.Popen since SafeActionExecutor uses _run_command_with_cleanup
+        # Mock Popen since execute_command uses _run_command_with_cleanup which uses Popen
         mock_proc = MagicMock()
         mock_proc.communicate.return_value = ("OK", "")
         mock_proc.returncode = 0
         mock_proc.pid = 12345
 
-        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
+        with patch("autopack.autonomy.action_executor.subprocess.Popen") as mock_popen:
+            mock_popen.return_value = mock_proc
             result = executor.execute_command("git status")
 
         assert result.executed is True

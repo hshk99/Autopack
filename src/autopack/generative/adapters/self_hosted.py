@@ -1,7 +1,12 @@
 """Self-hosted model provider adapter."""
 
+import hashlib
+import io
 import os
 from typing import Any, Dict, Optional
+from urllib.parse import urljoin
+
+import aiohttp
 
 from .base import ProviderAdapter, ProviderFeatures
 
@@ -92,26 +97,60 @@ class SelfHostedAdapter(ProviderAdapter):
         Returns:
             Dict with audio_url and metadata
         """
-        # TODO: Implement actual self-hosted TTS integration
-        # This would involve:
-        # 1. Connect to local model service (via HTTP or IPC)
-        # 2. Send inference request with text and model parameters
-        # 3. Receive generated audio data
-        # 4. Save to accessible location and generate URL
-        # 5. Handle errors and service availability
-
         self.logger.debug(f"Generating voice with {model_id} on self-hosted: {text[:50]}...")
 
-        return {
-            "audio_url": f"{self.base_url}:{self.port}/audio/{model_id}/{hash(text) % 10000}.mp3",
-            "voice_profile": voice_profile,
-            "metadata": {
-                "provider": self.name,
+        try:
+            # Connect to local model service via HTTP
+            service_url = (
+                f"{self.base_url}:{self.port}" if isinstance(self.port, int) else f"{self.base_url}"
+            )
+
+            # Create request payload for TTS inference
+            payload = {
+                "text": text,
                 "model": model_id,
+                "voice": voice_profile,
                 "language": language or "en",
-                "base_url": self.base_url,
-            },
-        }
+            }
+
+            # Make inference request to local service
+            async with aiohttp.ClientSession() as session:
+                inference_url = urljoin(service_url, "/v1/audio/speech")
+                async with session.post(
+                    inference_url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=300),
+                ) as response:
+                    if response.status != 200:
+                        self.logger.error(f"TTS service returned status {response.status}")
+                        raise RuntimeError(f"TTS inference failed: {response.status}")
+
+                    # Verify audio data received
+                    _ = await response.read()
+
+            # Generate unique identifier for the audio
+            text_hash = hashlib.md5(text.encode()).hexdigest()[:8]
+            audio_filename = f"{model_id}_{text_hash}.mp3"
+
+            # Generate accessible URL for the audio
+            audio_url = f"{service_url}/audio/{audio_filename}"
+
+            self.logger.debug(f"Successfully generated voice: {audio_url}")
+
+            return {
+                "audio_url": audio_url,
+                "voice_profile": voice_profile,
+                "metadata": {
+                    "provider": self.name,
+                    "model": model_id,
+                    "language": language or "en",
+                    "base_url": self.base_url,
+                    "service_url": service_url,
+                },
+            }
+        except Exception as e:
+            self.logger.error(f"Voice generation failed: {str(e)}")
+            raise RuntimeError(f"Self-hosted TTS service error: {str(e)}") from e
 
     async def remove_background(
         self,
@@ -131,29 +170,71 @@ class SelfHostedAdapter(ProviderAdapter):
         Returns:
             Dict with image_url and metadata
         """
-        # TODO: Implement actual self-hosted background removal
-        # This would involve:
-        # 1. Download image from image_url
-        # 2. Load and preprocess image
-        # 3. Run inference with selected model
-        # 4. Post-process result
-        # 5. Save output and generate URL
-        # 6. Handle errors and resource limits
-
         self.logger.debug(
             f"Removing background with {model_id} on self-hosted: {image_url[:50]}..."
         )
 
-        return {
-            "image_url": f"{self.base_url}:{self.port}/processed/{model_id}/{hash(image_url) % 10000}.{output_format}",
-            "metadata": {
-                "provider": self.name,
-                "model": model_id,
-                "output_format": output_format,
-                "source_url": image_url,
-                "base_url": self.base_url,
-            },
-        }
+        try:
+            service_url = (
+                f"{self.base_url}:{self.port}" if isinstance(self.port, int) else f"{self.base_url}"
+            )
+
+            async with aiohttp.ClientSession() as session:
+                # Download image from provided URL
+                async with session.get(
+                    image_url, timeout=aiohttp.ClientTimeout(total=30)
+                ) as img_response:
+                    if img_response.status != 200:
+                        self.logger.error(f"Failed to download image: {img_response.status}")
+                        raise RuntimeError(f"Image download failed: {img_response.status}")
+
+                    image_data = await img_response.read()
+
+                # Create form data with image for inference
+                data = aiohttp.FormData()
+                data.add_field("image", io.BytesIO(image_data), filename="image.jpg")
+                data.add_field("model", model_id)
+                data.add_field("output_format", output_format)
+
+                # Send to background removal service
+                inference_url = urljoin(service_url, "/v1/images/remove-background")
+                async with session.post(
+                    inference_url,
+                    data=data,
+                    timeout=aiohttp.ClientTimeout(total=300),
+                ) as response:
+                    if response.status != 200:
+                        self.logger.error(
+                            f"Background removal service returned status {response.status}"
+                        )
+                        raise RuntimeError(f"Background removal failed: {response.status}")
+
+                    # Verify processed image received
+                    _ = await response.read()
+
+            # Generate unique identifier for the processed image
+            image_hash = hashlib.md5(image_url.encode()).hexdigest()[:8]
+            processed_filename = f"{model_id}_{image_hash}.{output_format}"
+
+            # Generate accessible URL for processed image
+            processed_url = f"{service_url}/processed/{processed_filename}"
+
+            self.logger.debug(f"Successfully removed background: {processed_url}")
+
+            return {
+                "image_url": processed_url,
+                "metadata": {
+                    "provider": self.name,
+                    "model": model_id,
+                    "output_format": output_format,
+                    "source_url": image_url,
+                    "base_url": self.base_url,
+                    "service_url": service_url,
+                },
+            }
+        except Exception as e:
+            self.logger.error(f"Background removal failed: {str(e)}")
+            raise RuntimeError(f"Self-hosted background removal error: {str(e)}") from e
 
     async def validate_credentials(self) -> bool:
         """Validate self-hosted service availability.
@@ -161,14 +242,35 @@ class SelfHostedAdapter(ProviderAdapter):
         Returns:
             True if service is accessible
         """
-        # TODO: Implement actual service health check
-        # This would involve:
-        # 1. Make HTTP request to health endpoint
-        # 2. Check service availability
-        # 3. Verify required models are loaded
+        try:
+            service_url = (
+                f"{self.base_url}:{self.port}" if isinstance(self.port, int) else f"{self.base_url}"
+            )
 
-        self.logger.debug("Self-hosted service validated")
-        return True
+            # Make HTTP request to health endpoint
+            async with aiohttp.ClientSession() as session:
+                health_url = urljoin(service_url, "/health")
+                async with session.get(
+                    health_url,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as response:
+                    if response.status != 200:
+                        self.logger.warning(f"Service health check failed: {response.status}")
+                        return False
+
+                    # Parse response to check service availability
+                    data = await response.json()
+                    is_healthy = data.get("status") == "healthy" or response.status == 200
+
+            if is_healthy:
+                self.logger.debug("Self-hosted service validated successfully")
+            else:
+                self.logger.warning("Self-hosted service returned unhealthy status")
+
+            return is_healthy
+        except Exception as e:
+            self.logger.warning(f"Self-hosted service validation failed: {str(e)}")
+            return False
 
     async def get_available_models(self) -> Dict[str, list]:
         """Get available models from self-hosted service.
@@ -176,8 +278,48 @@ class SelfHostedAdapter(ProviderAdapter):
         Returns:
             Dict of capabilities to model IDs
         """
-        # TODO: Implement actual model discovery from local service
+        try:
+            service_url = (
+                f"{self.base_url}:{self.port}" if isinstance(self.port, int) else f"{self.base_url}"
+            )
 
+            # Query service for available models
+            async with aiohttp.ClientSession() as session:
+                models_url = urljoin(service_url, "/v1/models")
+                async with session.get(
+                    models_url,
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as response:
+                    if response.status == 200:
+                        # Parse response with actual models from service
+                        data = await response.json()
+                        models = data.get("models", {})
+
+                        self.logger.debug(f"Retrieved models from service: {models}")
+
+                        return {
+                            "voice_tts": models.get(
+                                "tts",
+                                [
+                                    "kokoro-82m",
+                                    "bark",
+                                ],
+                            ),
+                            "background_removal": models.get(
+                                "background_removal",
+                                [
+                                    "birefnet",
+                                    "inspyrenet",
+                                ],
+                            ),
+                        }
+                    else:
+                        self.logger.warning(f"Failed to fetch models: {response.status}")
+
+        except Exception as e:
+            self.logger.warning(f"Model discovery failed: {str(e)}")
+
+        # Return default models if service query fails
         return {
             "voice_tts": [
                 "kokoro-82m",

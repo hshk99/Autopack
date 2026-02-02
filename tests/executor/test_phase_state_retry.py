@@ -99,14 +99,21 @@ class TestRetryOnOperationalError:
         mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
         mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
-        mock_phase = Mock()
-        mock_phase.version = 1
+        # IMP-LIFECYCLE-004: Create mock phases that always return EXECUTING state
+        # to handle retry validation (state doesn't persist across retries)
+        def create_mock_phase():
+            mock_phase = Mock()
+            mock_phase.version = 1
+            mock_phase.state = Mock()
+            mock_phase.state.value = "EXECUTING"
+            return mock_phase
 
         mock_query = MagicMock()
         mock_db.query.return_value = mock_query
         mock_query.with_for_update.return_value = mock_query
         mock_query.filter.return_value = mock_query
-        mock_query.first.return_value = mock_phase
+        # Return fresh mock phase on each query (for retry)
+        mock_query.first.side_effect = [create_mock_phase(), create_mock_phase()]
 
         # First commit fails with transient error, second succeeds
         mock_db.commit.side_effect = [
@@ -129,14 +136,21 @@ class TestRetryOnOperationalError:
         mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
         mock_session_local.return_value.__exit__ = Mock(return_value=False)
 
-        mock_phase = Mock()
-        mock_phase.version = 1
+        # IMP-LIFECYCLE-004: Create mock phases that always return EXECUTING state
+        # to handle retry validation (state doesn't persist across retries)
+        def create_mock_phase():
+            mock_phase = Mock()
+            mock_phase.version = 1
+            mock_phase.state = Mock()
+            mock_phase.state.value = "EXECUTING"
+            return mock_phase
 
         mock_query = MagicMock()
         mock_db.query.return_value = mock_query
         mock_query.with_for_update.return_value = mock_query
         mock_query.filter.return_value = mock_query
-        mock_query.first.return_value = mock_phase
+        # Return fresh mock phase on each query (for retry)
+        mock_query.first.side_effect = [create_mock_phase(), create_mock_phase()]
 
         # First commit fails with transient error, second succeeds
         mock_db.commit.side_effect = [
@@ -315,6 +329,9 @@ class TestOptimisticLockErrorNoRetry:
 
         mock_phase = Mock()
         mock_phase.version = 1
+        # IMP-LIFECYCLE-004: Set valid state for transition to COMPLETE
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
 
         mock_query = MagicMock()
         mock_db.query.return_value = mock_query

@@ -346,6 +346,9 @@ class TestDatabaseIntegration:
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
         mock_phase.version = 1  # Add version attribute for optimistic locking
+        # IMP-LIFECYCLE-004: Set valid state for transition to COMPLETE
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
 
         # Set up proper query chain: query().with_for_update().filter().first()
         mock_query = MagicMock()
@@ -375,6 +378,9 @@ class TestDatabaseIntegration:
         mock_phase = Mock()
         mock_phase.created_at = datetime.now(timezone.utc)
         mock_phase.version = 1  # Add version attribute for optimistic locking
+        # IMP-LIFECYCLE-004: Set valid state for transition to FAILED
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
 
         # Set up proper query chain: query().with_for_update().filter().first()
         mock_query = MagicMock()
@@ -488,6 +494,9 @@ class TestErrorHandling:
 
         mock_phase = Mock()
         mock_phase.version = 1  # Add version attribute for optimistic locking
+        # IMP-LIFECYCLE-004: Set valid state for transition to COMPLETE
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
 
         # Set up proper query chain: query().with_for_update().filter().first()
         mock_query = MagicMock()
@@ -514,6 +523,9 @@ class TestErrorHandling:
 
         mock_phase = Mock()
         mock_phase.version = 1  # Add version attribute for optimistic locking
+        # IMP-LIFECYCLE-004: Set valid state for transition to FAILED
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
 
         # Set up proper query chain: query().with_for_update().filter().first()
         mock_query = MagicMock()
@@ -553,6 +565,280 @@ class TestStateUpdateRequestBuilder:
         assert request.increment_retry is True
         assert request.increment_epoch is False
         assert request.failure_reason == "TIMEOUT"
+
+
+class TestPhaseTransitionValidation:
+    """IMP-LIFECYCLE-004: Test phase state transition validation."""
+
+    def test_valid_phase_transitions_defined(self):
+        """Test VALID_PHASE_TRANSITIONS contains expected states."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        # All PhaseState values should have entries
+        expected_states = {
+            "QUEUED",
+            "EXECUTING",
+            "GATE",
+            "CI_RUNNING",
+            "COMPLETE",
+            "FAILED",
+            "SKIPPED",
+        }
+        assert set(mgr.VALID_PHASE_TRANSITIONS.keys()) == expected_states
+
+    def test_is_transition_valid_queued_to_executing(self):
+        """Test QUEUED -> EXECUTING is valid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("QUEUED", "EXECUTING") is True
+
+    def test_is_transition_valid_queued_to_skipped(self):
+        """Test QUEUED -> SKIPPED is valid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("QUEUED", "SKIPPED") is True
+
+    def test_is_transition_valid_executing_to_complete(self):
+        """Test EXECUTING -> COMPLETE is valid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("EXECUTING", "COMPLETE") is True
+
+    def test_is_transition_valid_executing_to_failed(self):
+        """Test EXECUTING -> FAILED is valid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("EXECUTING", "FAILED") is True
+
+    def test_is_transition_valid_executing_to_gate(self):
+        """Test EXECUTING -> GATE is valid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("EXECUTING", "GATE") is True
+
+    def test_is_transition_valid_gate_to_executing(self):
+        """Test GATE -> EXECUTING is valid (retry from gate)."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("GATE", "EXECUTING") is True
+
+    def test_is_transition_valid_failed_to_queued(self):
+        """Test FAILED -> QUEUED is valid (reset for retry)."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("FAILED", "QUEUED") is True
+
+    def test_is_transition_invalid_failed_to_executing(self):
+        """IMP-LIFECYCLE-004: Test FAILED -> EXECUTING is invalid."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("FAILED", "EXECUTING") is False
+
+    def test_is_transition_invalid_complete_to_any(self):
+        """Test COMPLETE is terminal - no valid transitions."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("COMPLETE", "EXECUTING") is False
+        assert mgr.is_transition_valid("COMPLETE", "FAILED") is False
+        assert mgr.is_transition_valid("COMPLETE", "QUEUED") is False
+
+    def test_is_transition_invalid_skipped_to_any(self):
+        """Test SKIPPED is terminal - no valid transitions."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("SKIPPED", "EXECUTING") is False
+        assert mgr.is_transition_valid("SKIPPED", "QUEUED") is False
+
+    def test_is_transition_invalid_queued_to_complete(self):
+        """Test QUEUED -> COMPLETE is invalid (must go through EXECUTING)."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"))
+
+        assert mgr.is_transition_valid("QUEUED", "COMPLETE") is False
+
+    def test_validate_phase_transition_raises_on_invalid(self):
+        """Test _validate_phase_transition raises InvalidStateTransitionError."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        with pytest.raises(InvalidStateTransitionError) as exc_info:
+            mgr._validate_phase_transition("phase-123", "FAILED", "EXECUTING")
+
+        assert exc_info.value.phase_id == "phase-123"
+        assert exc_info.value.from_state == "FAILED"
+        assert exc_info.value.to_state == "EXECUTING"
+        assert "FAILED" in str(exc_info.value)
+        assert "EXECUTING" in str(exc_info.value)
+
+    def test_validate_phase_transition_skipped_when_disabled(self):
+        """Test validation is skipped when validate=False."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=False)
+
+        # Should not raise even for invalid transition
+        mgr._validate_phase_transition("phase-123", "FAILED", "EXECUTING")
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_complete_validates_transition(self, mock_session_local):
+        """IMP-LIFECYCLE-004: Test mark_complete validates state transition."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        # Create mock phase in QUEUED state (can't transition directly to COMPLETE)
+        mock_phase = Mock()
+        mock_phase.state = Mock()
+        mock_phase.state.value = "QUEUED"
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+
+        with pytest.raises(InvalidStateTransitionError):
+            mgr._mark_phase_complete_in_db("phase-123")
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_complete_allows_valid_transition(self, mock_session_local):
+        """Test mark_complete succeeds for valid transition from EXECUTING."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        # Create mock phase in EXECUTING state
+        mock_phase = Mock()
+        mock_phase.state = Mock()
+        mock_phase.state.value = "EXECUTING"
+        mock_phase.version = 1
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+
+        with patch("autopack.models.PhaseState"):
+            result = mgr._mark_phase_complete_in_db("phase-123")
+
+        assert result is True
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_failed_validates_transition(self, mock_session_local):
+        """IMP-LIFECYCLE-004: Test mark_failed validates state transition."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        # Create mock phase in COMPLETE state (terminal - can't transition to FAILED)
+        mock_phase = Mock()
+        mock_phase.state = Mock()
+        mock_phase.state.value = "COMPLETE"
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+
+        with pytest.raises(InvalidStateTransitionError):
+            mgr._mark_phase_failed_in_db("phase-123", "TEST_FAILURE")
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_executing_validates_transition(self, mock_session_local):
+        """IMP-LIFECYCLE-004: Test mark_executing validates state transition."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        # Create mock phase in FAILED state (can't transition to EXECUTING)
+        mock_phase = Mock()
+        mock_phase.state = Mock()
+        mock_phase.state.value = "FAILED"
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+
+        with pytest.raises(InvalidStateTransitionError) as exc_info:
+            mgr._mark_phase_executing_in_db("phase-123")
+
+        assert "FAILED" in str(exc_info.value)
+        assert "EXECUTING" in str(exc_info.value)
+
+    @patch("autopack.database.SessionLocal")
+    def test_mark_executing_allows_valid_transition(self, mock_session_local):
+        """Test mark_executing succeeds for valid transition from QUEUED."""
+        mgr = PhaseStateManager(run_id="test-run", workspace=Path("/workspace"), validate=True)
+
+        mock_db = Mock()
+        mock_session_local.return_value.__enter__ = Mock(return_value=mock_db)
+        mock_session_local.return_value.__exit__ = Mock(return_value=False)
+
+        # Create mock phase in QUEUED state
+        mock_phase = Mock()
+        mock_phase.state = Mock()
+        mock_phase.state.value = "QUEUED"
+        mock_phase.version = 1
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.with_for_update.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        mock_query.first.return_value = mock_phase
+
+        with patch("autopack.models.PhaseState"):
+            result = mgr._mark_phase_executing_in_db("phase-123")
+
+        assert result is True
+
+
+class TestInvalidStateTransitionError:
+    """Test InvalidStateTransitionError exception class."""
+
+    def test_old_style_simple_message(self):
+        """Test old-style initialization with simple message."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        error = InvalidStateTransitionError("Simple error message")
+
+        assert str(error) == "Simple error message"
+        assert error.phase_id is None
+        assert error.from_state is None
+        assert error.to_state is None
+
+    def test_new_style_named_parameters(self):
+        """Test new-style initialization with named parameters."""
+        from autopack.executor.phase_state_manager import InvalidStateTransitionError
+
+        error = InvalidStateTransitionError(
+            phase_id="phase-123",
+            from_state="FAILED",
+            to_state="EXECUTING",
+            reason="Invalid transition",
+        )
+
+        assert error.phase_id == "phase-123"
+        assert error.from_state == "FAILED"
+        assert error.to_state == "EXECUTING"
+        assert "phase-123" in str(error)
+        assert "FAILED" in str(error)
+        assert "EXECUTING" in str(error)
 
 
 if __name__ == "__main__":

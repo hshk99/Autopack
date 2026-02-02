@@ -361,7 +361,7 @@ jobs:
           "
       - name: Upload core test durations
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-durations-core
           path: test-durations-core.txt
@@ -527,7 +527,7 @@ jobs:
           "
       - name: Upload aspirational test durations
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-durations-aspirational
           path: test-durations-aspirational.txt
@@ -605,7 +605,7 @@ jobs:
           "
       - name: Upload research test durations
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-durations-research
           path: test-durations-research.txt

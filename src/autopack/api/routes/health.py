@@ -171,6 +171,55 @@ def _check_background_tasks() -> Dict[str, object]:
         }
 
 
+def _check_database_pool_health() -> Dict[str, object]:
+    """Check database connection pool health.
+
+    IMP-RELIABILITY-002: Validates database connection pool status to fail fast
+    on pool exhaustion or connectivity issues.
+
+    Returns:
+        Dict with:
+            - is_healthy: bool - True if pool utilization < 80% and no issues
+            - status: str - "healthy", "degraded", or "error"
+            - pool_size: int - Total connections in pool
+            - checked_out: int - Connections currently in use
+            - checked_in: int - Connections available
+            - overflow: int - Extra connections beyond pool_size
+            - utilization_pct: float - Percentage of pool in use (0-100)
+            - potential_leaks: list - Warnings about potential connection leaks
+    """
+    try:
+        pool_stats = get_pool_health()
+
+        # Determine health based on utilization and potential leaks
+        # Pool is considered unhealthy if utilization >= 80% (same threshold as IMP-OPS-011)
+        is_healthy = pool_stats.utilization_pct < 80.0 and len(pool_stats.potential_leaks) == 0
+
+        return {
+            "is_healthy": is_healthy,
+            "status": "healthy" if is_healthy else "degraded",
+            "pool_size": pool_stats.pool_size,
+            "checked_out": pool_stats.checked_out,
+            "checked_in": pool_stats.checked_in,
+            "overflow": pool_stats.overflow,
+            "utilization_pct": pool_stats.utilization_pct,
+            "potential_leaks": pool_stats.potential_leaks,
+        }
+    except Exception as e:
+        logger.warning(f"Database pool health check failed: {e}")
+        return {
+            "is_healthy": False,
+            "status": "error",
+            "error": str(e)[:100],
+            "pool_size": 0,
+            "checked_out": 0,
+            "checked_in": 0,
+            "overflow": 0,
+            "utilization_pct": 0.0,
+            "potential_leaks": [],
+        }
+
+
 @router.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """
@@ -207,9 +256,14 @@ def health_check(db: Session = Depends(get_db)):
     # IMP-OPS-007: Check background task health
     background_tasks = _check_background_tasks()
 
+    # IMP-RELIABILITY-002: Check database connection pool health
+    pool_health = _check_database_pool_health()
+
     # Determine overall status
-    # Status is degraded if DB or background tasks have issues
+    # Status is degraded if DB, pool, or background tasks have issues
     if db_status != "connected":
+        overall_status = "degraded"
+    elif not pool_health.get("is_healthy", True):
         overall_status = "degraded"
     elif background_tasks.get("status") == "degraded":
         overall_status = "degraded"
@@ -225,6 +279,7 @@ def health_check(db: Session = Depends(get_db)):
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "database_identity": _get_database_identity(),
         "database": db_status,
+        "database_pool": pool_health,
         "qdrant": qdrant_status,
         "background_tasks": background_tasks,
         "kill_switches": kill_switches,
@@ -263,26 +318,29 @@ def database_pool_health():
     """
     Database connection pool health check endpoint.
 
-    Returns pool utilization, connection status, and leak detection indicators.
-    Useful for monitoring pool exhaustion and detecting leaks in production.
+    IMP-RELIABILITY-002: Returns pool utilization, connection status, and leak
+    detection indicators. Useful for monitoring pool exhaustion and detecting
+    leaks in production.
 
     Response:
         {
-            "status": "healthy" | "degraded",
+            "status": "healthy" | "degraded" | "error",
             "pool": {
                 "pool_size": int,
                 "checked_out": int,
+                "checked_in": int,
                 "overflow": int,
-                "utilization": float (0-1.0),
-                "is_healthy": bool
+                "utilization_pct": float (0-100),
+                "is_healthy": bool,
+                "potential_leaks": list
             },
             "timestamp": ISO8601 timestamp
         }
     """
-    pool_health = get_pool_health()
+    pool_health = _check_database_pool_health()
 
     return {
-        "status": "healthy" if pool_health["is_healthy"] else "degraded",
+        "status": pool_health.get("status", "error"),
         "pool": pool_health,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

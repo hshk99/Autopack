@@ -56,7 +56,18 @@ class TestHealthEndpointContract:
         mock_db.execute.return_value = None
         mock_db.query.return_value.limit.return_value.all.return_value = []
 
-        result = health_check(db=mock_db)
+        with patch("autopack.api.routes.health._check_database_pool_health") as mock_pool:
+            mock_pool.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
+            result = health_check(db=mock_db)
 
         assert result["status"] == "healthy"
         assert result["database"] == "connected"
@@ -443,9 +454,321 @@ class TestHealthEndpointBackgroundTasksContract:
         mock_db.execute.return_value = None
         mock_db.query.return_value.limit.return_value.all.return_value = []
 
-        with patch("autopack.api.routes.health._check_background_tasks") as mock_check:
+        with (
+            patch("autopack.api.routes.health._check_background_tasks") as mock_check,
+            patch("autopack.api.routes.health._check_database_pool_health") as mock_pool,
+        ):
             mock_check.return_value = {"status": "healthy", "tasks": {"task1": {"healthy": True}}}
+            mock_pool.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
             result = health_check(db=mock_db)
 
         assert result["status"] == "healthy"
         assert result["background_tasks"]["status"] == "healthy"
+
+
+class TestDatabasePoolHealthContract:
+    """Contract tests for database pool health check (IMP-RELIABILITY-002)."""
+
+    def test_check_database_pool_health_returns_required_fields(self):
+        """Contract: _check_database_pool_health returns all required fields."""
+        from datetime import datetime
+
+        from autopack.api.routes.health import _check_database_pool_health
+        from autopack.dashboard_schemas import DatabasePoolStats
+
+        mock_stats = DatabasePoolStats(
+            timestamp=datetime.now(),
+            pool_size=20,
+            checked_out=5,
+            checked_in=15,
+            overflow=0,
+            max_overflow=10,
+            utilization_pct=25.0,
+            queue_size=0,
+            potential_leaks=[],
+            longest_checkout_sec=0.1,
+            avg_checkout_ms=5.0,
+            avg_checkin_ms=3.0,
+            total_checkouts=100,
+            total_timeouts=0,
+        )
+
+        with patch("autopack.api.routes.health.get_pool_health") as mock_get:
+            mock_get.return_value = mock_stats
+            result = _check_database_pool_health()
+
+        assert "is_healthy" in result
+        assert "status" in result
+        assert "pool_size" in result
+        assert "checked_out" in result
+        assert "checked_in" in result
+        assert "overflow" in result
+        assert "utilization_pct" in result
+        assert "potential_leaks" in result
+
+    def test_check_database_pool_health_healthy_when_low_utilization(self):
+        """Contract: Pool is healthy when utilization < 80%."""
+        from datetime import datetime
+
+        from autopack.api.routes.health import _check_database_pool_health
+        from autopack.dashboard_schemas import DatabasePoolStats
+
+        mock_stats = DatabasePoolStats(
+            timestamp=datetime.now(),
+            pool_size=20,
+            checked_out=10,
+            checked_in=10,
+            overflow=0,
+            max_overflow=10,
+            utilization_pct=50.0,
+            queue_size=0,
+            potential_leaks=[],
+            longest_checkout_sec=0.1,
+            avg_checkout_ms=5.0,
+            avg_checkin_ms=3.0,
+            total_checkouts=100,
+            total_timeouts=0,
+        )
+
+        with patch("autopack.api.routes.health.get_pool_health") as mock_get:
+            mock_get.return_value = mock_stats
+            result = _check_database_pool_health()
+
+        assert result["is_healthy"] is True
+        assert result["status"] == "healthy"
+
+    def test_check_database_pool_health_degraded_when_high_utilization(self):
+        """Contract: Pool is degraded when utilization >= 80%."""
+        from datetime import datetime
+
+        from autopack.api.routes.health import _check_database_pool_health
+        from autopack.dashboard_schemas import DatabasePoolStats
+
+        mock_stats = DatabasePoolStats(
+            timestamp=datetime.now(),
+            pool_size=20,
+            checked_out=17,
+            checked_in=3,
+            overflow=0,
+            max_overflow=10,
+            utilization_pct=85.0,
+            queue_size=1,
+            potential_leaks=[],
+            longest_checkout_sec=0.5,
+            avg_checkout_ms=10.0,
+            avg_checkin_ms=5.0,
+            total_checkouts=150,
+            total_timeouts=0,
+        )
+
+        with patch("autopack.api.routes.health.get_pool_health") as mock_get:
+            mock_get.return_value = mock_stats
+            result = _check_database_pool_health()
+
+        assert result["is_healthy"] is False
+        assert result["status"] == "degraded"
+
+    def test_check_database_pool_health_degraded_with_potential_leaks(self):
+        """Contract: Pool is degraded when potential leaks are detected."""
+        from datetime import datetime
+
+        from autopack.api.routes.health import _check_database_pool_health
+        from autopack.dashboard_schemas import DatabasePoolStats
+
+        mock_stats = DatabasePoolStats(
+            timestamp=datetime.now(),
+            pool_size=20,
+            checked_out=10,
+            checked_in=10,
+            overflow=0,
+            max_overflow=10,
+            utilization_pct=50.0,
+            queue_size=0,
+            potential_leaks=[{"severity": "warning", "message": "High utilization"}],
+            longest_checkout_sec=0.5,
+            avg_checkout_ms=10.0,
+            avg_checkin_ms=5.0,
+            total_checkouts=150,
+            total_timeouts=0,
+        )
+
+        with patch("autopack.api.routes.health.get_pool_health") as mock_get:
+            mock_get.return_value = mock_stats
+            result = _check_database_pool_health()
+
+        assert result["is_healthy"] is False
+        assert result["status"] == "degraded"
+
+    def test_check_database_pool_health_error_on_exception(self):
+        """Contract: Returns error status when pool health check fails."""
+        from autopack.api.routes.health import _check_database_pool_health
+
+        with patch("autopack.api.routes.health.get_pool_health") as mock_get:
+            mock_get.side_effect = Exception("Pool connection failed")
+            result = _check_database_pool_health()
+
+        assert result["is_healthy"] is False
+        assert result["status"] == "error"
+        assert "error" in result
+
+
+class TestHealthEndpointDatabasePoolContract:
+    """Contract tests for database pool inclusion in /health endpoint (IMP-RELIABILITY-002)."""
+
+    def test_health_includes_database_pool(self):
+        """Contract: /health endpoint includes database_pool field."""
+        from autopack.api.routes.health import health_check
+
+        mock_db = MagicMock()
+        mock_db.execute.return_value = None
+        mock_db.query.return_value.limit.return_value.all.return_value = []
+
+        with (
+            patch("autopack.api.routes.health._check_background_tasks") as mock_bg,
+            patch("autopack.api.routes.health._check_database_pool_health") as mock_pool,
+        ):
+            mock_bg.return_value = {"status": "healthy", "tasks": {}}
+            mock_pool.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
+            result = health_check(db=mock_db)
+
+        assert "database_pool" in result
+        assert result["database_pool"]["is_healthy"] is True
+
+    def test_health_degraded_when_database_pool_unhealthy(self):
+        """Contract: /health returns degraded when database pool is unhealthy."""
+        from autopack.api.routes.health import health_check
+
+        mock_db = MagicMock()
+        mock_db.execute.return_value = None
+        mock_db.query.return_value.limit.return_value.all.return_value = []
+
+        with (
+            patch("autopack.api.routes.health._check_background_tasks") as mock_bg,
+            patch("autopack.api.routes.health._check_database_pool_health") as mock_pool,
+        ):
+            mock_bg.return_value = {"status": "healthy", "tasks": {}}
+            mock_pool.return_value = {
+                "is_healthy": False,
+                "status": "degraded",
+                "pool_size": 20,
+                "checked_out": 18,
+                "checked_in": 2,
+                "overflow": 0,
+                "utilization_pct": 90.0,
+                "potential_leaks": [],
+            }
+            result = health_check(db=mock_db)
+
+        assert result["status"] == "degraded"
+        assert result["database_pool"]["is_healthy"] is False
+
+    def test_health_healthy_when_database_pool_healthy(self):
+        """Contract: /health returns healthy when database pool is healthy."""
+        from autopack.api.routes.health import health_check
+
+        mock_db = MagicMock()
+        mock_db.execute.return_value = None
+        mock_db.query.return_value.limit.return_value.all.return_value = []
+
+        with (
+            patch("autopack.api.routes.health._check_background_tasks") as mock_bg,
+            patch("autopack.api.routes.health._check_database_pool_health") as mock_pool,
+        ):
+            mock_bg.return_value = {"status": "healthy", "tasks": {}}
+            mock_pool.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
+            result = health_check(db=mock_db)
+
+        assert result["status"] == "healthy"
+        assert result["database_pool"]["status"] == "healthy"
+
+
+class TestDatabasePoolHealthEndpointContract:
+    """Contract tests for /health/database endpoint (IMP-RELIABILITY-002)."""
+
+    def test_health_database_returns_required_fields(self):
+        """Contract: /health/database returns all required fields."""
+        from autopack.api.routes.health import database_pool_health
+
+        with patch("autopack.api.routes.health._check_database_pool_health") as mock_check:
+            mock_check.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
+            result = database_pool_health()
+
+        assert "status" in result
+        assert "pool" in result
+        assert "timestamp" in result
+
+    def test_health_database_healthy_pool(self):
+        """Contract: /health/database returns healthy status for healthy pool."""
+        from autopack.api.routes.health import database_pool_health
+
+        with patch("autopack.api.routes.health._check_database_pool_health") as mock_check:
+            mock_check.return_value = {
+                "is_healthy": True,
+                "status": "healthy",
+                "pool_size": 20,
+                "checked_out": 5,
+                "checked_in": 15,
+                "overflow": 0,
+                "utilization_pct": 25.0,
+                "potential_leaks": [],
+            }
+            result = database_pool_health()
+
+        assert result["status"] == "healthy"
+        assert result["pool"]["is_healthy"] is True
+
+    def test_health_database_degraded_pool(self):
+        """Contract: /health/database returns degraded status for unhealthy pool."""
+        from autopack.api.routes.health import database_pool_health
+
+        with patch("autopack.api.routes.health._check_database_pool_health") as mock_check:
+            mock_check.return_value = {
+                "is_healthy": False,
+                "status": "degraded",
+                "pool_size": 20,
+                "checked_out": 18,
+                "checked_in": 2,
+                "overflow": 0,
+                "utilization_pct": 90.0,
+                "potential_leaks": [],
+            }
+            result = database_pool_health()
+
+        assert result["status"] == "degraded"
+        assert result["pool"]["is_healthy"] is False

@@ -34,7 +34,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
 
-
 PRAGMA_ALLOW = "autopack: allow-unicode-print"
 
 # Restrict scan to production code by default (tests may intentionally contain Unicode).

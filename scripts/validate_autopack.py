@@ -21,7 +21,6 @@ import sys
 from datetime import datetime
 from typing import Dict
 
-
 API_URL = "http://localhost:8000"
 
 

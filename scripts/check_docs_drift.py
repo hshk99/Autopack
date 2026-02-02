@@ -21,7 +21,6 @@ import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
-
 # Patterns to detect (these indicate drift back to legacy patterns)
 FORBIDDEN_PATTERNS = [
     # === BUILD-146: Backend server / uvicorn drift ===

@@ -49,7 +49,6 @@ from autopack.storage_optimizer.classifier import FileClassifier
 from autopack.storage_optimizer.reporter import StorageReporter
 from autopack.storage_optimizer.models import CleanupPlan
 
-
 # ==============================================================================
 # Phase 2: Execution and Approval Helpers
 # ==============================================================================

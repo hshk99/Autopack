@@ -27,7 +27,6 @@ import sys
 from pathlib import Path
 from typing import Set
 
-
 SECURITY_LOG_PATH = Path("docs/SECURITY_LOG.md")
 BASELINES_DIR = Path("security/baselines")
 

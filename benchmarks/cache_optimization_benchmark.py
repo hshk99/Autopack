@@ -198,10 +198,14 @@ def benchmark_compression():
 
     print(f"  - Time to populate: {time_compress:.4f} seconds")
     print(f"  - Compressions performed: {stats_compress['compressions']}")
-    print(f"  - Total bytes saved: {stats_compress['total_bytes_saved_by_compression'] / (1024*1024):.2f} MB")
+    print(
+        f"  - Total bytes saved: {stats_compress['total_bytes_saved_by_compression'] / (1024*1024):.2f} MB"
+    )
 
     if stats_compress["compressions"] > 0:
-        avg_saved = stats_compress["total_bytes_saved_by_compression"] / stats_compress["compressions"]
+        avg_saved = (
+            stats_compress["total_bytes_saved_by_compression"] / stats_compress["compressions"]
+        )
         print(f"  - Average bytes saved per entry: {avg_saved / 1024:.1f} KB")
 
     print("\nCompression Overhead:")
@@ -344,6 +348,7 @@ def main():
     except Exception as e:
         print(f"\nError running benchmarks: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

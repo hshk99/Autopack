@@ -43,7 +43,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from autopack.database import SessionLocal
 from autopack.db_identity import print_db_identity, check_empty_db_warning, add_empty_db_arg
 
-
 try:
     from autopack.models import TokenEstimationV2Event
 except (ImportError, AttributeError):

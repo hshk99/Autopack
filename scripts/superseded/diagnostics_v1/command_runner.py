@@ -21,7 +21,6 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from autopack.config import settings
 
-
 # --------------------------------------------------------------------------- #
 # Data classes
 # --------------------------------------------------------------------------- #

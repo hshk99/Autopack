@@ -75,8 +75,7 @@ class PostgresSemanticStore(SemanticStore):
     def _ensure_table(self):
         conn = self.pg.connect(self.dsn)
         cur = conn.cursor()
-        cur.execute(
-            """
+        cur.execute("""
             create table if not exists tidy_semantic_cache (
                 path text primary key,
                 sha text not null,
@@ -86,8 +85,7 @@ class PostgresSemanticStore(SemanticStore):
                 rationale text,
                 updated_at timestamptz not null default now()
             );
-            """
-        )
+            """)
         cur.execute("alter table tidy_semantic_cache add column if not exists project_id text;")
         conn.commit()
         cur.close()

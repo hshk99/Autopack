@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Tidy script: Consolidate telemetry insights into SOT ledgers."""
+
 import argparse
 import sys
 from pathlib import Path

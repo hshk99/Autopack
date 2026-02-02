@@ -57,9 +57,7 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[1/6] Creating table: models_catalog")
         print("      Purpose: Model identity and metadata (SOT for model definitions)")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE models_catalog (
                 model_id VARCHAR PRIMARY KEY,
                 provider VARCHAR NOT NULL,
@@ -72,9 +70,7 @@ def upgrade(engine: Engine) -> None:
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """
-            )
-        )
+        """))
         conn.execute(text("CREATE INDEX idx_catalog_provider ON models_catalog (provider)"))
         conn.execute(text("CREATE INDEX idx_catalog_family ON models_catalog (family)"))
         conn.execute(text("CREATE INDEX idx_catalog_deprecated ON models_catalog (is_deprecated)"))
@@ -82,9 +78,7 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[2/6] Creating table: model_pricing")
         print("      Purpose: Time-series pricing records (USD per 1K tokens)")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE model_pricing (
                 id SERIAL PRIMARY KEY,
                 model_id VARCHAR NOT NULL REFERENCES models_catalog(model_id) ON DELETE CASCADE,
@@ -97,18 +91,14 @@ def upgrade(engine: Engine) -> None:
                 retrieved_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT uq_pricing_model_effective_source UNIQUE (model_id, effective_at, source)
             )
-        """
-            )
-        )
+        """))
         conn.execute(text("CREATE INDEX idx_pricing_model ON model_pricing (model_id)"))
         conn.execute(text("CREATE INDEX idx_pricing_effective ON model_pricing (effective_at)"))
         print("      ✓ Table 'model_pricing' created with indexes")
 
         print("\n[3/6] Creating table: model_benchmarks")
         print("      Purpose: Benchmark records from official/third-party sources")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE model_benchmarks (
                 id SERIAL PRIMARY KEY,
                 model_id VARCHAR NOT NULL REFERENCES models_catalog(model_id) ON DELETE CASCADE,
@@ -122,9 +112,7 @@ def upgrade(engine: Engine) -> None:
                 retrieved_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT uq_benchmark_model_name_version_url UNIQUE (model_id, benchmark_name, dataset_version, source_url)
             )
-        """
-            )
-        )
+        """))
         conn.execute(text("CREATE INDEX idx_benchmark_model ON model_benchmarks (model_id)"))
         conn.execute(text("CREATE INDEX idx_benchmark_name ON model_benchmarks (benchmark_name)"))
         conn.execute(text("CREATE INDEX idx_benchmark_task_type ON model_benchmarks (task_type)"))
@@ -132,9 +120,7 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[4/6] Creating table: model_runtime_stats")
         print("      Purpose: Aggregated telemetry from llm_usage_events (rolling window)")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE model_runtime_stats (
                 id SERIAL PRIMARY KEY,
                 window_start TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -154,9 +140,7 @@ def upgrade(engine: Engine) -> None:
                 CONSTRAINT uq_runtime_stats_window_provider_model_role
                     UNIQUE (window_start, window_end, provider, model, role)
             )
-        """
-            )
-        )
+        """))
         conn.execute(
             text(
                 "CREATE INDEX idx_runtime_stats_window_start ON model_runtime_stats (window_start)"
@@ -174,9 +158,7 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[5/6] Creating table: model_sentiment_signals")
         print("      Purpose: Community sentiment evidence (supporting, not primary)")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE model_sentiment_signals (
                 id SERIAL PRIMARY KEY,
                 model_id VARCHAR NOT NULL REFERENCES models_catalog(model_id) ON DELETE CASCADE,
@@ -189,9 +171,7 @@ def upgrade(engine: Engine) -> None:
                 retrieved_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT uq_sentiment_model_url UNIQUE (model_id, source_url)
             )
-        """
-            )
-        )
+        """))
         conn.execute(text("CREATE INDEX idx_sentiment_model ON model_sentiment_signals (model_id)"))
         conn.execute(text("CREATE INDEX idx_sentiment_source ON model_sentiment_signals (source)"))
         conn.execute(
@@ -201,9 +181,7 @@ def upgrade(engine: Engine) -> None:
 
         print("\n[6/6] Creating table: model_recommendations")
         print("      Purpose: Recommendation objects with evidence references")
-        conn.execute(
-            text(
-                """
+        conn.execute(text("""
             CREATE TABLE model_recommendations (
                 id SERIAL PRIMARY KEY,
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -220,9 +198,7 @@ def upgrade(engine: Engine) -> None:
                 CONSTRAINT uq_recommendation_usecase_models_created
                     UNIQUE (use_case, current_model, recommended_model, created_at)
             )
-        """
-            )
-        )
+        """))
         conn.execute(
             text("CREATE INDEX idx_recommendation_created ON model_recommendations (created_at)")
         )

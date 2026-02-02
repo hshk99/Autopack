@@ -146,9 +146,7 @@ index 1234567..abcdefg 100644
 +    \"\"\"Research session model\"\"\"
 +    __tablename__ = "research_sessions"
 +    id = Column(Integer, primary_key=True)
-+""" + "\n".join(
-        [f"+    # Field {i}" for i in range(6, 150)]
-    )
++""" + "\n".join([f"+    # Field {i}" for i in range(6, 150)])
 
     phase_spec = PhaseSpec(
         phase_id="research-phase-type",

@@ -43,8 +43,7 @@ def main() -> int:
     cur = con.cursor()
 
     # Find phases where tier_id doesn't match any tiers.id for the same run
-    rows = cur.execute(
-        """
+    rows = cur.execute("""
         SELECT
           p.id               AS phase_row_id,
           p.phase_id         AS phase_id,
@@ -57,8 +56,7 @@ def main() -> int:
          AND t.run_id = p.run_id
         WHERE t.id IS NULL
         ORDER BY p.run_id, p.phase_index
-        """
-    ).fetchall()
+        """).fetchall()
 
     if not rows:
         print("[OK] No mismatched phase->tier foreign keys detected.")

@@ -23,7 +23,6 @@ import subprocess
 import requests
 from typing import Tuple
 
-
 # Configuration
 NGINX_BASE = "http://localhost:80"
 BACKEND_BASE = "http://localhost:8000"

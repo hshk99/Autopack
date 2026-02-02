@@ -27,7 +27,6 @@ from autopack.database import SessionLocal
 from autopack.models import Phase, PhaseState
 from autopack.token_estimator import TokenEstimator
 
-
 SOT_BASENAMES = {
     "build_log.md",
     "build_history.md",

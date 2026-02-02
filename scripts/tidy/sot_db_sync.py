@@ -292,8 +292,7 @@ class SOTDBSync:
 
         if is_postgres:
             # PostgreSQL schema
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sot_entries (
                     id SERIAL PRIMARY KEY,
                     project_id TEXT NOT NULL,
@@ -307,18 +306,14 @@ class SOTDBSync:
                     content_hash TEXT NOT NULL,
                     UNIQUE(project_id, file_type, entry_id)
                 );
-            """
-            )
-            cursor.execute(
-                """
+            """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_sot_entries_lookup
                 ON sot_entries(project_id, file_type, entry_id);
-            """
-            )
+            """)
         else:
             # SQLite schema
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sot_entries (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     project_id TEXT NOT NULL,
@@ -332,14 +327,11 @@ class SOTDBSync:
                     content_hash TEXT NOT NULL,
                     UNIQUE(project_id, file_type, entry_id)
                 );
-            """
-            )
-            cursor.execute(
-                """
+            """)
+            cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_sot_entries_lookup
                 ON sot_entries(project_id, file_type, entry_id);
-            """
-            )
+            """)
 
         self.db_conn.commit()
         if self.verbose:

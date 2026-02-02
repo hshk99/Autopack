@@ -13,8 +13,7 @@ def main() -> int:
     db = sqlite3.connect(str(db_path))
     try:
         cur = db.cursor()
-        cur.execute(
-            """
+        cur.execute("""
             select
               run_id,
               sum(case when state='QUEUED' then 1 else 0 end) as queued,
@@ -23,8 +22,7 @@ def main() -> int:
             from phases
             group by run_id
             order by queued desc, failed desc
-            """
-        )
+            """)
         rows = cur.fetchall()
     finally:
         db.close()

@@ -412,3 +412,59 @@ class TestBootstrapOptions:
         assert options.autonomous is True
         assert options.risk_tolerance == "high"
         assert options.output_dir == tmp_path / "output"
+
+
+class TestBootstrapOutputValidation:
+    """Tests for bootstrap output validation integration (IMP-BOOTSTRAP-002)."""
+
+    def test_bootstrap_runner_includes_validation_result(self, tmp_path, sample_idea):
+        """Test that BootstrapRunner includes validation_result in result."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=sample_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        assert result.validation_result is not None
+        assert result.validation_result.valid is True
+        assert result.validation_result.schema_validated is True
+
+    def test_bootstrap_runner_validates_anchor_schema(self, tmp_path, sample_idea):
+        """Test that BootstrapRunner performs schema validation."""
+        runner = BootstrapRunner()
+        options = BootstrapOptions(
+            idea=sample_idea,
+            autonomous=True,
+            skip_research=True,
+            output_dir=tmp_path / "test_project",
+        )
+
+        result = runner.run(options)
+
+        assert result.success
+        # Verify schema validation was performed
+        assert result.validation_result.schema_validated is True
+        # Verify no validation errors
+        assert result.validation_result.errors == []
+
+    def test_bootstrap_validation_gate_prevents_invalid_anchors(self, tmp_path):
+        """Test that validation gate prevents writing invalid anchors.
+
+        This is a conceptual test - in practice, the anchor mapper should
+        always produce valid anchors, but the validation gate provides
+        defense in depth.
+        """
+        from autopack.intention_anchor.v2 import BootstrapOutputValidator
+
+        # Create a validator and verify it catches invalid anchors
+        validator = BootstrapOutputValidator(strict_mode=True)
+
+        # Test that None anchor fails
+        result = validator.validate(None)
+        assert not result.valid
+        assert len(result.errors) > 0

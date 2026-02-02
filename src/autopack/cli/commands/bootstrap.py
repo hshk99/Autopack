@@ -25,7 +25,11 @@ import click
 
 from autopack.gaps.models import GapReportV1
 from autopack.gaps.scanner import GapScanner
-from autopack.intention_anchor.v2 import IntentionAnchorV2
+from autopack.intention_anchor.v2 import (
+    BootstrapOutputValidator,
+    BootstrapValidationResult,
+    IntentionAnchorV2,
+)
 from autopack.planning.models import PlanProposalV1
 from autopack.planning.plan_proposer import propose_from_gaps
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
@@ -66,6 +70,7 @@ class BootstrapResult:
     bootstrap_session: Optional[BootstrapSession] = None
     gap_report: Optional[GapReportV1] = None
     plan: Optional[PlanProposalV1] = None
+    validation_result: Optional[BootstrapValidationResult] = None
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -182,7 +187,32 @@ class BootstrapRunner:
                 parsed_idea=parsed_idea,
             )
 
-        # Step 6: Create project directory and write files
+        # Step 6: IMP-BOOTSTRAP-002 - Validate bootstrap output before acceptance
+        logger.info("[Bootstrap] Validating bootstrap output...")
+        validation_result = self._validate_bootstrap_output(anchor)
+
+        if not validation_result.valid:
+            logger.error(
+                f"[Bootstrap] Validation failed with {len(validation_result.errors)} error(s)"
+            )
+            return BootstrapResult(
+                success=False,
+                anchor=anchor,
+                parsed_idea=parsed_idea,
+                bootstrap_session=bootstrap_session,
+                validation_result=validation_result,
+                errors=[
+                    "Bootstrap output validation failed. Anchor structure is invalid.",
+                    *validation_result.errors[:10],  # Include first 10 validation errors
+                ],
+                warnings=warnings,
+            )
+
+        logger.info(
+            f"[Bootstrap] Validation passed (schema_validated={validation_result.schema_validated})"
+        )
+
+        # Step 7: Create project directory and write files
         project_dir = self._get_project_dir(options, parsed_idea)
         project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -197,7 +227,7 @@ class BootstrapRunner:
             self._save_research_session(bootstrap_session, research_path)
             logger.info(f"[Bootstrap] Research written to: {research_path}")
 
-        # Step 7: IMP-RES-008 - Scan for gaps relative to anchor
+        # Step 8: IMP-RES-008 - Scan for gaps relative to anchor
         logger.info("[Bootstrap] Scanning for gaps...")
         gap_scanner = GapScanner(project_dir)
         gap_report = gap_scanner.scan_from_anchor(
@@ -214,7 +244,7 @@ class BootstrapRunner:
             f"{gap_report.summary.autopilot_blockers if gap_report.summary else 0} blockers)"
         )
 
-        # Step 8: IMP-RES-008 - Propose plan from gaps
+        # Step 9: IMP-RES-008 - Propose plan from gaps
         logger.info("[Bootstrap] Proposing plan from gaps...")
         plan = propose_from_gaps(
             gap_report=gap_report,
@@ -232,7 +262,7 @@ class BootstrapRunner:
             f"{plan.summary.requires_approval_actions if plan.summary else 0} require approval)"
         )
 
-        # Step 9: Write READY_FOR_BUILD marker
+        # Step 10: Write READY_FOR_BUILD marker
         ready_marker_path = project_dir / READY_FOR_BUILD_MARKER
         self._write_ready_marker(ready_marker_path, anchor, parsed_idea, gap_report, plan)
         logger.info(f"[Bootstrap] READY_FOR_BUILD marker written to: {ready_marker_path}")
@@ -246,6 +276,7 @@ class BootstrapRunner:
             bootstrap_session=bootstrap_session,
             gap_report=gap_report,
             plan=plan,
+            validation_result=validation_result,
             warnings=warnings,
         )
 
@@ -341,6 +372,22 @@ class BootstrapRunner:
             )
 
         return result.anchor
+
+    def _validate_bootstrap_output(self, anchor: IntentionAnchorV2) -> BootstrapValidationResult:
+        """Validate bootstrap output (anchor) before acceptance.
+
+        IMP-BOOTSTRAP-002: This validation gate ensures the anchor structure
+        is valid before it can be accepted. Prevents invalid anchors from
+        being written to disk or used downstream.
+
+        Args:
+            anchor: The anchor to validate
+
+        Returns:
+            BootstrapValidationResult with validation status and any errors
+        """
+        validator = BootstrapOutputValidator(strict_mode=True)
+        return validator.validate(anchor)
 
     def _get_project_dir(self, options: BootstrapOptions, parsed_idea: ParsedIdea) -> Path:
         """Get project directory path.

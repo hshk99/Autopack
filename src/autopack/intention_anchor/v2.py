@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
@@ -419,3 +420,369 @@ def validate_pivot_completeness(anchor: IntentionAnchorV2) -> List[str]:
 
     # Return at most 8 questions
     return questions[:8]
+
+
+@dataclass
+class BootstrapValidationResult:
+    """Result of bootstrap output validation.
+
+    Provides detailed information about validation status including:
+    - Whether the anchor passed all validation gates
+    - Specific errors encountered during validation
+    - JSON paths where errors occurred
+    - Whether schema validation was performed
+    """
+
+    valid: bool
+    errors: List[str] = field(default_factory=list)
+    paths: List[str] = field(default_factory=list)
+    schema_validated: bool = False
+    anchor: Optional[IntentionAnchorV2] = None
+
+    def add_error(self, message: str, path: Optional[str] = None) -> None:
+        """Add an error to the validation result.
+
+        Args:
+            message: Error message
+            path: Optional JSON path where error occurred
+        """
+        self.errors.append(message)
+        if path:
+            self.paths.append(path)
+        self.valid = False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization.
+
+        Returns:
+            Dictionary representation of the validation result
+        """
+        return {
+            "valid": self.valid,
+            "errors": self.errors,
+            "paths": self.paths,
+            "schema_validated": self.schema_validated,
+        }
+
+
+@dataclass
+class BootstrapOutputValidator:
+    """Validates bootstrap output (IntentionAnchorV2) before acceptance.
+
+    IMP-BOOTSTRAP-002: This validator provides a validation gate that ensures
+    the anchor structure is valid before it can be accepted by the bootstrap
+    pipeline. This prevents invalid anchors from being written to disk or
+    used downstream.
+
+    Validation checks performed:
+    1. Null checks - anchor and required fields must not be None
+    2. Schema validation - validates against intention_anchor_v2.schema.json
+    3. Structural validation - validates nested structures (pivot_intentions)
+    4. Minimum viable anchor - validates critical fields for bootstrap completion
+
+    Usage:
+        validator = BootstrapOutputValidator()
+        result = validator.validate(anchor)
+        if not result.valid:
+            for error in result.errors:
+                print(f"Validation error: {error}")
+    """
+
+    strict_mode: bool = True  # If True, all schema errors are fatal
+
+    def validate(self, anchor: Optional[IntentionAnchorV2]) -> BootstrapValidationResult:
+        """Validate an anchor before acceptance.
+
+        This is the main validation gate for bootstrap output. It performs
+        comprehensive validation including schema, structural, and business
+        rule checks.
+
+        Args:
+            anchor: The IntentionAnchorV2 to validate
+
+        Returns:
+            BootstrapValidationResult with validation status and any errors
+        """
+        result = BootstrapValidationResult(valid=True, anchor=anchor)
+
+        # Gate 1: Null check
+        if anchor is None:
+            result.add_error("Bootstrap output anchor is None", "$")
+            return result
+
+        # Gate 2: Required field checks
+        self._validate_required_fields(anchor, result)
+        if not result.valid and self.strict_mode:
+            return result
+
+        # Gate 3: Schema validation
+        self._validate_schema(anchor, result)
+        if not result.valid and self.strict_mode:
+            return result
+
+        # Gate 4: Structural validation (pivot_intentions)
+        self._validate_structure(anchor, result)
+        if not result.valid and self.strict_mode:
+            return result
+
+        # Gate 5: Minimum viable anchor check (for bootstrap completion)
+        self._validate_minimum_viable(anchor, result)
+
+        return result
+
+    def validate_or_raise(self, anchor: Optional[IntentionAnchorV2]) -> IntentionAnchorV2:
+        """Validate anchor and raise if invalid.
+
+        Convenience method that validates and raises a descriptive error
+        if validation fails.
+
+        Args:
+            anchor: The IntentionAnchorV2 to validate
+
+        Returns:
+            The validated anchor (same as input)
+
+        Raises:
+            ValueError: If validation fails, with detailed error message
+        """
+        result = self.validate(anchor)
+        if not result.valid:
+            error_summary = "; ".join(result.errors[:5])
+            if len(result.errors) > 5:
+                error_summary += f" (+{len(result.errors) - 5} more errors)"
+            raise ValueError(f"Bootstrap output validation failed: {error_summary}")
+        return anchor  # type: ignore
+
+    def _validate_required_fields(
+        self, anchor: IntentionAnchorV2, result: BootstrapValidationResult
+    ) -> None:
+        """Validate required fields are present.
+
+        Args:
+            anchor: The anchor to validate
+            result: Result object to add errors to
+        """
+        # Check format_version
+        if anchor.format_version != "v2":
+            result.add_error(
+                f"Invalid format_version: expected 'v2', got '{anchor.format_version}'",
+                "$.format_version",
+            )
+
+        # Check project_id
+        if not anchor.project_id or not anchor.project_id.strip():
+            result.add_error("project_id is required and cannot be empty", "$.project_id")
+
+        # Check created_at
+        if anchor.created_at is None:
+            result.add_error("created_at is required", "$.created_at")
+
+        # Check raw_input_digest
+        if not anchor.raw_input_digest or not anchor.raw_input_digest.strip():
+            result.add_error(
+                "raw_input_digest is required and cannot be empty",
+                "$.raw_input_digest",
+            )
+
+        # Check pivot_intentions exists
+        if anchor.pivot_intentions is None:
+            result.add_error("pivot_intentions is required", "$.pivot_intentions")
+
+    def _validate_schema(
+        self, anchor: IntentionAnchorV2, result: BootstrapValidationResult
+    ) -> None:
+        """Validate anchor against JSON schema.
+
+        Args:
+            anchor: The anchor to validate
+            result: Result object to add errors to
+        """
+        from ..schema_validation import SchemaValidationError, validate_intention_anchor_v2
+
+        try:
+            anchor_dict = anchor.to_json_dict()
+            validate_intention_anchor_v2(anchor_dict)
+            result.schema_validated = True
+            logger.debug("[BootstrapOutputValidator] Schema validation passed")
+        except SchemaValidationError as e:
+            result.add_error(f"Schema validation failed: {e}", "$")
+            for error in e.errors:
+                result.add_error(error, "$")
+            logger.warning(f"[BootstrapOutputValidator] Schema validation failed: {e}")
+        except Exception as e:
+            result.add_error(f"Unexpected error during schema validation: {e}", "$")
+            logger.error(f"[BootstrapOutputValidator] Unexpected schema validation error: {e}")
+
+    def _validate_structure(
+        self, anchor: IntentionAnchorV2, result: BootstrapValidationResult
+    ) -> None:
+        """Validate nested structures within the anchor.
+
+        Args:
+            anchor: The anchor to validate
+            result: Result object to add errors to
+        """
+        if anchor.pivot_intentions is None:
+            return  # Already caught in required fields
+
+        # Validate safety_risk if present
+        if anchor.pivot_intentions.safety_risk is not None:
+            self._validate_safety_risk(anchor.pivot_intentions.safety_risk, result)
+
+        # Validate evidence_verification if present
+        if anchor.pivot_intentions.evidence_verification is not None:
+            self._validate_evidence_verification(
+                anchor.pivot_intentions.evidence_verification, result
+            )
+
+        # Validate governance_review if present
+        if anchor.pivot_intentions.governance_review is not None:
+            self._validate_governance_review(anchor.pivot_intentions.governance_review, result)
+
+        # Validate budget_cost if present
+        if anchor.pivot_intentions.budget_cost is not None:
+            self._validate_budget_cost(anchor.pivot_intentions.budget_cost, result)
+
+    def _validate_safety_risk(
+        self, safety_risk: SafetyRiskIntention, result: BootstrapValidationResult
+    ) -> None:
+        """Validate safety_risk structure.
+
+        Args:
+            safety_risk: The safety_risk intention to validate
+            result: Result object to add errors to
+        """
+        valid_tolerances = ["minimal", "low", "moderate", "high"]
+        if safety_risk.risk_tolerance not in valid_tolerances:
+            result.add_error(
+                f"safety_risk.risk_tolerance must be one of {valid_tolerances}, "
+                f"got '{safety_risk.risk_tolerance}'",
+                "$.pivot_intentions.safety_risk.risk_tolerance",
+            )
+
+    def _validate_evidence_verification(
+        self, evidence: EvidenceVerificationIntention, result: BootstrapValidationResult
+    ) -> None:
+        """Validate evidence_verification structure.
+
+        Args:
+            evidence: The evidence_verification intention to validate
+            result: Result object to add errors to
+        """
+        # Validate that hard_blocks, required_proofs, verification_gates are lists
+        if not isinstance(evidence.hard_blocks, list):
+            result.add_error(
+                f"evidence_verification.hard_blocks must be a list, "
+                f"got {type(evidence.hard_blocks).__name__}",
+                "$.pivot_intentions.evidence_verification.hard_blocks",
+            )
+        if not isinstance(evidence.required_proofs, list):
+            result.add_error(
+                f"evidence_verification.required_proofs must be a list, "
+                f"got {type(evidence.required_proofs).__name__}",
+                "$.pivot_intentions.evidence_verification.required_proofs",
+            )
+
+    def _validate_governance_review(
+        self, governance: GovernanceReviewIntention, result: BootstrapValidationResult
+    ) -> None:
+        """Validate governance_review structure.
+
+        Args:
+            governance: The governance_review intention to validate
+            result: Result object to add errors to
+        """
+        valid_policies = ["deny", "allow"]
+        if governance.default_policy not in valid_policies:
+            result.add_error(
+                f"governance_review.default_policy must be one of {valid_policies}, "
+                f"got '{governance.default_policy}'",
+                "$.pivot_intentions.governance_review.default_policy",
+            )
+
+        # Validate auto_approve_rules structure
+        for i, rule in enumerate(governance.auto_approve_rules):
+            if not rule.rule_id:
+                result.add_error(
+                    f"auto_approve_rules[{i}].rule_id is required",
+                    f"$.pivot_intentions.governance_review.auto_approve_rules[{i}].rule_id",
+                )
+            if not rule.description:
+                result.add_error(
+                    f"auto_approve_rules[{i}].description is required",
+                    f"$.pivot_intentions.governance_review.auto_approve_rules[{i}].description",
+                )
+
+    def _validate_budget_cost(
+        self, budget: BudgetCostIntention, result: BootstrapValidationResult
+    ) -> None:
+        """Validate budget_cost structure.
+
+        Args:
+            budget: The budget_cost intention to validate
+            result: Result object to add errors to
+        """
+        valid_policies = ["block", "warn", "request_approval"]
+        if budget.cost_escalation_policy not in valid_policies:
+            result.add_error(
+                f"budget_cost.cost_escalation_policy must be one of {valid_policies}, "
+                f"got '{budget.cost_escalation_policy}'",
+                "$.pivot_intentions.budget_cost.cost_escalation_policy",
+            )
+
+        # Validate numeric fields are non-negative if set
+        if budget.token_cap_global is not None and budget.token_cap_global < 0:
+            result.add_error(
+                f"budget_cost.token_cap_global must be non-negative, "
+                f"got {budget.token_cap_global}",
+                "$.pivot_intentions.budget_cost.token_cap_global",
+            )
+        if budget.token_cap_per_call is not None and budget.token_cap_per_call < 0:
+            result.add_error(
+                f"budget_cost.token_cap_per_call must be non-negative, "
+                f"got {budget.token_cap_per_call}",
+                "$.pivot_intentions.budget_cost.token_cap_per_call",
+            )
+        if budget.time_cap_seconds is not None and budget.time_cap_seconds < 0:
+            result.add_error(
+                f"budget_cost.time_cap_seconds must be non-negative, "
+                f"got {budget.time_cap_seconds}",
+                "$.pivot_intentions.budget_cost.time_cap_seconds",
+            )
+
+    def _validate_minimum_viable(
+        self, anchor: IntentionAnchorV2, result: BootstrapValidationResult
+    ) -> None:
+        """Validate minimum viable anchor for bootstrap completion.
+
+        A minimum viable anchor for bootstrap completion must have:
+        - At least one pivot intention defined
+
+        Args:
+            anchor: The anchor to validate
+            result: Result object to add errors to
+        """
+        if anchor.pivot_intentions is None:
+            return  # Already caught in required fields
+
+        # Check at least one pivot is defined
+        pivots = anchor.pivot_intentions
+        has_any_pivot = any(
+            [
+                pivots.north_star is not None,
+                pivots.safety_risk is not None,
+                pivots.evidence_verification is not None,
+                pivots.scope_boundaries is not None,
+                pivots.budget_cost is not None,
+                pivots.memory_continuity is not None,
+                pivots.governance_review is not None,
+                pivots.parallelism_isolation is not None,
+                pivots.deployment is not None,
+            ]
+        )
+
+        if not has_any_pivot:
+            result.add_error(
+                "Bootstrap anchor must have at least one pivot intention defined",
+                "$.pivot_intentions",
+            )

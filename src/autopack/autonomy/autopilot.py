@@ -23,9 +23,11 @@ import asyncio
 import copy
 import logging
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ..telemetry.meta_metrics import FeedbackLoopHealth
@@ -67,6 +69,779 @@ from .research_cycle_integration import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# IMP-LIFECYCLE-002: Phase State Machine for Autopilot Sequencing
+# ============================================================================
+
+
+class PhaseExecutionState(Enum):
+    """State of a phase in the lifecycle state machine.
+
+    IMP-LIFECYCLE-002: Defines all valid states for phase execution
+    with support for rollback on failures.
+    """
+
+    PENDING = "pending"  # Phase not yet started
+    READY = "ready"  # Prerequisites met, ready to execute
+    IN_PROGRESS = "in_progress"  # Currently executing
+    COMPLETED = "completed"  # Successfully finished
+    FAILED = "failed"  # Execution failed
+    ROLLED_BACK = "rolled_back"  # Rolled back to previous state
+
+
+class PhaseType(Enum):
+    """Types of lifecycle phases with ordering constraints.
+
+    IMP-LIFECYCLE-002: Defines the phase types and their execution order.
+    Phases must be executed in this order: research → build → deploy → monetize → postlaunch
+    """
+
+    RESEARCH = "research"
+    BUILD = "build"
+    DEPLOY = "deploy"
+    MONETIZE = "monetize"
+    POSTLAUNCH = "postlaunch"
+
+    @property
+    def order(self) -> int:
+        """Get the execution order of this phase type."""
+        order_map = {
+            PhaseType.RESEARCH: 0,
+            PhaseType.BUILD: 1,
+            PhaseType.DEPLOY: 2,
+            PhaseType.MONETIZE: 3,
+            PhaseType.POSTLAUNCH: 4,
+        }
+        return order_map[self]
+
+    @classmethod
+    def get_dependencies(cls, phase_type: "PhaseType") -> list["PhaseType"]:
+        """Get phases that must complete before this phase can start.
+
+        Args:
+            phase_type: The phase type to get dependencies for
+
+        Returns:
+            List of phase types that must complete first
+        """
+        dependencies_map = {
+            cls.RESEARCH: [],  # Research has no dependencies
+            cls.BUILD: [cls.RESEARCH],  # Build requires research
+            cls.DEPLOY: [cls.RESEARCH, cls.BUILD],  # Deploy requires research and build
+            cls.MONETIZE: [cls.RESEARCH, cls.BUILD, cls.DEPLOY],  # Monetize requires deploy
+            cls.POSTLAUNCH: [
+                cls.RESEARCH,
+                cls.BUILD,
+                cls.DEPLOY,
+                cls.MONETIZE,
+            ],  # Postlaunch requires all prior phases
+        }
+        return dependencies_map.get(phase_type, [])
+
+
+@dataclass
+class PhaseTransition:
+    """Record of a phase state transition.
+
+    IMP-LIFECYCLE-002: Tracks all transitions for audit and rollback purposes.
+    """
+
+    phase_id: str
+    phase_type: PhaseType
+    from_state: PhaseExecutionState
+    to_state: PhaseExecutionState
+    timestamp: datetime
+    reason: Optional[str] = None
+    triggered_by: Optional[str] = None  # e.g., "automatic", "manual", "rollback"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert transition to dictionary representation."""
+        return {
+            "phase_id": self.phase_id,
+            "phase_type": self.phase_type.value,
+            "from_state": self.from_state.value,
+            "to_state": self.to_state.value,
+            "timestamp": self.timestamp.isoformat(),
+            "reason": self.reason,
+            "triggered_by": self.triggered_by,
+        }
+
+
+@dataclass
+class PhaseStateEntry:
+    """State entry for a single phase in the state machine.
+
+    IMP-LIFECYCLE-002: Tracks the current state and history for each phase.
+    """
+
+    phase_id: str
+    phase_type: PhaseType
+    state: PhaseExecutionState = PhaseExecutionState.PENDING
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error: Optional[str] = None
+    rollback_count: int = 0
+    transitions: list = field(default_factory=list)  # List[PhaseTransition]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert phase state to dictionary representation."""
+        return {
+            "phase_id": self.phase_id,
+            "phase_type": self.phase_type.value,
+            "state": self.state.value,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "error": self.error,
+            "rollback_count": self.rollback_count,
+            "transitions": [t.to_dict() for t in self.transitions],
+        }
+
+
+class InvalidTransitionError(Exception):
+    """Raised when an invalid state transition is attempted.
+
+    IMP-LIFECYCLE-002: Provides detailed information about why a transition is invalid.
+    """
+
+    def __init__(
+        self,
+        phase_id: str,
+        from_state: PhaseExecutionState,
+        to_state: PhaseExecutionState,
+        reason: str,
+    ):
+        self.phase_id = phase_id
+        self.from_state = from_state
+        self.to_state = to_state
+        self.reason = reason
+        super().__init__(
+            f"Invalid transition for phase '{phase_id}': "
+            f"{from_state.value} → {to_state.value}. Reason: {reason}"
+        )
+
+
+class PhaseDependencyError(Exception):
+    """Raised when phase dependencies are not satisfied.
+
+    IMP-LIFECYCLE-002: Indicates which dependencies are blocking execution.
+    """
+
+    def __init__(
+        self,
+        phase_id: str,
+        phase_type: PhaseType,
+        missing_dependencies: list,
+    ):
+        self.phase_id = phase_id
+        self.phase_type = phase_type
+        self.missing_dependencies = missing_dependencies
+        dep_names = [d.value for d in missing_dependencies]
+        super().__init__(
+            f"Phase '{phase_id}' ({phase_type.value}) cannot start: "
+            f"dependencies not completed: {dep_names}"
+        )
+
+
+class PhaseStateMachine:
+    """State machine for managing phase lifecycle execution order.
+
+    IMP-LIFECYCLE-002: Implements proper phase sequencing with:
+    - Valid state transitions enforcement
+    - Phase dependency validation
+    - Phase ordering constraints (research → build → deploy → monetize → postlaunch)
+    - Phase completion verification
+    - Rollback capability for failed transitions
+
+    The state machine ensures phases cannot execute out of order, skip prerequisites,
+    or run concurrently when they should be sequential.
+
+    Example usage:
+        ```python
+        machine = PhaseStateMachine()
+
+        # Register phases
+        machine.register_phase("research-001", PhaseType.RESEARCH)
+        machine.register_phase("build-001", PhaseType.BUILD)
+        machine.register_phase("deploy-001", PhaseType.DEPLOY)
+
+        # Mark research as ready (no dependencies)
+        machine.mark_ready("research-001")
+
+        # Start research
+        machine.start_phase("research-001")
+
+        # Complete research
+        machine.complete_phase("research-001")
+
+        # Now build can start (research is complete)
+        machine.mark_ready("build-001")  # Will succeed
+
+        # Try to start deploy before build
+        machine.mark_ready("deploy-001")  # Raises PhaseDependencyError
+        ```
+    """
+
+    # Valid state transitions: from_state -> list of valid to_states
+    VALID_TRANSITIONS: Dict[PhaseExecutionState, list] = {
+        PhaseExecutionState.PENDING: [PhaseExecutionState.READY],
+        PhaseExecutionState.READY: [PhaseExecutionState.IN_PROGRESS],
+        PhaseExecutionState.IN_PROGRESS: [
+            PhaseExecutionState.COMPLETED,
+            PhaseExecutionState.FAILED,
+        ],
+        PhaseExecutionState.COMPLETED: [],  # Terminal state
+        PhaseExecutionState.FAILED: [PhaseExecutionState.ROLLED_BACK],
+        PhaseExecutionState.ROLLED_BACK: [PhaseExecutionState.READY],
+    }
+
+    def __init__(self, enforce_ordering: bool = True):
+        """Initialize the phase state machine.
+
+        Args:
+            enforce_ordering: If True, enforces phase ordering constraints.
+                            Set to False for testing or custom workflows.
+        """
+        self._phases: Dict[str, PhaseStateEntry] = {}
+        self._enforce_ordering = enforce_ordering
+        self._global_transitions: list = []  # All transitions across all phases
+        logger.info(
+            f"[IMP-LIFECYCLE-002] PhaseStateMachine initialized "
+            f"(enforce_ordering={enforce_ordering})"
+        )
+
+    def register_phase(
+        self,
+        phase_id: str,
+        phase_type: PhaseType,
+        initial_state: PhaseExecutionState = PhaseExecutionState.PENDING,
+    ) -> PhaseStateEntry:
+        """Register a new phase with the state machine.
+
+        Args:
+            phase_id: Unique identifier for the phase
+            phase_type: Type of phase (research, build, deploy, etc.)
+            initial_state: Initial state for the phase (default: PENDING)
+
+        Returns:
+            The created PhaseStateEntry
+
+        Raises:
+            ValueError: If phase_id already exists
+        """
+        if phase_id in self._phases:
+            raise ValueError(f"Phase '{phase_id}' already registered")
+
+        entry = PhaseStateEntry(
+            phase_id=phase_id,
+            phase_type=phase_type,
+            state=initial_state,
+        )
+        self._phases[phase_id] = entry
+
+        logger.info(
+            f"[IMP-LIFECYCLE-002] Registered phase '{phase_id}' "
+            f"(type={phase_type.value}, initial_state={initial_state.value})"
+        )
+        return entry
+
+    def get_phase(self, phase_id: str) -> Optional[PhaseStateEntry]:
+        """Get a phase by ID.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            PhaseStateEntry or None if not found
+        """
+        return self._phases.get(phase_id)
+
+    def get_phase_state(self, phase_id: str) -> Optional[PhaseExecutionState]:
+        """Get the current state of a phase.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            Current PhaseExecutionState or None if phase not found
+        """
+        entry = self._phases.get(phase_id)
+        return entry.state if entry else None
+
+    def is_transition_valid(
+        self,
+        from_state: PhaseExecutionState,
+        to_state: PhaseExecutionState,
+    ) -> bool:
+        """Check if a state transition is valid.
+
+        Args:
+            from_state: Current state
+            to_state: Target state
+
+        Returns:
+            True if transition is valid, False otherwise
+        """
+        valid_targets = self.VALID_TRANSITIONS.get(from_state, [])
+        return to_state in valid_targets
+
+    def _validate_transition(
+        self,
+        phase_id: str,
+        to_state: PhaseExecutionState,
+    ) -> None:
+        """Validate a state transition.
+
+        Args:
+            phase_id: The phase identifier
+            to_state: Target state
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If transition is not valid
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        from_state = entry.state
+
+        if not self.is_transition_valid(from_state, to_state):
+            valid_targets = self.VALID_TRANSITIONS.get(from_state, [])
+            valid_names = [s.value for s in valid_targets]
+            raise InvalidTransitionError(
+                phase_id=phase_id,
+                from_state=from_state,
+                to_state=to_state,
+                reason=f"Valid transitions from {from_state.value}: {valid_names}",
+            )
+
+    def _check_dependencies(self, phase_id: str) -> None:
+        """Check if phase dependencies are satisfied.
+
+        Args:
+            phase_id: The phase identifier
+
+        Raises:
+            ValueError: If phase not found
+            PhaseDependencyError: If dependencies are not satisfied
+        """
+        if not self._enforce_ordering:
+            return
+
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        dependencies = PhaseType.get_dependencies(entry.phase_type)
+        missing = []
+
+        for dep_type in dependencies:
+            # Find phases of this type that are completed
+            completed_phases = [
+                p
+                for p in self._phases.values()
+                if p.phase_type == dep_type and p.state == PhaseExecutionState.COMPLETED
+            ]
+            if not completed_phases:
+                missing.append(dep_type)
+
+        if missing:
+            raise PhaseDependencyError(
+                phase_id=phase_id,
+                phase_type=entry.phase_type,
+                missing_dependencies=missing,
+            )
+
+    def _record_transition(
+        self,
+        phase_id: str,
+        from_state: PhaseExecutionState,
+        to_state: PhaseExecutionState,
+        reason: Optional[str] = None,
+        triggered_by: str = "automatic",
+    ) -> PhaseTransition:
+        """Record a state transition.
+
+        Args:
+            phase_id: The phase identifier
+            from_state: Previous state
+            to_state: New state
+            reason: Optional reason for transition
+            triggered_by: What triggered the transition
+
+        Returns:
+            The created PhaseTransition
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        transition = PhaseTransition(
+            phase_id=phase_id,
+            phase_type=entry.phase_type,
+            from_state=from_state,
+            to_state=to_state,
+            timestamp=datetime.now(timezone.utc),
+            reason=reason,
+            triggered_by=triggered_by,
+        )
+
+        entry.transitions.append(transition)
+        self._global_transitions.append(transition)
+
+        logger.debug(
+            f"[IMP-LIFECYCLE-002] Transition: {phase_id} "
+            f"{from_state.value} → {to_state.value} ({triggered_by})"
+        )
+        return transition
+
+    def _set_state(
+        self,
+        phase_id: str,
+        to_state: PhaseExecutionState,
+        reason: Optional[str] = None,
+        triggered_by: str = "automatic",
+    ) -> PhaseTransition:
+        """Set the state of a phase after validation.
+
+        Args:
+            phase_id: The phase identifier
+            to_state: Target state
+            reason: Optional reason for transition
+            triggered_by: What triggered the transition
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If transition is not valid
+        """
+        self._validate_transition(phase_id, to_state)
+
+        entry = self._phases[phase_id]
+        from_state = entry.state
+        entry.state = to_state
+
+        return self._record_transition(phase_id, from_state, to_state, reason, triggered_by)
+
+    def mark_ready(
+        self,
+        phase_id: str,
+        reason: Optional[str] = None,
+    ) -> PhaseTransition:
+        """Mark a phase as ready to execute.
+
+        IMP-LIFECYCLE-002: Validates dependencies before marking ready.
+        Only phases in PENDING or ROLLED_BACK state can transition to READY.
+
+        Args:
+            phase_id: The phase identifier
+            reason: Optional reason for marking ready
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If transition is not valid
+            PhaseDependencyError: If dependencies are not satisfied
+        """
+        # Check dependencies before allowing transition
+        self._check_dependencies(phase_id)
+
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        # Handle both PENDING → READY and ROLLED_BACK → READY
+        if entry.state == PhaseExecutionState.PENDING:
+            return self._set_state(phase_id, PhaseExecutionState.READY, reason, "dependency_check")
+        elif entry.state == PhaseExecutionState.ROLLED_BACK:
+            return self._set_state(phase_id, PhaseExecutionState.READY, reason, "retry")
+        else:
+            # Try the transition anyway to get proper error message
+            return self._set_state(phase_id, PhaseExecutionState.READY, reason, "manual")
+
+    def start_phase(
+        self,
+        phase_id: str,
+        reason: Optional[str] = None,
+    ) -> PhaseTransition:
+        """Start execution of a phase.
+
+        IMP-LIFECYCLE-002: Transitions READY → IN_PROGRESS.
+
+        Args:
+            phase_id: The phase identifier
+            reason: Optional reason for starting
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If phase is not in READY state
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        transition = self._set_state(
+            phase_id, PhaseExecutionState.IN_PROGRESS, reason, "execution_start"
+        )
+        entry.started_at = datetime.now(timezone.utc)
+
+        logger.info(f"[IMP-LIFECYCLE-002] Phase '{phase_id}' started")
+        return transition
+
+    def complete_phase(
+        self,
+        phase_id: str,
+        reason: Optional[str] = None,
+    ) -> PhaseTransition:
+        """Mark a phase as successfully completed.
+
+        IMP-LIFECYCLE-002: Transitions IN_PROGRESS → COMPLETED.
+
+        Args:
+            phase_id: The phase identifier
+            reason: Optional completion reason
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If phase is not in IN_PROGRESS state
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        transition = self._set_state(
+            phase_id, PhaseExecutionState.COMPLETED, reason, "execution_complete"
+        )
+        entry.completed_at = datetime.now(timezone.utc)
+        entry.error = None
+
+        logger.info(f"[IMP-LIFECYCLE-002] Phase '{phase_id}' completed successfully")
+        return transition
+
+    def fail_phase(
+        self,
+        phase_id: str,
+        error: str,
+    ) -> PhaseTransition:
+        """Mark a phase as failed.
+
+        IMP-LIFECYCLE-002: Transitions IN_PROGRESS → FAILED.
+
+        Args:
+            phase_id: The phase identifier
+            error: Error message describing the failure
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If phase is not in IN_PROGRESS state
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        transition = self._set_state(
+            phase_id, PhaseExecutionState.FAILED, error, "execution_failed"
+        )
+        entry.completed_at = datetime.now(timezone.utc)
+        entry.error = error
+
+        logger.warning(f"[IMP-LIFECYCLE-002] Phase '{phase_id}' failed: {error}")
+        return transition
+
+    def rollback_phase(
+        self,
+        phase_id: str,
+        reason: Optional[str] = None,
+    ) -> PhaseTransition:
+        """Rollback a failed phase for potential retry.
+
+        IMP-LIFECYCLE-002: Transitions FAILED → ROLLED_BACK.
+        After rollback, the phase can transition to READY for retry.
+
+        Args:
+            phase_id: The phase identifier
+            reason: Optional reason for rollback
+
+        Returns:
+            The created PhaseTransition
+
+        Raises:
+            ValueError: If phase not found
+            InvalidTransitionError: If phase is not in FAILED state
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            raise ValueError(f"Phase '{phase_id}' not found")
+
+        transition = self._set_state(
+            phase_id, PhaseExecutionState.ROLLED_BACK, reason, "rollback"
+        )
+        entry.rollback_count += 1
+
+        logger.info(
+            f"[IMP-LIFECYCLE-002] Phase '{phase_id}' rolled back "
+            f"(rollback_count={entry.rollback_count})"
+        )
+        return transition
+
+    def can_phase_start(self, phase_id: str) -> tuple:
+        """Check if a phase can start execution.
+
+        IMP-LIFECYCLE-002: Verifies both state and dependencies.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            Tuple of (can_start: bool, reason: str)
+        """
+        entry = self._phases.get(phase_id)
+        if not entry:
+            return False, f"Phase '{phase_id}' not found"
+
+        # Check current state
+        if entry.state != PhaseExecutionState.READY:
+            return False, f"Phase is in state '{entry.state.value}', must be 'ready'"
+
+        # Check dependencies
+        if self._enforce_ordering:
+            try:
+                self._check_dependencies(phase_id)
+            except PhaseDependencyError as e:
+                return False, str(e)
+
+        return True, "Phase can start"
+
+    def get_next_executable_phases(self) -> list:
+        """Get phases that can be executed next.
+
+        IMP-LIFECYCLE-002: Returns phases in READY state with satisfied dependencies.
+
+        Returns:
+            List of phase IDs that can be executed
+        """
+        executable = []
+        for phase_id, entry in self._phases.items():
+            if entry.state == PhaseExecutionState.READY:
+                can_start, _ = self.can_phase_start(phase_id)
+                if can_start:
+                    executable.append(phase_id)
+        return executable
+
+    def get_phases_by_state(self, state: PhaseExecutionState) -> list:
+        """Get all phases in a specific state.
+
+        Args:
+            state: The state to filter by
+
+        Returns:
+            List of phase IDs in that state
+        """
+        return [p.phase_id for p in self._phases.values() if p.state == state]
+
+    def get_phases_by_type(self, phase_type: PhaseType) -> list:
+        """Get all phases of a specific type.
+
+        Args:
+            phase_type: The type to filter by
+
+        Returns:
+            List of phase IDs of that type
+        """
+        return [p.phase_id for p in self._phases.values() if p.phase_type == phase_type]
+
+    def are_all_phases_complete(self) -> bool:
+        """Check if all registered phases are complete.
+
+        Returns:
+            True if all phases are in COMPLETED state
+        """
+        if not self._phases:
+            return False
+        return all(p.state == PhaseExecutionState.COMPLETED for p in self._phases.values())
+
+    def get_completion_status(self) -> Dict[str, Any]:
+        """Get completion status summary.
+
+        Returns:
+            Dictionary with completion statistics
+        """
+        total = len(self._phases)
+        by_state = {}
+        for state in PhaseExecutionState:
+            count = len(self.get_phases_by_state(state))
+            if count > 0:
+                by_state[state.value] = count
+
+        return {
+            "total_phases": total,
+            "by_state": by_state,
+            "all_complete": self.are_all_phases_complete(),
+            "pending_count": len(self.get_phases_by_state(PhaseExecutionState.PENDING)),
+            "completed_count": len(self.get_phases_by_state(PhaseExecutionState.COMPLETED)),
+            "failed_count": len(self.get_phases_by_state(PhaseExecutionState.FAILED)),
+        }
+
+    def get_transition_history(
+        self,
+        phase_id: Optional[str] = None,
+        limit: int = 100,
+    ) -> list:
+        """Get transition history.
+
+        Args:
+            phase_id: If provided, filter to specific phase
+            limit: Maximum number of transitions to return
+
+        Returns:
+            List of PhaseTransition dictionaries
+        """
+        if phase_id:
+            entry = self._phases.get(phase_id)
+            if not entry:
+                return []
+            transitions = entry.transitions[-limit:]
+        else:
+            transitions = self._global_transitions[-limit:]
+
+        return [t.to_dict() for t in transitions]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert state machine to dictionary representation.
+
+        Returns:
+            Dictionary with full state machine state
+        """
+        return {
+            "enforce_ordering": self._enforce_ordering,
+            "phases": {pid: entry.to_dict() for pid, entry in self._phases.items()},
+            "completion_status": self.get_completion_status(),
+            "recent_transitions": self.get_transition_history(limit=10),
+        }
+
+    def reset(self) -> None:
+        """Reset the state machine to initial state.
+
+        Clears all registered phases and transition history.
+        """
+        self._phases.clear()
+        self._global_transitions.clear()
+        logger.info("[IMP-LIFECYCLE-002] PhaseStateMachine reset")
 
 
 class StateCheckpoint:
@@ -181,6 +956,264 @@ class AutopilotController:
         # IMP-REL-005: State checkpoint/rollback support
         self._state_checkpoints: Dict[str, StateCheckpoint] = {}
         self._last_checkpoint_id: Optional[str] = None
+
+        # IMP-LIFECYCLE-002: Phase state machine for sequencing
+        self._phase_state_machine: Optional[PhaseStateMachine] = None
+
+    # =========================================================================
+    # IMP-LIFECYCLE-002: Phase State Machine Methods
+    # =========================================================================
+
+    def initialize_phase_state_machine(
+        self,
+        enforce_ordering: bool = True,
+    ) -> PhaseStateMachine:
+        """Initialize the phase state machine.
+
+        IMP-LIFECYCLE-002: Creates and configures the phase state machine for
+        lifecycle phase sequencing. This should be called before executing
+        phases that require ordering constraints.
+
+        Args:
+            enforce_ordering: If True, enforces phase ordering constraints.
+                            Set to False for testing or custom workflows.
+
+        Returns:
+            Configured PhaseStateMachine instance
+        """
+        self._phase_state_machine = PhaseStateMachine(enforce_ordering=enforce_ordering)
+        logger.info(
+            f"[IMP-LIFECYCLE-002] Phase state machine initialized "
+            f"(enforce_ordering={enforce_ordering})"
+        )
+        return self._phase_state_machine
+
+    def get_phase_state_machine(self) -> Optional[PhaseStateMachine]:
+        """Get the phase state machine instance.
+
+        Returns:
+            PhaseStateMachine or None if not initialized
+        """
+        return self._phase_state_machine
+
+    def register_lifecycle_phase(
+        self,
+        phase_id: str,
+        phase_type: PhaseType,
+    ) -> Optional[PhaseStateEntry]:
+        """Register a lifecycle phase with the state machine.
+
+        IMP-LIFECYCLE-002: Convenience method to register phases.
+        Initializes the state machine if not already done.
+
+        Args:
+            phase_id: Unique identifier for the phase
+            phase_type: Type of phase (research, build, deploy, etc.)
+
+        Returns:
+            The created PhaseStateEntry or None if registration fails
+        """
+        if not self._phase_state_machine:
+            self.initialize_phase_state_machine()
+
+        try:
+            return self._phase_state_machine.register_phase(phase_id, phase_type)
+        except ValueError as e:
+            logger.warning(f"[IMP-LIFECYCLE-002] Failed to register phase: {e}")
+            return None
+
+    def get_lifecycle_phase_status(self) -> Dict[str, Any]:
+        """Get current status of lifecycle phases.
+
+        IMP-LIFECYCLE-002: Returns completion status and phase states.
+
+        Returns:
+            Dictionary with lifecycle phase status
+        """
+        if not self._phase_state_machine:
+            return {
+                "initialized": False,
+                "phases": {},
+                "completion_status": None,
+            }
+
+        return {
+            "initialized": True,
+            **self._phase_state_machine.to_dict(),
+        }
+
+    def can_start_lifecycle_phase(self, phase_id: str) -> tuple:
+        """Check if a lifecycle phase can start.
+
+        IMP-LIFECYCLE-002: Verifies state and dependencies.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            Tuple of (can_start: bool, reason: str)
+        """
+        if not self._phase_state_machine:
+            return False, "Phase state machine not initialized"
+
+        return self._phase_state_machine.can_phase_start(phase_id)
+
+    def start_lifecycle_phase(self, phase_id: str) -> bool:
+        """Start execution of a lifecycle phase.
+
+        IMP-LIFECYCLE-002: Transitions the phase through READY → IN_PROGRESS.
+        Validates dependencies before starting.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            True if phase started successfully, False otherwise
+        """
+        if not self._phase_state_machine:
+            logger.error("[IMP-LIFECYCLE-002] Phase state machine not initialized")
+            return False
+
+        try:
+            # Mark ready first (validates dependencies)
+            entry = self._phase_state_machine.get_phase(phase_id)
+            if entry and entry.state == PhaseExecutionState.PENDING:
+                self._phase_state_machine.mark_ready(phase_id)
+
+            # Start the phase
+            self._phase_state_machine.start_phase(phase_id)
+            return True
+        except (InvalidTransitionError, PhaseDependencyError, ValueError) as e:
+            logger.error(f"[IMP-LIFECYCLE-002] Failed to start phase: {e}")
+            return False
+
+    def complete_lifecycle_phase(self, phase_id: str) -> bool:
+        """Mark a lifecycle phase as completed.
+
+        IMP-LIFECYCLE-002: Transitions IN_PROGRESS → COMPLETED.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            True if phase completed successfully, False otherwise
+        """
+        if not self._phase_state_machine:
+            logger.error("[IMP-LIFECYCLE-002] Phase state machine not initialized")
+            return False
+
+        try:
+            self._phase_state_machine.complete_phase(phase_id)
+            return True
+        except (InvalidTransitionError, ValueError) as e:
+            logger.error(f"[IMP-LIFECYCLE-002] Failed to complete phase: {e}")
+            return False
+
+    def fail_lifecycle_phase(self, phase_id: str, error: str) -> bool:
+        """Mark a lifecycle phase as failed.
+
+        IMP-LIFECYCLE-002: Transitions IN_PROGRESS → FAILED.
+
+        Args:
+            phase_id: The phase identifier
+            error: Error message describing the failure
+
+        Returns:
+            True if phase marked as failed, False otherwise
+        """
+        if not self._phase_state_machine:
+            logger.error("[IMP-LIFECYCLE-002] Phase state machine not initialized")
+            return False
+
+        try:
+            self._phase_state_machine.fail_phase(phase_id, error)
+            return True
+        except (InvalidTransitionError, ValueError) as e:
+            logger.error(f"[IMP-LIFECYCLE-002] Failed to mark phase as failed: {e}")
+            return False
+
+    def rollback_lifecycle_phase(self, phase_id: str, reason: Optional[str] = None) -> bool:
+        """Rollback a failed lifecycle phase for retry.
+
+        IMP-LIFECYCLE-002: Transitions FAILED → ROLLED_BACK.
+        After rollback, the phase can be retried.
+
+        Args:
+            phase_id: The phase identifier
+            reason: Optional reason for rollback
+
+        Returns:
+            True if phase rolled back successfully, False otherwise
+        """
+        if not self._phase_state_machine:
+            logger.error("[IMP-LIFECYCLE-002] Phase state machine not initialized")
+            return False
+
+        try:
+            self._phase_state_machine.rollback_phase(phase_id, reason)
+            return True
+        except (InvalidTransitionError, ValueError) as e:
+            logger.error(f"[IMP-LIFECYCLE-002] Failed to rollback phase: {e}")
+            return False
+
+    def retry_lifecycle_phase(self, phase_id: str) -> bool:
+        """Retry a rolled-back lifecycle phase.
+
+        IMP-LIFECYCLE-002: Transitions ROLLED_BACK → READY → IN_PROGRESS.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            True if phase retry started successfully, False otherwise
+        """
+        if not self._phase_state_machine:
+            logger.error("[IMP-LIFECYCLE-002] Phase state machine not initialized")
+            return False
+
+        try:
+            entry = self._phase_state_machine.get_phase(phase_id)
+            if not entry:
+                logger.error(f"[IMP-LIFECYCLE-002] Phase not found: {phase_id}")
+                return False
+
+            if entry.state != PhaseExecutionState.ROLLED_BACK:
+                logger.error(
+                    f"[IMP-LIFECYCLE-002] Cannot retry phase in state: {entry.state.value}"
+                )
+                return False
+
+            # Mark ready then start
+            self._phase_state_machine.mark_ready(phase_id)
+            self._phase_state_machine.start_phase(phase_id)
+            return True
+        except (InvalidTransitionError, PhaseDependencyError, ValueError) as e:
+            logger.error(f"[IMP-LIFECYCLE-002] Failed to retry phase: {e}")
+            return False
+
+    def get_next_lifecycle_phases(self) -> List[str]:
+        """Get the next lifecycle phases that can be executed.
+
+        IMP-LIFECYCLE-002: Returns phases in READY state with satisfied dependencies.
+
+        Returns:
+            List of phase IDs that can be executed next
+        """
+        if not self._phase_state_machine:
+            return []
+
+        return self._phase_state_machine.get_next_executable_phases()
+
+    def are_all_lifecycle_phases_complete(self) -> bool:
+        """Check if all lifecycle phases are complete.
+
+        Returns:
+            True if all registered phases are in COMPLETED state
+        """
+        if not self._phase_state_machine:
+            return False
+
+        return self._phase_state_machine.are_all_phases_complete()
 
     def _check_circuit_breaker_health(self) -> bool:
         """Check if circuit breaker allows execution.

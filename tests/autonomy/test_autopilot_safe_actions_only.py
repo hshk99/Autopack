@@ -42,9 +42,9 @@ class TestActionClassification:
         ]
         for cmd in commands:
             classification = classify_action(ActionType.COMMAND, cmd)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {cmd} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {cmd} to require approval"
+            )
 
     def test_command_chaining_bypass_blocked(self):
         """IMP-SAFETY-003: Verify command chaining cannot bypass allowlist.
@@ -98,9 +98,9 @@ class TestActionClassification:
         ]
         for path in repo_paths:
             classification = classify_action(ActionType.FILE_WRITE, path)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {path} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {path} to require approval"
+            )
 
     def test_tidy_execute_requires_approval(self):
         """Tidy with --execute flag requires approval."""
@@ -122,13 +122,18 @@ class TestSafeActionExecutor:
         """Safe commands should be executed."""
         executor = SafeActionExecutor(workspace_root=Path("."))
 
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="OK", stderr="")
+        # Mock subprocess.Popen since SafeActionExecutor uses _run_command_with_cleanup
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("OK", "")
+        mock_proc.returncode = 0
+        mock_proc.pid = 12345
+
+        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
             result = executor.execute_command("git status")
 
         assert result.executed is True
         assert result.success is True
-        mock_run.assert_called_once()
+        mock_popen.assert_called_once()
 
     def test_refuses_unsafe_commands(self):
         """Unsafe commands should not be executed."""
@@ -251,9 +256,9 @@ class TestMixedApprovalRequirements:
 
         should_block = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
 
-        assert (
-            should_block is False
-        ), "Autopilot should allow execution when all actions are auto-approved"
+        assert should_block is False, (
+            "Autopilot should allow execution when all actions are auto-approved"
+        )
 
     def test_single_blocked_action_blocks_all(self):
         """A single blocked action must block the entire batch."""
@@ -285,9 +290,9 @@ class TestMixedApprovalRequirements:
         should_block_no_safe = summary.auto_approved_actions == 0
         should_block_approval = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
 
-        assert (
-            should_block_no_safe is True
-        ), "Autopilot must block when no actions are auto-approved"
+        assert should_block_no_safe is True, (
+            "Autopilot must block when no actions are auto-approved"
+        )
         assert should_block_approval is True, "Autopilot must block when actions require approval"
 
 
@@ -488,8 +493,20 @@ class TestLoadProposalImplementation:
             proposal.save_to_file(plans_dir / "plan_proposal_plan-abc123.json")
 
             # Mock ApprovalService to return approved action IDs
+            # Need to properly mock queue.decisions for _validate_approval_ids
+            from autopack.autonomy.approval_service import ApprovalDecision, ApprovalQueue
+
+            mock_decision = ApprovalDecision(
+                action_id="action-001",
+                session_id="test-session-001",
+                decision="approve",
+                decided_at=datetime.now(timezone.utc),
+            )
+            mock_queue = ApprovalQueue(pending=[], decisions=[mock_decision])
+
             mock_approval_svc = MagicMock()
             mock_approval_svc.get_approved_actions.return_value = ["action-001"]
+            mock_approval_svc.queue = mock_queue
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",

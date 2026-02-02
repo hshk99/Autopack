@@ -12,16 +12,13 @@ This module exercises:
 6. Performance tracking for all phases
 """
 
-import json
 import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from datetime import datetime
+from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.models import Phase, PhaseState, Run, RunState, Tier, TierState
-
+from autopack.models import Phase, PhaseState, RunState, TierState
 
 # =============================================================================
 # Test Fixtures
@@ -267,9 +264,7 @@ class TestMultiPhaseWorkflowE2E:
             deps = phase_dependencies[phase_id]["depends_on"]
             # All dependencies should have been executed before this phase
             for dep in deps:
-                assert executed_phases.index(dep) < executed_phases.index(
-                    phase_id
-                )
+                assert executed_phases.index(dep) < executed_phases.index(phase_id)
 
     def test_data_flows_between_phases(self, sample_phase_sequence):
         """Test that data flows correctly between consecutive phases."""
@@ -329,27 +324,19 @@ class TestMultiPhaseWorkflowE2E:
 
             if phase_id == failed_phase:
                 # This phase fails
-                executed_phases.append(
-                    {"phase_id": phase_id, "state": PhaseState.FAILED}
-                )
-            elif executed_phases and executed_phases[-1].get(
-                "state"
-            ) == PhaseState.FAILED:
+                executed_phases.append({"phase_id": phase_id, "state": PhaseState.FAILED})
+            elif executed_phases and executed_phases[-1].get("state") == PhaseState.FAILED:
                 # Don't execute dependent phases if dependency failed
                 break
             else:
                 # Normal execution
-                executed_phases.append(
-                    {"phase_id": phase_id, "state": PhaseState.COMPLETE}
-                )
+                executed_phases.append({"phase_id": phase_id, "state": PhaseState.COMPLETE})
 
         # Verify failure isolation
         assert any(p.get("state") == PhaseState.FAILED for p in executed_phases)
         # Phases after the failure should not execute
         failure_idx = next(
-            i
-            for i, p in enumerate(executed_phases)
-            if p.get("state") == PhaseState.FAILED
+            i for i, p in enumerate(executed_phases) if p.get("state") == PhaseState.FAILED
         )
         assert len(executed_phases) <= failure_idx + 1
 
@@ -357,7 +344,6 @@ class TestMultiPhaseWorkflowE2E:
     def test_phase_error_recovery_and_retry(self):
         """Test phase error recovery with retry logic."""
         # Setup
-        phase_id = "phase-004"
         max_retries = 3
         attempt_count = 0
         attempt_results = []
@@ -450,10 +436,8 @@ class TestCompleteLifecycleWorkflowE2E:
             phase_id = phase["phase_id"]
 
             # Execute phase
-            phase_state = PhaseState.EXECUTING
             # Small delay to simulate work
             time.sleep(0.001)
-            phase_state = PhaseState.COMPLETE
 
             # Record metrics
             phase_duration = time.time() - phase_start
@@ -539,13 +523,11 @@ class TestCompleteLifecycleWorkflowE2E:
 
             if i == failure_phase_idx:
                 # Simulate failure
-                phase_state = PhaseState.EXECUTING
                 # ... error occurs ...
-                phase_state = PhaseState.FAILED
                 lifecycle_metrics["phases_failed"] += 1
 
                 # Store error state for recovery
-                failure_info = {
+                {
                     "phase_id": phase_id,
                     "error": "Database connection failed",
                     "timestamp": datetime.utcnow(),
@@ -556,16 +538,13 @@ class TestCompleteLifecycleWorkflowE2E:
                 break
             else:
                 # Normal execution
-                phase_state = PhaseState.COMPLETE
                 lifecycle_metrics["phases_completed"] += 1
 
         # Simulate recovery
         sample_run_state["state"] = RunState.PHASE_EXECUTION
 
         # Restart from checkpoint
-        phase_state = PhaseState.EXECUTING
         # ... recovery logic ...
-        phase_state = PhaseState.COMPLETE
         lifecycle_metrics["phases_completed"] += 1
 
         # Verify recovery
@@ -663,9 +642,7 @@ class TestLifecycleMetricsAndPerformance:
         lifecycle_metrics["total_duration"] = total
 
         # Verify calculation
-        assert lifecycle_metrics["total_duration"] == sum(
-            phases_durations.values()
-        )
+        assert lifecycle_metrics["total_duration"] == sum(phases_durations.values())
         assert lifecycle_metrics["total_duration"] > 0
 
     def test_error_and_checkpoint_counting(self, lifecycle_metrics):
@@ -708,9 +685,7 @@ class TestLifecycleMetricsAndPerformance:
 
         for phase in sample_phase_sequence:
             phase_id = phase["phase_id"]
-            baseline["phase_timings"][phase_id] = typical_durations.get(
-                phase_id, 1.0
-            )
+            baseline["phase_timings"][phase_id] = typical_durations.get(phase_id, 1.0)
 
         # Verify baseline
         assert len(baseline["phase_timings"]) == len(sample_phase_sequence)

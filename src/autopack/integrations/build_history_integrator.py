@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     from autopack.integrations.pattern_library import PatternLibrary, ReusablePattern
     from autopack.research.analysis.build_history_analyzer import (
         BuildHistoryAnalysisResult,
-        FeasibilityFeedback,
     )
 
 logger = logging.getLogger(__name__)
@@ -657,7 +656,8 @@ class BuildHistoryIntegrator:
             total_weight = sum(s.confidence for s in analysis_result.feasibility_signals)
             if total_weight > 0:
                 weighted_adjustment = sum(
-                    (s.signal_value - 0.5) * s.confidence for s in analysis_result.feasibility_signals
+                    (s.signal_value - 0.5) * s.confidence
+                    for s in analysis_result.feasibility_signals
                 )
                 feasibility_adjustment = (weighted_adjustment / total_weight) * 0.3
                 confidence = min(total_weight / len(analysis_result.feasibility_signals), 1.0)
@@ -668,9 +668,7 @@ class BuildHistoryIntegrator:
         )
 
         # Extract risk and success factors
-        risk_factors = [
-            w for w in analysis_result.warnings[:3]
-        ]  # Top 3 warnings are risk factors
+        risk_factors = [w for w in analysis_result.warnings[:3]]  # Top 3 warnings are risk factors
         success_factors = self._extract_success_factors(analysis_result)
 
         # Get cost optimization tips
@@ -683,16 +681,14 @@ class BuildHistoryIntegrator:
             time_adjustment = max(-20.0, (1.0 - analysis_result.avg_time_estimate_accuracy) * 50)
 
         # Identify research focus areas
-        focus_areas = self._identify_research_focus_areas(
-            analysis_result, insights, category
-        )
+        focus_areas = self._identify_research_focus_areas(analysis_result, insights, category)
 
         self._metrics.sessions_using_build_history += 1
         self._metrics.avg_feasibility_adjustment = (
-            (self._metrics.avg_feasibility_adjustment * (self._metrics.sessions_using_build_history - 1) +
-             feasibility_adjustment)
-            / self._metrics.sessions_using_build_history
-        )
+            self._metrics.avg_feasibility_adjustment
+            * (self._metrics.sessions_using_build_history - 1)
+            + feasibility_adjustment
+        ) / self._metrics.sessions_using_build_history
 
         return ResearchContextEnrichment(
             feasibility_adjustment=feasibility_adjustment,
@@ -840,19 +836,13 @@ class BuildHistoryIntegrator:
         analysis = analyzer.analyze(project_type=project_type)
 
         # Determine research agents to use based on history
-        agents = self._recommend_research_agents(
-            insights, analysis, category
-        )
+        agents = self._recommend_research_agents(insights, analysis, category)
 
         # Determine validation requirements
-        validation_reqs = self._determine_validation_requirements(
-            insights, analysis
-        )
+        validation_reqs = self._determine_validation_requirements(insights, analysis)
 
         # Estimate research time
-        estimated_time = self._estimate_research_time(
-            insights, analysis
-        )
+        estimated_time = self._estimate_research_time(insights, analysis)
 
         return {
             "research_approach": self._determine_research_scope(
@@ -861,12 +851,12 @@ class BuildHistoryIntegrator:
             "research_agents": agents,
             "validation_requirements": validation_reqs,
             "estimated_research_time_hours": estimated_time,
-            "cost_research_priority": "high"
-            if analysis.cost_effectiveness.cost_overrun_rate > 0.3
-            else "standard",
-            "feasibility_research_priority": "high"
-            if analysis.overall_success_rate < 0.6
-            else "standard",
+            "cost_research_priority": (
+                "high" if analysis.cost_effectiveness.cost_overrun_rate > 0.3 else "standard"
+            ),
+            "feasibility_research_priority": (
+                "high" if analysis.overall_success_rate < 0.6 else "standard"
+            ),
         }
 
     def _recommend_research_agents(
@@ -904,8 +894,10 @@ class BuildHistoryIntegrator:
             agents.append("market_research_agent")
 
         # Add tech stack research if issues detected
-        if any(tech in " ".join(a for a in analysis.metrics_by_tech_stack.keys())
-               for tech in ["deprecated", "experimental"]):
+        if any(
+            tech in " ".join(a for a in analysis.metrics_by_tech_stack.keys())
+            for tech in ["deprecated", "experimental"]
+        ):
             agents.append("technical_feasibility_agent")
 
         return agents[:5] if agents else ["general_research_agent"]
@@ -972,10 +964,7 @@ class BuildHistoryIntegrator:
             base_time += 2.0
 
         # Reduce if high success rate and no issues
-        if (
-            analysis.overall_success_rate > 0.8
-            and len(insights.common_pitfalls) == 0
-        ):
+        if analysis.overall_success_rate > 0.8 and len(insights.common_pitfalls) == 0:
             base_time = 2.0
 
         return base_time
@@ -1008,8 +997,8 @@ class BuildHistoryIntegrator:
                 self._metrics.failed_pattern_applications += 1
 
             total_apps = (
-                self._metrics.successful_pattern_applications +
-                self._metrics.failed_pattern_applications
+                self._metrics.successful_pattern_applications
+                + self._metrics.failed_pattern_applications
             )
             if total_apps > 0:
                 self._metrics.recommendation_acceptance_rate = (

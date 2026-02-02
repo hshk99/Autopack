@@ -4,9 +4,7 @@ Tests the wiring of build history data into research context, pattern recognitio
 and recommendation generation.
 """
 
-from datetime import datetime
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -105,16 +103,14 @@ class TestBuildHistoryIntegratorBasics:
         assert insights.total_phases >= 0
         # Test that we get meaningful insights
         assert (
-            len(insights.best_practices) > 0 or
-            len(insights.common_pitfalls) > 0 or
-            insights.total_phases >= 0
+            len(insights.best_practices) > 0
+            or len(insights.common_pitfalls) > 0
+            or insights.total_phases >= 0
         )
 
     def test_get_insights_by_category(self, integrator):
         """Test insights filtering by category."""
-        setup_insights = integrator.get_insights_for_task(
-            "Setup task", category="Setup"
-        )
+        setup_insights = integrator.get_insights_for_task("Setup task", category="Setup")
         impl_insights = integrator.get_insights_for_task(
             "Implementation task", category="Implementation"
         )
@@ -159,9 +155,7 @@ class TestResearchContextEnrichment:
     def test_enrich_research_context_basic(self, integrator):
         """Test basic research context enrichment."""
         enrichment = integrator.enrich_research_context(
-            "Implement feature for ecommerce",
-            category="Implementation",
-            project_type="ecommerce"
+            "Implement feature for ecommerce", category="Implementation", project_type="ecommerce"
         )
 
         assert isinstance(enrichment, ResearchContextEnrichment)
@@ -174,8 +168,7 @@ class TestResearchContextEnrichment:
     def test_enrichment_has_focus_areas(self, integrator):
         """Test that enrichment includes research focus areas."""
         enrichment = integrator.enrich_research_context(
-            "Complex implementation task",
-            category="Implementation"
+            "Complex implementation task", category="Implementation"
         )
 
         # Should have some focus areas
@@ -184,8 +177,7 @@ class TestResearchContextEnrichment:
     def test_enrichment_includes_risk_factors(self, integrator):
         """Test that enrichment includes risk factors."""
         enrichment = integrator.enrich_research_context(
-            "Task with potential risks",
-            category="Documentation"
+            "Task with potential risks", category="Documentation"
         )
 
         assert isinstance(enrichment.risk_factors, list)
@@ -193,8 +185,7 @@ class TestResearchContextEnrichment:
     def test_enrichment_time_adjustment(self, integrator):
         """Test time estimate adjustment calculation."""
         enrichment = integrator.enrich_research_context(
-            "Task requiring research",
-            category="Implementation"
+            "Task requiring research", category="Implementation"
         )
 
         # Time adjustment should be a reasonable percentage
@@ -216,8 +207,7 @@ class TestResearchRecommendations:
     def test_get_research_recommendations(self, integrator):
         """Test generating research recommendations."""
         recommendations = integrator.get_research_recommendations_from_history(
-            "Implement new feature",
-            category="Implementation"
+            "Implement new feature", category="Implementation"
         )
 
         assert isinstance(recommendations, dict)
@@ -272,9 +262,7 @@ class TestBuildInformedMetrics:
     def test_record_decision_outcome_success(self, integrator):
         """Test recording successful decision outcome."""
         integrator.record_decision_outcome(
-            "decision_001",
-            was_successful=True,
-            pattern_applied="pattern_101"
+            "decision_001", was_successful=True, pattern_applied="pattern_101"
         )
 
         metrics = integrator.get_metrics()
@@ -283,9 +271,7 @@ class TestBuildInformedMetrics:
     def test_record_decision_outcome_failure(self, integrator):
         """Test recording failed decision outcome."""
         integrator.record_decision_outcome(
-            "decision_002",
-            was_successful=False,
-            pattern_applied="pattern_102"
+            "decision_002", was_successful=False, pattern_applied="pattern_102"
         )
 
         metrics = integrator.get_metrics()
@@ -294,19 +280,13 @@ class TestBuildInformedMetrics:
     def test_recommendation_acceptance_rate(self, integrator):
         """Test calculation of recommendation acceptance rate."""
         integrator.record_decision_outcome(
-            "decision_001",
-            was_successful=True,
-            pattern_applied="pattern_101"
+            "decision_001", was_successful=True, pattern_applied="pattern_101"
         )
         integrator.record_decision_outcome(
-            "decision_002",
-            was_successful=True,
-            pattern_applied="pattern_102"
+            "decision_002", was_successful=True, pattern_applied="pattern_102"
         )
         integrator.record_decision_outcome(
-            "decision_003",
-            was_successful=False,
-            pattern_applied="pattern_103"
+            "decision_003", was_successful=False, pattern_applied="pattern_103"
         )
 
         metrics = integrator.get_metrics()
@@ -336,8 +316,7 @@ class TestPatternExtraction:
     def test_success_rate_calculation(self, integrator):
         """Test success rate calculation."""
         success_rates = integrator._calculate_success_rates(
-            integrator._parse_build_history(),
-            category=None
+            integrator._parse_build_history(), category=None
         )
 
         assert isinstance(success_rates, dict)
@@ -356,7 +335,7 @@ class TestInsightsMerging:
             failed_phases=1,
             best_practices=["practice1", "practice2"],
             common_pitfalls=["pitfall1"],
-            patterns=[]
+            patterns=[],
         )
 
         insights2 = BuildHistoryInsights(
@@ -365,7 +344,7 @@ class TestInsightsMerging:
             failed_phases=1,
             best_practices=["practice2", "practice3"],
             common_pitfalls=["pitfall1", "pitfall2"],
-            patterns=[]
+            patterns=[],
         )
 
         merged = integrator._merge_insights(insights1, insights2)
@@ -390,7 +369,7 @@ class TestResearchScopeRecommendation:
             failed_phases=1,
             best_practices=["practice1"],
             common_pitfalls=[],
-            patterns=[]
+            patterns=[],
         )
 
         scope = integrator._determine_research_scope(0.9, insights, 0.0)
@@ -405,7 +384,7 @@ class TestResearchScopeRecommendation:
             failed_phases=7,
             best_practices=[],
             common_pitfalls=["pitfall1", "pitfall2", "pitfall3"],
-            patterns=[]
+            patterns=[],
         )
 
         scope = integrator._determine_research_scope(0.3, insights, 0.0)
@@ -420,7 +399,7 @@ class TestResearchScopeRecommendation:
             failed_phases=4,
             best_practices=["practice1"],
             common_pitfalls=["pitfall1"],
-            patterns=[]
+            patterns=[],
         )
 
         scope = integrator._determine_research_scope(0.6, insights, 0.0)
@@ -450,23 +429,18 @@ class TestIntegrationWithResearchPipeline:
             failed_phases=5,
             best_practices=["practice1"],
             common_pitfalls=["pitfall1", "pitfall2", "pitfall3"],
-            patterns=[]
+            patterns=[],
         )
 
         # Create a mock analysis result
         class MockAnalysisResult:
             warnings = ["Warning 1"]
-            cost_effectiveness = MagicMock(
-                cost_overrun_rate=0.0,
-                high_cost_factors=[]
-            )
+            cost_effectiveness = MagicMock(cost_overrun_rate=0.0, high_cost_factors=[])
             avg_time_estimate_accuracy = 0.8
             metrics_by_tech_stack = {}
 
         focus_areas = integrator._identify_research_focus_areas(
-            MockAnalysisResult(),  # type: ignore
-            insights,
-            "Implementation"
+            MockAnalysisResult(), insights, "Implementation"  # type: ignore
         )
 
         assert isinstance(focus_areas, list)
@@ -475,6 +449,7 @@ class TestIntegrationWithResearchPipeline:
 
     def test_success_factors_extraction(self, integrator):
         """Test extraction of success factors from analysis."""
+
         class MockSignal:
             signal_type = MagicMock(value="time_estimate")
             signal_value = 0.9
@@ -500,7 +475,7 @@ class TestIntegrationWithResearchPipeline:
             failed_phases=6,
             best_practices=[],
             common_pitfalls=["p1", "p2", "p3"],
-            patterns=[]
+            patterns=[],
         )
 
         class MockCostFeedback:
@@ -512,8 +487,7 @@ class TestIntegrationWithResearchPipeline:
             metrics_by_tech_stack = {"python": {}}
 
         requirements = integrator._determine_validation_requirements(
-            insights,
-            MockAnalysisResult()  # type: ignore
+            insights, MockAnalysisResult()  # type: ignore
         )
 
         assert isinstance(requirements, list)
@@ -528,7 +502,7 @@ class TestIntegrationWithResearchPipeline:
             failed_phases=7,
             best_practices=[],
             common_pitfalls=["p1", "p2"],
-            patterns=[]
+            patterns=[],
         )
 
         class MockCostFeedback:
@@ -540,8 +514,7 @@ class TestIntegrationWithResearchPipeline:
             metrics_by_tech_stack = {}
 
         estimated_hours = integrator._estimate_research_time(
-            insights,
-            MockAnalysisResult()  # type: ignore
+            insights, MockAnalysisResult()  # type: ignore
         )
 
         assert isinstance(estimated_hours, (int, float))

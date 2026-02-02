@@ -65,7 +65,11 @@ class RoutingRule:
     def from_dict(cls, data: Dict[str, Any]) -> "RoutingRule":
         """Create RoutingRule from dictionary."""
         strategy_str = data.get("strategy", "progressive")
-        strategy = RoutingStrategy(strategy_str) if strategy_str in [s.value for s in RoutingStrategy] else RoutingStrategy.PROGRESSIVE
+        strategy = (
+            RoutingStrategy(strategy_str)
+            if strategy_str in [s.value for s in RoutingStrategy]
+            else RoutingStrategy.PROGRESSIVE
+        )
 
         return cls(
             task_type=data.get("task_type", ""),
@@ -223,11 +227,14 @@ class RoutingEngine:
         complexity_config = self._config.get("complexity_estimation", {})
 
         # Token-based score
-        token_thresholds = complexity_config.get("token_thresholds", {
-            "simple": 1000,
-            "moderate": 5000,
-            "complex": 20000,
-        })
+        token_thresholds = complexity_config.get(
+            "token_thresholds",
+            {
+                "simple": 1000,
+                "moderate": 5000,
+                "complex": 20000,
+            },
+        )
         if token_count <= token_thresholds.get("simple", 1000):
             token_score = 0.2
         elif token_count <= token_thresholds.get("moderate", 5000):
@@ -408,10 +415,7 @@ class RoutingEngine:
             raise ValueError("No candidates provided")
 
         def capability_score(m: ModelInfo) -> int:
-            return sum(
-                1 for cap in required_capabilities
-                if m.capabilities.has_capability(cap)
-            )
+            return sum(1 for cap in required_capabilities if m.capabilities.has_capability(cap))
 
         return max(candidates, key=capability_score)
 
@@ -516,9 +520,7 @@ class RoutingEngine:
             # Check if we should retry or fallback
             if trigger in [FallbackTrigger.RATE_LIMIT, FallbackTrigger.SERVER_ERROR]:
                 if chain.should_retry(current_model):
-                    logger.info(
-                        f"[RoutingEngine] Retrying {current_model} after {trigger.value}"
-                    )
+                    logger.info(f"[RoutingEngine] Retrying {current_model} after {trigger.value}")
                     return current_model
 
         # Advance to next fallback
@@ -529,9 +531,7 @@ class RoutingEngine:
                 f"(trigger: {trigger.value})"
             )
         else:
-            logger.warning(
-                f"[RoutingEngine] No more fallbacks for chain {chain_id}"
-            )
+            logger.warning(f"[RoutingEngine] No more fallbacks for chain {chain_id}")
 
         return next_model
 
@@ -604,9 +604,7 @@ class RoutingEngine:
 
             except asyncio.TimeoutError as e:
                 last_error = e
-                next_model = self.handle_failure(
-                    chain_id, FallbackTrigger.TIMEOUT, str(e)
-                )
+                next_model = self.handle_failure(chain_id, FallbackTrigger.TIMEOUT, str(e))
                 if next_model is None:
                     break
 
@@ -627,8 +625,7 @@ class RoutingEngine:
 
         # All attempts failed
         raise Exception(
-            f"All attempts failed for task type {task_type}. "
-            f"Last error: {last_error}"
+            f"All attempts failed for task type {task_type}. " f"Last error: {last_error}"
         )
 
     def get_routing_stats(self) -> Dict[str, Any]:

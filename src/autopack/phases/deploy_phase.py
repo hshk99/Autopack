@@ -269,9 +269,7 @@ class DeployPhaseExecutor:
                 self._generate_monitoring_config(phase)
             except Exception as e:
                 logger.warning(f"Failed to generate monitoring config: {e}")
-                phase.output.warnings.append(
-                    f"Monitoring config generation failed: {str(e)}"
-                )
+                phase.output.warnings.append(f"Monitoring config generation failed: {str(e)}")
 
         # Update providers configured
         phase.output.providers_configured = providers
@@ -553,9 +551,7 @@ Configure alerts in your monitoring system to watch for:
             "java": '"java", "-jar", "target/app.jar"',
             "rust": '"/app/target/release/app"',
         }
-        return commands.get(
-            language, '"python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0"'
-        )
+        return commands.get(language, '"python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0"')
 
     def _save_to_history(self, phase: DeployPhase) -> None:
         """Save phase results to BUILD_HISTORY.

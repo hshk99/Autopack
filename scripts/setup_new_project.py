@@ -436,7 +436,7 @@ After setup, the magic phrase will work:
     location_group.add_argument(
         "--internal",
         action="store_true",
-        help=f"Create in .autonomous_runs (legacy, for Autopack internal builds only)",
+        help="Create in .autonomous_runs (legacy, for Autopack internal builds only)",
     )
     location_group.add_argument(
         "--output",

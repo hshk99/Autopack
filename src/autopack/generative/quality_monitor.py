@@ -1,9 +1,8 @@
 """Quality monitoring and auto-switching for generative AI models."""
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -24,9 +23,7 @@ class QualityMetrics:
         """Calculate overall quality score from component metrics."""
         # Weight the metrics: relevance 50%, coherence 30%, completeness 20%
         overall = (
-            self.relevance_score * 0.5
-            + self.coherence_rating * 0.3
-            + self.completeness_score * 0.2
+            self.relevance_score * 0.5 + self.coherence_rating * 0.3 + self.completeness_score * 0.2
         )
         # Apply user satisfaction as a modifier if available
         if self.user_satisfaction is not None:
@@ -132,7 +129,9 @@ class QualityMonitor:
         # Store last used model for this capability
         self.last_model_for_capability[capability_type] = model_id
 
-    def record_generation_failure(self, model_id: str, provider: str = "unknown", error: str = "") -> None:
+    def record_generation_failure(
+        self, model_id: str, provider: str = "unknown", error: str = ""
+    ) -> None:
         """Record a failed generation attempt.
 
         Args:
@@ -406,7 +405,9 @@ class QualityMonitor:
         dashboard = {
             "timestamp": datetime.now().isoformat(),
             "total_models_monitored": len(self.quality_history),
-            "active_alerts": len([a for a in self.alerts if (datetime.now() - a.timestamp).total_seconds() < 3600]),
+            "active_alerts": len(
+                [a for a in self.alerts if (datetime.now() - a.timestamp).total_seconds() < 3600]
+            ),
             "models": {},
         }
 
@@ -426,7 +427,9 @@ class QualityMonitor:
                 "generation_time": f"{snapshot.avg_generation_time:.2f}s",
                 "success_rate": f"{snapshot.success_rate * 100:.1f}%",
                 "total_generations": snapshot.total_generations,
-                "last_generation": stats["last_generation"].isoformat() if stats["last_generation"] else None,
+                "last_generation": (
+                    stats["last_generation"].isoformat() if stats["last_generation"] else None
+                ),
             }
 
         return dashboard

@@ -15,10 +15,8 @@ Tests cover:
 Goal: Achieve 85%+ code coverage for memory module.
 """
 
-import time
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, Mock, patch
-from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -36,8 +34,6 @@ from autopack.memory.freshness_filter import (
     COLLECTION_PLANNING,
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_SOT_DOCS,
-    LOW_CONFIDENCE_THRESHOLD,
-    MEDIUM_CONFIDENCE_THRESHOLD,
 )
 
 
@@ -129,7 +125,7 @@ class TestSemanticSearchAndRetrieval:
         project_id = "test-project"
 
         # Index a file with old timestamp
-        old_timestamp = (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
+        (datetime.now(timezone.utc) - timedelta(days=10)).isoformat()
 
         service.index_file(
             project_id=project_id,
@@ -496,12 +492,14 @@ class TestLongTermMemoryRetention:
         project_id = "test-project"
 
         # Write telemetry insight
-        service.write_telemetry_insight({
-            "insight_type": "pattern",
-            "content": "common pattern detected",
-            "confidence": 0.9,
-            "project_id": project_id,
-        })
+        service.write_telemetry_insight(
+            {
+                "insight_type": "pattern",
+                "content": "common pattern detected",
+                "confidence": 0.9,
+                "project_id": project_id,
+            }
+        )
 
         # Retrieve insights
         insights = service.retrieve_insights(project_id, top_k=10)
@@ -692,24 +690,16 @@ class TestMultiCollectionOperations:
         service.index_file(project_id, "phase-1", "run-1", "file.py", "code")
 
         # Write to run_summaries
-        service.write_phase_summary(
-            project_id, "run-1", "phase-1", "summary", {}
-        )
+        service.write_phase_summary(project_id, "run-1", "phase-1", "summary", {})
 
         # Write to errors_ci
-        service.write_error(
-            project_id, "run-1", "phase-1", "error", {}
-        )
+        service.write_error(project_id, "run-1", "phase-1", "error", {})
 
         # Write to doctor_hints
-        service.write_doctor_hint(
-            project_id, "run-1", "phase-1", "hint", {}
-        )
+        service.write_doctor_hint(project_id, "run-1", "phase-1", "hint", {})
 
         # Write to planning
-        service.write_planning_artifact(
-            project_id, "run-1", "phase-1", "plan", {}
-        )
+        service.write_planning_artifact(project_id, "run-1", "phase-1", "plan", {})
 
         # Verify no exceptions raised
         assert service.enabled is True

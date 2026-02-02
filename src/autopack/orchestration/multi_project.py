@@ -15,11 +15,9 @@ Architecture:
 
 import asyncio
 import logging
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from pathlib import Path
 from threading import RLock
 from typing import Any, Callable, Dict, List, Optional, Set
 
@@ -485,7 +483,7 @@ class MultiProjectOrchestrator:
         results = []
         for project in projects:
             if self._stop_requested:
-                logger.warning(f"[MultiProjectOrchestrator] Stopping execution: " f"stop requested")
+                logger.warning("[MultiProjectOrchestrator] Stopping execution: " "stop requested")
                 break
 
             result = await self._execute_single_project(project, executor_func, executor_kwargs)

@@ -234,7 +234,9 @@ class ModelRegistry:
     def _register_model_from_dict(self, model_id: str, data: Dict[str, Any]) -> None:
         """Register a model from dictionary configuration."""
         tier_str = data.get("tier", "standard").lower()
-        tier = ModelTier(tier_str) if tier_str in [t.value for t in ModelTier] else ModelTier.STANDARD
+        tier = (
+            ModelTier(tier_str) if tier_str in [t.value for t in ModelTier] else ModelTier.STANDARD
+        )
 
         capabilities = ModelCapabilities(
             capabilities=tuple(data.get("capabilities", [])),

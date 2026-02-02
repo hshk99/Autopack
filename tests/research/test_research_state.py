@@ -526,8 +526,8 @@ class TestResearchStateTracker:
     def test_handle_interrupted_research(self, temp_project_dir) -> None:
         """Test recovery from interrupted research."""
         tracker = ResearchStateTracker(temp_project_dir)
-        state = tracker.load_or_create_state("interrupted")
-        checkpoint = tracker.create_checkpoint(phase="analysis")
+        tracker.load_or_create_state("interrupted")
+        tracker.create_checkpoint(phase="analysis")
         tracker.save_state()
 
         tracker2 = ResearchStateTracker(temp_project_dir)

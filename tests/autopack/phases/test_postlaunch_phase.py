@@ -4,7 +4,6 @@ Comprehensive tests for PostlaunchPhase and PostlaunchPhaseExecutor.
 """
 
 import pytest
-from datetime import datetime
 from pathlib import Path
 from autopack.phases.postlaunch_phase import (
     PostlaunchStatus,
@@ -246,9 +245,7 @@ class TestPostlaunchPhaseExecutor:
     def test_execute_phase_generates_all_runbooks(self, executor):
         """Test all runbook types generated."""
         input_data = PostlaunchInput(product_name="MyApp")
-        config = PostlaunchConfig(
-            runbook_types=["incident_response", "maintenance", "scaling"]
-        )
+        config = PostlaunchConfig(runbook_types=["incident_response", "maintenance", "scaling"])
         phase = PostlaunchPhase(
             phase_id="postlaunch-001",
             description="Post-launch",
@@ -277,7 +274,7 @@ class TestPostlaunchPhaseExecutor:
             workspace_path=tmp_path,
             build_history_path=tmp_path / "BUILD_HISTORY.md",
         )
-        result = executor_with_history.execute(phase)
+        executor_with_history.execute(phase)
 
         history_file = tmp_path / "BUILD_HISTORY.md"
         assert history_file.exists()

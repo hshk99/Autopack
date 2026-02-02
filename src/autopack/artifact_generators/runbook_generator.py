@@ -7,7 +7,7 @@ maintenance procedures, scaling guides, and SLA/SLO definitions.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -110,9 +110,7 @@ class RunbookGenerator:
             logger.info(f"[RunbookGenerator] Generating {runbook_type} runbook")
 
             if runbook_type == "incident_response":
-                runbooks["incident_response.md"] = self._generate_incident_response(
-                    product_name
-                )
+                runbooks["incident_response.md"] = self._generate_incident_response(product_name)
             elif runbook_type == "maintenance":
                 runbooks["maintenance.md"] = self._generate_maintenance(product_name)
             elif runbook_type == "scaling":
@@ -837,9 +835,7 @@ kubectl chaos daemon kill-pod \\
 
 """
 
-    def _generate_sla(
-        self, product_name: str, uptime_target: float, response_time_ms: int
-    ) -> str:
+    def _generate_sla(self, product_name: str, uptime_target: float, response_time_ms: int) -> str:
         """Generate SLA definition.
 
         Args:
@@ -959,4 +955,3 @@ If we fail to meet SLOs, service credits apply:
 **Last Updated**: {product_name} operations team
 **Next Review**: Quarterly
 """
-

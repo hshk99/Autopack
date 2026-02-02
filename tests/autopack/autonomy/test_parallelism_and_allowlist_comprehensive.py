@@ -111,7 +111,6 @@ class TestSafeCommandPatterns:
     def test_match_safe_git_command(self):
         """Test matching safe git commands."""
         command = "git status"
-        git_status_pattern = "^git\\s+status"
         pattern = next((p for p in SAFE_COMMAND_PATTERNS if "status" in p), None)
         if pattern:
             assert re.match(pattern, command)
@@ -129,7 +128,9 @@ class TestSafeCommandPatterns:
         command = "black --check src/"
         black_pattern = next((p for p in SAFE_COMMAND_PATTERNS if "black" in p), None)
         if black_pattern:
-            assert re.search(black_pattern, command) or ("black" in command and "--check" in command)
+            assert re.search(black_pattern, command) or (
+                "black" in command and "--check" in command
+            )
 
 
 class TestRequiresApprovalPatterns:

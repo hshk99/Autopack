@@ -32,12 +32,26 @@ class DeploymentGuide:
         "gcp": {
             "name": "Google Cloud Platform",
             "description": "Deploy to GCP using Compute Engine, Cloud Run, Firestore, and other services",
-            "services": ["Compute Engine", "Cloud Run", "Firestore", "Cloud Storage", "Cloud CDN", "Memorystore"],
+            "services": [
+                "Compute Engine",
+                "Cloud Run",
+                "Firestore",
+                "Cloud Storage",
+                "Cloud CDN",
+                "Memorystore",
+            ],
         },
         "azure": {
             "name": "Microsoft Azure",
             "description": "Deploy to Azure using App Service, Functions, CosmosDB, and other services",
-            "services": ["App Service", "Functions", "CosmosDB", "Blob Storage", "Application Gateway", "Cache for Redis"],
+            "services": [
+                "App Service",
+                "Functions",
+                "CosmosDB",
+                "Blob Storage",
+                "Application Gateway",
+                "Cache for Redis",
+            ],
         },
         "heroku": {
             "name": "Heroku",
@@ -192,7 +206,9 @@ class DeploymentGuide:
 
         return section
 
-    def _generate_aws_section(self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]) -> str:
+    def _generate_aws_section(
+        self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]
+    ) -> str:
         """Generate AWS-specific deployment instructions."""
         section = "### Key AWS Services\n\n"
         section += "- **EC2**: Virtual machines for running your application\n"
@@ -250,7 +266,9 @@ class DeploymentGuide:
 
         return section
 
-    def _generate_gcp_section(self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]) -> str:
+    def _generate_gcp_section(
+        self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]
+    ) -> str:
         """Generate GCP-specific deployment instructions."""
         section = "### Key GCP Services\n\n"
         section += "- **Compute Engine**: Virtual machines (VMs) for running applications\n"
@@ -302,7 +320,9 @@ class DeploymentGuide:
 
         return section
 
-    def _generate_azure_section(self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]) -> str:
+    def _generate_azure_section(
+        self, tech_stack: Dict[str, Any], project_requirements: Optional[Dict[str, Any]]
+    ) -> str:
         """Generate Azure-specific deployment instructions."""
         section = "### Key Azure Services\n\n"
         section += "- **App Service**: Managed web hosting platform\n"
@@ -406,7 +426,7 @@ class DeploymentGuide:
         section += "RUN pip install -r requirements.txt\n"
         section += "COPY . .\n"
         section += "EXPOSE 8000\n"
-        section += "CMD [\"python\", \"-m\", \"uvicorn\", \"main:app\", \"--host\", \"0.0.0.0\"]\n"
+        section += 'CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0"]\n'
         section += "```\n\n"
 
         section += "#### Option 2: Docker Compose\n\n"

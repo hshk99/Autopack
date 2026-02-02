@@ -4,7 +4,6 @@ Comprehensive tests for MonetizationPhase and MonetizationPhaseExecutor.
 """
 
 import pytest
-from datetime import datetime
 from pathlib import Path
 from autopack.phases.monetization_phase import (
     MonetizationStatus,
@@ -249,7 +248,7 @@ class TestMonetizationPhaseExecutor:
             workspace_path=tmp_path,
             build_history_path=tmp_path / "BUILD_HISTORY.md",
         )
-        result = executor.execute(phase)
+        executor.execute(phase)
 
         history_file = tmp_path / "BUILD_HISTORY.md"
         assert history_file.exists()

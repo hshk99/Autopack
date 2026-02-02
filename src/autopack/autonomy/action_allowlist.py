@@ -75,6 +75,8 @@ SAFE_COMMAND_PATTERNS: List[str] = [
     r"^ls\b",
     r"^dir\b",
     r"^find\b.*-name",
+    # Simple read-only commands
+    r"^echo\b",
 ]
 
 # Patterns that require approval even if they match safe patterns

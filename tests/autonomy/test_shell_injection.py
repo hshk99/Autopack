@@ -70,10 +70,15 @@ class TestShellInjectionBlocked:
 class TestSafeActionExecutorNoShellTrue:
     """Verify SafeActionExecutor uses shlex.split() instead of shell=True."""
 
-    @patch("autopack.autonomy.action_executor.subprocess.run")
-    def test_execute_command_uses_shlex_split(self, mock_run, tmp_path):
+    @patch("autopack.autonomy.action_executor.subprocess.Popen")
+    def test_execute_command_uses_shlex_split(self, mock_popen, tmp_path):
         """Verify execute_command uses shlex.split() with shell=False."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="output", stderr="")
+        # Mock subprocess.Popen to return a mock process
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("output", "")
+        mock_proc.returncode = 0
+        mock_proc.pid = 12345
+        mock_popen.return_value = mock_proc
 
         executor = SafeActionExecutor(
             workspace_root=tmp_path,
@@ -89,9 +94,9 @@ class TestSafeActionExecutorNoShellTrue:
 
             executor.execute_command("echo hello world")
 
-            # Verify subprocess.run was called with a list (not string)
-            mock_run.assert_called_once()
-            call_args = mock_run.call_args
+            # Verify subprocess.Popen was called with shlex.split() args
+            mock_popen.assert_called_once()
+            call_args = mock_popen.call_args
 
             # First positional arg should be the parsed command list
             assert call_args[0][0] == ["echo", "hello", "world"]
@@ -99,10 +104,15 @@ class TestSafeActionExecutorNoShellTrue:
             # shell should be False
             assert call_args[1]["shell"] is False
 
-    @patch("autopack.autonomy.action_executor.subprocess.run")
-    def test_injection_attempt_becomes_literal_args(self, mock_run, tmp_path):
+    @patch("autopack.autonomy.action_executor.subprocess.Popen")
+    def test_injection_attempt_becomes_literal_args(self, mock_popen, tmp_path):
         """Verify injection attempts become literal arguments."""
-        mock_run.return_value = MagicMock(returncode=0, stdout="output", stderr="")
+        # Mock subprocess.Popen to return a mock process
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("output", "")
+        mock_proc.returncode = 0
+        mock_proc.pid = 12345
+        mock_popen.return_value = mock_proc
 
         executor = SafeActionExecutor(
             workspace_root=tmp_path,
@@ -119,7 +129,7 @@ class TestSafeActionExecutorNoShellTrue:
             executor.execute_command("echo hello; rm -rf /")
 
             # The command should be parsed as arguments, not executed with shell
-            call_args = mock_run.call_args
+            call_args = mock_popen.call_args
             assert call_args[0][0] == ["echo", "hello;", "rm", "-rf", "/"]
             assert call_args[1]["shell"] is False
 

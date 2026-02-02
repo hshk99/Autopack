@@ -123,11 +123,12 @@ class TestSafeActionExecutor:
         executor = SafeActionExecutor(workspace_root=Path("."))
 
         # Mock Popen since execute_command uses _run_command_with_cleanup which uses Popen
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("OK", "")
+        mock_proc.returncode = 0
+        mock_proc.pid = 12345
+
         with patch("autopack.autonomy.action_executor.subprocess.Popen") as mock_popen:
-            mock_proc = MagicMock()
-            mock_proc.communicate.return_value = ("OK", "")
-            mock_proc.returncode = 0
-            mock_proc.pid = 12345
             mock_popen.return_value = mock_proc
             result = executor.execute_command("git status")
 
@@ -493,8 +494,20 @@ class TestLoadProposalImplementation:
             proposal.save_to_file(plans_dir / "plan_proposal_plan-abc123.json")
 
             # Mock ApprovalService to return approved action IDs
+            # Need to properly mock queue.decisions for _validate_approval_ids
+            from autopack.autonomy.approval_service import ApprovalDecision, ApprovalQueue
+
+            mock_decision = ApprovalDecision(
+                action_id="action-001",
+                session_id="test-session-001",
+                decision="approve",
+                decided_at=datetime.now(timezone.utc),
+            )
+            mock_queue = ApprovalQueue(pending=[], decisions=[mock_decision])
+
             mock_approval_svc = MagicMock()
             mock_approval_svc.get_approved_actions.return_value = ["action-001"]
+            mock_approval_svc.queue = mock_queue
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",

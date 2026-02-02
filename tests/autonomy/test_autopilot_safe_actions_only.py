@@ -122,13 +122,18 @@ class TestSafeActionExecutor:
         """Safe commands should be executed."""
         executor = SafeActionExecutor(workspace_root=Path("."))
 
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="OK", stderr="")
+        # Mock Popen since execute_command uses _run_command_with_cleanup which uses Popen
+        with patch("autopack.autonomy.action_executor.subprocess.Popen") as mock_popen:
+            mock_proc = MagicMock()
+            mock_proc.communicate.return_value = ("OK", "")
+            mock_proc.returncode = 0
+            mock_proc.pid = 12345
+            mock_popen.return_value = mock_proc
             result = executor.execute_command("git status")
 
         assert result.executed is True
         assert result.success is True
-        mock_run.assert_called_once()
+        mock_popen.assert_called_once()
 
     def test_refuses_unsafe_commands(self):
         """Unsafe commands should not be executed."""

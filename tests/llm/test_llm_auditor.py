@@ -21,11 +21,9 @@ from autopack.llm.llm_auditor import (
 from autopack.llm.model_registry import (
     ModelCapabilities,
     ModelCost,
-    ModelHealth,
     ModelInfo,
     ModelLimits,
     ModelRegistry,
-    ModelStatus,
     ModelTier,
 )
 from autopack.llm.routing_engine import (

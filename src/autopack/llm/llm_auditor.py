@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from .model_registry import ModelInfo, ModelRegistry, ModelTier, get_model_registry
-from .routing_engine import RoutingDecision, RoutingEngine, RoutingStrategy, get_routing_engine
+from .routing_engine import RoutingDecision, RoutingEngine, get_routing_engine
 
 logger = logging.getLogger(__name__)
 
@@ -239,9 +239,7 @@ class LLMAuditor:
 
         # Check capability match
         missing_caps = [
-            cap
-            for cap in required_capabilities
-            if not model_info.capabilities.has_capability(cap)
+            cap for cap in required_capabilities if not model_info.capabilities.has_capability(cap)
         ]
         if missing_caps:
             flags.append(AuditFlag.CAPABILITY_MISMATCH)
@@ -277,9 +275,7 @@ class LLMAuditor:
                 )
 
         # Check historical performance for this task type
-        historical_performance = self._get_model_performance_for_task(
-            selected_model, task_type
-        )
+        historical_performance = self._get_model_performance_for_task(selected_model, task_type)
         if historical_performance and historical_performance.success_rate < 0.8:
             flags.append(AuditFlag.FALLBACK_RECOMMENDED)
             suggestions.append(
@@ -456,8 +452,7 @@ class LLMAuditor:
             )
 
         logger.debug(
-            f"[LLMAuditor] Recorded outcome for task {task_id}: "
-            f"model={model_id}, success={success}"
+            f"[LLMAuditor] Recorded outcome for task {task_id}: model={model_id}, success={success}"
         )
 
     def generate_routing_report(
@@ -483,11 +478,7 @@ class LLMAuditor:
         end_time = now
 
         # Filter audit log entries within time period
-        relevant_entries = [
-            entry
-            for entry in self.audit_log
-            if entry.timestamp >= start_time
-        ]
+        relevant_entries = [entry for entry in self.audit_log if entry.timestamp >= start_time]
 
         if not relevant_entries:
             return RoutingReport(
@@ -534,9 +525,7 @@ class LLMAuditor:
             failed = len(metrics_list) - successful
             total_model_cost = sum(m.cost for m in metrics_list)
             avg_latency = (
-                sum(m.latency_ms for m in metrics_list) / len(metrics_list)
-                if metrics_list
-                else 0.0
+                sum(m.latency_ms for m in metrics_list) / len(metrics_list) if metrics_list else 0.0
             )
             quality_scores = [m.quality_score for m in metrics_list if m.quality_score is not None]
             avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.0
@@ -553,9 +542,7 @@ class LLMAuditor:
             )
 
         # Get top task types
-        top_task_types = sorted(
-            task_type_counts.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+        top_task_types = sorted(task_type_counts.items(), key=lambda x: x[1], reverse=True)[:10]
 
         # Generate optimization suggestions
         suggestions = []
@@ -681,8 +668,7 @@ class LLMAuditor:
 
         for candidate in candidates:
             candidate_cost = (
-                candidate.cost.cost_per_1k_input_tokens
-                + candidate.cost.cost_per_1k_output_tokens
+                candidate.cost.cost_per_1k_input_tokens + candidate.cost.cost_per_1k_output_tokens
             )
             # Check if cheaper and capable enough for the complexity
             tier_score = self._get_tier_complexity_score(candidate.tier)
@@ -810,8 +796,7 @@ class LLMAuditor:
             current.cost.cost_per_1k_input_tokens + current.cost.cost_per_1k_output_tokens
         )
         alt_cost = (
-            alternative.cost.cost_per_1k_input_tokens
-            + alternative.cost.cost_per_1k_output_tokens
+            alternative.cost.cost_per_1k_input_tokens + alternative.cost.cost_per_1k_output_tokens
         )
 
         if alt_cost < current_cost * 0.5:  # At least 50% cheaper
@@ -866,9 +851,7 @@ class LLMAuditor:
 
         # Check for cost optimization opportunities
         high_cost_models = [
-            (model_id, stats)
-            for model_id, stats in model_stats.items()
-            if stats.total_cost > 0
+            (model_id, stats) for model_id, stats in model_stats.items() if stats.total_cost > 0
         ]
         if high_cost_models:
             top_cost = sorted(high_cost_models, key=lambda x: x[1].total_cost, reverse=True)

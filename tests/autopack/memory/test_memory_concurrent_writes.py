@@ -48,7 +48,7 @@ class TestMemoryServiceConcurrentWrites:
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._deduplicator = ContentDeduplicator()
+            service._deduplicator = ContentDeduplicator()  # IMP-MAINT-003 extraction
             service.store = Mock()
 
             # Mock the write methods to track calls
@@ -99,7 +99,7 @@ class TestMemoryServiceConcurrentWrites:
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._deduplicator = ContentDeduplicator()
+            service._deduplicator = ContentDeduplicator()  # IMP-MAINT-003 extraction
             service.store = Mock()
 
             write_calls = []

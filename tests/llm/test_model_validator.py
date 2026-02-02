@@ -301,7 +301,7 @@ class TestBenchmarkResultValidation:
         """Test that benchmark results include detailed tracking."""
         benchmark = ReasoningBenchmark()
 
-        async def model_call(prompt: str) -> str:
+        def model_call(prompt: str) -> str:
             if "bat and ball" in prompt:
                 return "$0.05"
             return "correct answer"
@@ -317,8 +317,9 @@ class TestBenchmarkResultValidation:
         """Test handling of requests that exceed timeout."""
         benchmark = ReasoningBenchmark(timeout_seconds=0.05)
 
-        async def very_slow_model(prompt: str) -> str:
-            await asyncio.sleep(2.0)  # 2 second delay
+        def very_slow_model(prompt: str) -> str:
+            import time
+            time.sleep(2.0)  # 2 second delay
             return "response"
 
         result = await benchmark.run("test-model", very_slow_model)

@@ -1,0 +1,318 @@
+# LLM Validation Configuration
+# Provides model registry, validation rules, and routing configuration
+#
+# Generated: 2026-02-02
+# Source of Truth: IMP-LLM-001 Specification
+
+# Model definitions with capability metadata
+models:
+  claude-opus-4-5:
+    provider: anthropic
+    display_name: "Claude Opus 4.5"
+    capabilities:
+      - reasoning
+      - coding
+      - analysis
+      - long_context
+      - complex_tasks
+    cost_per_1k_input_tokens: 0.015
+    cost_per_1k_output_tokens: 0.075
+    max_tokens: 200000
+    max_output_tokens: 32000
+    fallback: claude-sonnet-4-5
+    tier: premium
+    benchmark_scores:
+      reasoning: 0.95
+      coding: 0.92
+      analysis: 0.94
+      speed: 0.70
+
+  claude-sonnet-4-5:
+    provider: anthropic
+    display_name: "Claude Sonnet 4.5"
+    capabilities:
+      - reasoning
+      - coding
+      - analysis
+      - fast_response
+    cost_per_1k_input_tokens: 0.003
+    cost_per_1k_output_tokens: 0.015
+    max_tokens: 200000
+    max_output_tokens: 16000
+    fallback: claude-3-haiku-20240307
+    tier: standard
+    benchmark_scores:
+      reasoning: 0.88
+      coding: 0.90
+      analysis: 0.87
+      speed: 0.85
+
+  claude-3-haiku-20240307:
+    provider: anthropic
+    display_name: "Claude 3 Haiku"
+    capabilities:
+      - fast_response
+      - simple_tasks
+      - quick_analysis
+    cost_per_1k_input_tokens: 0.00025
+    cost_per_1k_output_tokens: 0.00125
+    max_tokens: 200000
+    max_output_tokens: 4096
+    fallback: null
+    tier: economy
+    benchmark_scores:
+      reasoning: 0.72
+      coding: 0.70
+      analysis: 0.68
+      speed: 0.98
+
+  gpt-4o:
+    provider: openai
+    display_name: "GPT-4o"
+    capabilities:
+      - reasoning
+      - coding
+      - multimodal
+      - analysis
+    cost_per_1k_input_tokens: 0.005
+    cost_per_1k_output_tokens: 0.015
+    max_tokens: 128000
+    max_output_tokens: 16384
+    fallback: gpt-4o-mini
+    tier: standard
+    benchmark_scores:
+      reasoning: 0.87
+      coding: 0.88
+      analysis: 0.85
+      speed: 0.82
+
+  gpt-4o-mini:
+    provider: openai
+    display_name: "GPT-4o Mini"
+    capabilities:
+      - fast_response
+      - simple_tasks
+      - quick_analysis
+    cost_per_1k_input_tokens: 0.00015
+    cost_per_1k_output_tokens: 0.0006
+    max_tokens: 128000
+    max_output_tokens: 16384
+    fallback: null
+    tier: economy
+    benchmark_scores:
+      reasoning: 0.70
+      coding: 0.72
+      analysis: 0.68
+      speed: 0.95
+
+  gemini-2.5-flash:
+    provider: google
+    display_name: "Gemini 2.5 Flash"
+    capabilities:
+      - fast_response
+      - multimodal
+      - long_context
+    cost_per_1k_input_tokens: 0.00035
+    cost_per_1k_output_tokens: 0.00105
+    max_tokens: 1000000
+    max_output_tokens: 8192
+    fallback: gemini-2.5-flash-lite
+    tier: economy
+    benchmark_scores:
+      reasoning: 0.75
+      coding: 0.73
+      analysis: 0.74
+      speed: 0.96
+
+  gemini-2.5-flash-lite:
+    provider: google
+    display_name: "Gemini 2.5 Flash Lite"
+    capabilities:
+      - fast_response
+      - simple_tasks
+    cost_per_1k_input_tokens: 0.0001
+    cost_per_1k_output_tokens: 0.0003
+    max_tokens: 1000000
+    max_output_tokens: 8192
+    fallback: null
+    tier: economy
+    benchmark_scores:
+      reasoning: 0.65
+      coding: 0.62
+      analysis: 0.60
+      speed: 0.99
+
+# Routing rules for task-to-model mapping
+routing_rules:
+  - task_type: code_generation
+    description: "Complex code generation and refactoring"
+    preferred_model: claude-sonnet-4-5
+    complexity_threshold: 0.7
+    required_capabilities:
+      - coding
+      - reasoning
+    fallback_chain:
+      - claude-sonnet-4-5
+      - claude-opus-4-5
+      - gpt-4o
+
+  - task_type: code_review
+    description: "Code review and security analysis"
+    preferred_model: claude-opus-4-5
+    complexity_threshold: 0.8
+    required_capabilities:
+      - coding
+      - analysis
+      - reasoning
+    fallback_chain:
+      - claude-opus-4-5
+      - claude-sonnet-4-5
+      - gpt-4o
+
+  - task_type: quick_response
+    description: "Fast responses for simple queries"
+    preferred_model: claude-3-haiku-20240307
+    complexity_threshold: 0.3
+    required_capabilities:
+      - fast_response
+    fallback_chain:
+      - claude-3-haiku-20240307
+      - gpt-4o-mini
+      - gemini-2.5-flash
+
+  - task_type: documentation
+    description: "Documentation generation and updates"
+    preferred_model: claude-3-haiku-20240307
+    complexity_threshold: 0.4
+    required_capabilities:
+      - fast_response
+    fallback_chain:
+      - claude-3-haiku-20240307
+      - claude-sonnet-4-5
+
+  - task_type: analysis
+    description: "Complex analysis and reasoning tasks"
+    preferred_model: claude-opus-4-5
+    complexity_threshold: 0.85
+    required_capabilities:
+      - reasoning
+      - analysis
+    fallback_chain:
+      - claude-opus-4-5
+      - claude-sonnet-4-5
+
+  - task_type: long_context
+    description: "Tasks requiring large context windows"
+    preferred_model: gemini-2.5-flash
+    complexity_threshold: 0.5
+    required_capabilities:
+      - long_context
+    fallback_chain:
+      - gemini-2.5-flash
+      - claude-sonnet-4-5
+
+# Validation settings
+validation:
+  benchmark_on_registration: true
+  revalidation_interval_hours: 24
+  min_capability_score: 0.8
+  health_check_interval_seconds: 300
+  max_consecutive_failures: 3
+
+  # Benchmark test definitions
+  benchmark_tests:
+    reasoning:
+      description: "Logical reasoning and problem-solving"
+      weight: 0.3
+      timeout_seconds: 30
+
+    coding:
+      description: "Code generation and understanding"
+      weight: 0.3
+      timeout_seconds: 45
+
+    analysis:
+      description: "Text analysis and comprehension"
+      weight: 0.2
+      timeout_seconds: 30
+
+    speed:
+      description: "Response time performance"
+      weight: 0.2
+      timeout_seconds: 10
+
+# Complexity estimation rules
+complexity_estimation:
+  # Token count thresholds
+  token_thresholds:
+    simple: 1000
+    moderate: 5000
+    complex: 20000
+
+  # Task type complexity multipliers
+  task_multipliers:
+    code_generation: 1.5
+    code_review: 1.3
+    documentation: 0.7
+    quick_response: 0.5
+    analysis: 1.4
+
+  # Context factors
+  context_factors:
+    file_count_weight: 0.1
+    dependency_weight: 0.2
+    change_scope_weight: 0.3
+
+# Fallback configuration
+fallback:
+  max_retries: 3
+  retry_delay_seconds: 2
+  exponential_backoff: true
+  backoff_multiplier: 2.0
+  max_delay_seconds: 30
+
+  # Auto-fallback triggers
+  triggers:
+    - type: rate_limit
+      action: fallback_next
+    - type: timeout
+      action: fallback_next
+    - type: server_error
+      action: retry_then_fallback
+    - type: capability_mismatch
+      action: fallback_next
+
+# Performance tracking
+performance:
+  track_latency: true
+  track_token_usage: true
+  track_success_rate: true
+  track_cost: true
+
+  # Performance thresholds for model health
+  thresholds:
+    max_latency_ms: 30000
+    min_success_rate: 0.95
+    max_cost_per_request: 0.50
+
+  # Aggregation windows
+  aggregation:
+    window_minutes: 60
+    retention_days: 30
+
+# Provider health configuration
+provider_health:
+  anthropic:
+    endpoint: "https://api.anthropic.com/v1/messages"
+    health_check_enabled: true
+    timeout_seconds: 10
+
+  openai:
+    endpoint: "https://api.openai.com/v1/chat/completions"
+    health_check_enabled: true
+    timeout_seconds: 10
+
+  google:
+    endpoint: "https://generativelanguage.googleapis.com/v1beta"
+    health_check_enabled: true
+    timeout_seconds: 10

@@ -19,9 +19,7 @@ from autopack.planning.models import Action, PlanProposalV1, PlanSummary
 class TestActionIdValidation:
     """Tests for IMP-SAFETY-011: Action ID validation in approval workflow."""
 
-    def _setup_approval_service_mock(
-        self, approved_ids: list[str]
-    ) -> MagicMock:
+    def _setup_approval_service_mock(self, approved_ids: list[str]) -> MagicMock:
         """Create a properly mocked ApprovalService with queue and decisions."""
         mock_approval_svc = MagicMock()
         mock_approval_svc.get_approved_actions.return_value = approved_ids
@@ -121,9 +119,7 @@ class TestActionIdValidation:
                 controller, "plan-001", ["action-001", "action-002", "action-003"]
             )
 
-            mock_approval_svc = self._setup_approval_service_mock(
-                ["action-001", "action-002"]
-            )
+            mock_approval_svc = self._setup_approval_service_mock(["action-001", "action-002"])
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",

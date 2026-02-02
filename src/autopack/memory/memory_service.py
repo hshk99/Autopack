@@ -65,8 +65,8 @@ from .freshness_filter import (
     parse_timestamp,
 )
 from .insight_retrieval import InsightRetriever
+from .memory_patterns import ProjectNamespaceError  # noqa: F401 - Re-exported for public API
 from .memory_patterns import (
-    ProjectNamespaceError,  # noqa: F401 - Re-exported for public API
     ProjectNamespaceMiddleware,
     SafeOperationExecutor,
 )

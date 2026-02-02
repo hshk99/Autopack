@@ -191,7 +191,7 @@ def _get_nested_value(
     current_path = ""
 
     for i, key in enumerate(keys):
-        current_path = ".".join(keys[:i + 1])
+        current_path = ".".join(keys[: i + 1])
 
         if not isinstance(current, dict):
             logger.warning(
@@ -873,7 +873,9 @@ class ResearchToAnchorMapper:
         if reqs:
             # Validate expected structure
             expected_keys = ["token_budget", "time_limit_seconds"]
-            _validate_dict_structure(reqs, expected_keys, context="budget_cost.resource_requirements")
+            _validate_dict_structure(
+                reqs, expected_keys, context="budget_cost.resource_requirements"
+            )
 
             # Extract with type validation
             token_budget = _get_int_value(reqs, "token_budget")

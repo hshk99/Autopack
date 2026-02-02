@@ -53,21 +53,15 @@ class TestModelApprovalHandler:
 
     def test_process_approval_callback_case_insensitive(self, handler):
         """Test decision parsing is case-insensitive."""
-        result1 = handler.process_approval_callback(
-            "req-001", "Model", "APPROVED"
-        )
-        result2 = handler.process_approval_callback(
-            "req-002", "Model", "Rejected"
-        )
+        result1 = handler.process_approval_callback("req-001", "Model", "APPROVED")
+        result2 = handler.process_approval_callback("req-002", "Model", "Rejected")
 
         assert result1.decision == ApprovalDecision.APPROVED
         assert result2.decision == ApprovalDecision.REJECTED
 
     def test_process_approval_callback_invalid_decision(self, handler):
         """Test invalid decision string."""
-        result = handler.process_approval_callback(
-            "req-001", "Model", "maybe"
-        )
+        result = handler.process_approval_callback("req-001", "Model", "maybe")
 
         assert not result.success
         assert "invalid_decision" in result.error_reason
@@ -145,9 +139,7 @@ class TestModelApprovalHandler:
 
     def test_approval_result_to_dict(self, handler):
         """Test ModelApprovalResult to_dict()."""
-        result = handler.process_approval_callback(
-            "req-001", "Model", "approved"
-        )
+        result = handler.process_approval_callback("req-001", "Model", "approved")
 
         d = result.to_dict()
         assert d["success"]
@@ -156,9 +148,7 @@ class TestModelApprovalHandler:
 
     def test_process_callback_sets_timestamps(self, handler):
         """Test that timestamps are set."""
-        result = handler.process_approval_callback(
-            "req-001", "Model", "approved"
-        )
+        result = handler.process_approval_callback("req-001", "Model", "approved")
 
         assert result.processed_at is not None
         assert "timestamp" in result.evidence

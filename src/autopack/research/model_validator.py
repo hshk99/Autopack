@@ -5,10 +5,9 @@ generative models from various registries and sources.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from datetime import datetime
-import json
 
 
 class ModelType(str, Enum):

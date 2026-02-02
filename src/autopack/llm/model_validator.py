@@ -90,9 +90,7 @@ class BenchmarkTest(ABC):
         self.timeout_seconds = timeout_seconds
 
     @abstractmethod
-    async def run(
-        self, model_id: str, model_call: Callable[..., Any]
-    ) -> BenchmarkResult:
+    async def run(self, model_id: str, model_call: Callable[..., Any]) -> BenchmarkResult:
         """Run the benchmark test.
 
         Args:
@@ -121,9 +119,7 @@ class ReasoningBenchmark(BenchmarkTest):
             },
         ]
 
-    async def run(
-        self, model_id: str, model_call: Callable[..., Any]
-    ) -> BenchmarkResult:
+    async def run(self, model_id: str, model_call: Callable[..., Any]) -> BenchmarkResult:
         """Run reasoning benchmark."""
         start_time = time.time()
         correct = 0
@@ -149,7 +145,9 @@ class ReasoningBenchmark(BenchmarkTest):
 
             return BenchmarkResult(
                 benchmark_name=self.name,
-                status=ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED,
+                status=(
+                    ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED
+                ),
                 score=score,
                 latency_ms=latency_ms,
                 details={"correct": correct, "total": total},
@@ -180,9 +178,7 @@ class CodingBenchmark(BenchmarkTest):
             },
         ]
 
-    async def run(
-        self, model_id: str, model_call: Callable[..., Any]
-    ) -> BenchmarkResult:
+    async def run(self, model_id: str, model_call: Callable[..., Any]) -> BenchmarkResult:
         """Run coding benchmark."""
         start_time = time.time()
         correct = 0
@@ -199,9 +195,7 @@ class CodingBenchmark(BenchmarkTest):
                     # Check for basic code structure
                     has_def = "def " in response_str
                     has_return = "return" in response_str
-                    has_any_expected = any(
-                        exp in response_str for exp in test["expected_contains"]
-                    )
+                    has_any_expected = any(exp in response_str for exp in test["expected_contains"])
                     if has_def and has_return and has_any_expected:
                         correct += 1
                 except asyncio.TimeoutError:
@@ -214,7 +208,9 @@ class CodingBenchmark(BenchmarkTest):
 
             return BenchmarkResult(
                 benchmark_name=self.name,
-                status=ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED,
+                status=(
+                    ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED
+                ),
                 score=score,
                 latency_ms=latency_ms,
                 details={"correct": correct, "total": total},
@@ -245,9 +241,7 @@ class AnalysisBenchmark(BenchmarkTest):
             },
         ]
 
-    async def run(
-        self, model_id: str, model_call: Callable[..., Any]
-    ) -> BenchmarkResult:
+    async def run(self, model_id: str, model_call: Callable[..., Any]) -> BenchmarkResult:
         """Run analysis benchmark."""
         start_time = time.time()
         correct = 0
@@ -273,7 +267,9 @@ class AnalysisBenchmark(BenchmarkTest):
 
             return BenchmarkResult(
                 benchmark_name=self.name,
-                status=ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED,
+                status=(
+                    ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED
+                ),
                 score=score,
                 latency_ms=latency_ms,
                 details={"correct": correct, "total": total},
@@ -296,9 +292,7 @@ class SpeedBenchmark(BenchmarkTest):
         self.test_prompt = "Hello, how are you today?"
         self.target_latency_ms = 2000  # 2 seconds target
 
-    async def run(
-        self, model_id: str, model_call: Callable[..., Any]
-    ) -> BenchmarkResult:
+    async def run(self, model_id: str, model_call: Callable[..., Any]) -> BenchmarkResult:
         """Run speed benchmark."""
         start_time = time.time()
 
@@ -321,7 +315,9 @@ class SpeedBenchmark(BenchmarkTest):
 
             return BenchmarkResult(
                 benchmark_name=self.name,
-                status=ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED,
+                status=(
+                    ValidationResultStatus.PASSED if score >= 0.5 else ValidationResultStatus.FAILED
+                ),
                 score=score,
                 latency_ms=latency_ms,
                 details={"target_latency_ms": self.target_latency_ms},
@@ -477,8 +473,7 @@ class ModelValidator:
         if benchmark_results:
             total_weight = sum(b.weight for b in self._benchmarks)
             weighted_score = sum(
-                r.score * b.weight
-                for r, b in zip(benchmark_results, self._benchmarks)
+                r.score * b.weight for r, b in zip(benchmark_results, self._benchmarks)
             )
             overall_score = weighted_score / total_weight if total_weight > 0 else 0.0
         else:
@@ -516,9 +511,7 @@ class ModelValidator:
             )
             self.registry.record_success(model_id, avg_latency)
         else:
-            self.registry.record_failure(
-                model_id, f"Validation failed: score={overall_score:.2f}"
-            )
+            self.registry.record_failure(model_id, f"Validation failed: score={overall_score:.2f}")
 
         return result
 

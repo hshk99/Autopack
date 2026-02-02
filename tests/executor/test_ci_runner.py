@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.ci_runner import (
     parse_pytest_counts,
     persist_ci_log,
@@ -516,7 +515,7 @@ class TestRunPytestCi:
 
             ci_spec = {"paths": ["tests/"], "env": {"CUSTOM_VAR": "value"}}
 
-            result = run_pytest_ci(
+            run_pytest_ci(
                 phase_id="phase1",
                 ci_spec=ci_spec,
                 workspace=workspace,

@@ -294,7 +294,7 @@ class TestRunSingleAttemptWithRecovery:
         """Verify None allowed_paths is handled correctly."""
         self.mock_executor.error_recovery.execute_with_retry.return_value = (True, "COMPLETE")
 
-        result = run_single_attempt_with_recovery(
+        run_single_attempt_with_recovery(
             executor=self.mock_executor,
             phase=self.phase,
             attempt_index=0,
@@ -313,7 +313,7 @@ class TestRunSingleAttemptWithRecovery:
         """Verify empty allowed_paths list is handled correctly."""
         self.mock_executor.error_recovery.execute_with_retry.return_value = (True, "COMPLETE")
 
-        result = run_single_attempt_with_recovery(
+        run_single_attempt_with_recovery(
             executor=self.mock_executor,
             phase=self.phase,
             attempt_index=0,

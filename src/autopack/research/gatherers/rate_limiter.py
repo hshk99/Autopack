@@ -36,10 +36,15 @@ class RetryBudget:
 
     Provides a mechanism to limit retry attempts across operations,
     preventing infinite loops when APIs return 429 errors.
+
+    Default Configuration (IMP-RELIABILITY-003):
+    - Max 3 retries per agent to prevent infinite loops
+    - 60 second backoff ceiling with exponential backoff
+    - Logging of exhausted retries for monitoring
     """
 
-    max_retries: int = 10
-    """Maximum number of retries allowed within the budget period."""
+    max_retries: int = 3
+    """Maximum number of retries allowed within the budget period (default: 3 per agent)."""
 
     budget_window_seconds: float = 3600.0
     """Time window for the retry budget (default: 1 hour)."""
@@ -158,14 +163,14 @@ class RateLimiter:
     def __init__(
         self,
         max_requests_per_hour: int = 100,
-        max_retries: int = 10,
+        max_retries: int = 3,
         retry_budget_window_seconds: float = 3600.0,
     ):
         """Initialize rate limiter with retry budget.
 
         Args:
             max_requests_per_hour: Maximum requests allowed per hour
-            max_retries: Maximum retry attempts in budget window
+            max_retries: Maximum retry attempts in budget window (default: 3 per IMP-RELIABILITY-003)
             retry_budget_window_seconds: Time window for retry budget
         """
         self.max_requests_per_hour = max_requests_per_hour

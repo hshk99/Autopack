@@ -114,6 +114,16 @@ class TestRateLimiter:
 class TestRetryBudget:
     """Test cases for RetryBudget."""
 
+    def test_default_max_retries_is_3(self):
+        """Test that default max_retries is 3 per IMP-RELIABILITY-003."""
+        budget = RetryBudget()
+        assert budget.max_retries == 3
+
+    def test_default_max_backoff_is_60s(self):
+        """Test that default max_backoff is 60s per IMP-RELIABILITY-003."""
+        budget = RetryBudget()
+        assert budget.max_backoff_seconds == 60.0
+
     def test_initialization(self):
         """Test retry budget initialization."""
         budget = RetryBudget(max_retries=5)

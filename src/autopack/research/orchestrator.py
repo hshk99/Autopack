@@ -41,6 +41,10 @@ from autopack.research.models.enums import ValidationStatus
 from autopack.research.models.research_intent import ResearchIntent
 from autopack.research.models.research_session import ResearchSession
 from autopack.research.phase_scheduler import PhasePriority, PhaseScheduler, PhaseTask
+from autopack.research.validators.completeness_validator import (
+    CompletenessValidationResult,
+    ResearchCompletenessValidator,
+)
 from autopack.research.validators.evidence_validator import EvidenceValidator
 from autopack.research.validators.quality_validator import QualityValidator
 from autopack.research.validators.recency_validator import RecencyValidator
@@ -203,6 +207,12 @@ class ResearchOrchestrator:
 
         # Build history analyzer for feasibility and cost feedback
         self._build_history_analyzer: Optional[BuildHistoryAnalyzer] = None
+
+        # Completeness validator for research quality gates (IMP-RESEARCH-002)
+        self._completeness_validator = ResearchCompletenessValidator(
+            strict_mode=False,
+            min_completeness_threshold=0.7,
+        )
 
         # Initialize state tracker if project root provided
         if project_root:
@@ -414,6 +424,98 @@ class ResearchOrchestrator:
         session.complete()
         return True
 
+    # ========================================================================
+    # Research Completeness Validation Gates (IMP-RESEARCH-002)
+    # ========================================================================
+
+    def validate_session_completeness(
+        self,
+        session: BootstrapSession,
+    ) -> CompletenessValidationResult:
+        """Validate a bootstrap session for research completeness.
+
+        Ensures all required fields (market_size, competitor_count, etc.)
+        are present before allowing anchor generation.
+
+        Args:
+            session: BootstrapSession to validate
+
+        Returns:
+            CompletenessValidationResult with validation status and issues
+        """
+        logger.info(f"Validating session completeness for {session.session_id}")
+        return self._completeness_validator.validate_session(session)
+
+    def validate_before_anchor_generation(
+        self,
+        session: BootstrapSession,
+    ) -> tuple[bool, CompletenessValidationResult]:
+        """Validation gate before anchor generation.
+
+        This is the main validation checkpoint that should be called before
+        mapping research to anchors. Returns whether anchor generation can
+        proceed and the detailed validation result.
+
+        Args:
+            session: BootstrapSession to validate
+
+        Returns:
+            Tuple of (can_proceed, validation_result)
+        """
+        logger.info(
+            f"Validation gate: checking session {session.session_id} before anchor generation"
+        )
+        return self._completeness_validator.validate_before_anchor_generation(session)
+
+    def validate_synthesis_completeness(
+        self,
+        synthesis: dict[str, Any],
+    ) -> CompletenessValidationResult:
+        """Validate synthesis output for completeness.
+
+        Ensures synthesis contains all required fields (scores, recommendation,
+        etc.) before it can be used for anchor generation.
+
+        Args:
+            synthesis: Synthesis dictionary to validate
+
+        Returns:
+            CompletenessValidationResult with validation status
+        """
+        return self._completeness_validator.validate_synthesis(synthesis)
+
+    def get_completeness_validator(self) -> ResearchCompletenessValidator:
+        """Get the completeness validator instance.
+
+        Useful for configuring validator settings or getting field requirements.
+
+        Returns:
+            ResearchCompletenessValidator instance
+        """
+        return self._completeness_validator
+
+    def set_completeness_threshold(self, threshold: float) -> None:
+        """Set the minimum completeness threshold for validation.
+
+        Args:
+            threshold: Minimum completeness score (0-1) required
+        """
+        if not 0 <= threshold <= 1:
+            raise ValueError("Threshold must be between 0 and 1")
+        self._completeness_validator.min_completeness_threshold = threshold
+        logger.info(f"Completeness threshold set to {threshold:.2%}")
+
+    def set_strict_validation_mode(self, strict: bool) -> None:
+        """Enable or disable strict validation mode.
+
+        In strict mode, warnings are treated as errors.
+
+        Args:
+            strict: Whether to enable strict mode
+        """
+        self._completeness_validator.strict_mode = strict
+        logger.info(f"Strict validation mode {'enabled' if strict else 'disabled'}")
+
     async def start_bootstrap_session(
         self,
         parsed_idea: ParsedIdea,
@@ -469,11 +571,39 @@ class ResearchOrchestrator:
 
         # Synthesize results if all phases completed
         if session.is_complete():
-            session.synthesis = self._synthesize_research(session, parsed_idea)
-            session.current_phase = BootstrapPhase.COMPLETED
-            # Cache the completed session
-            self._cache.set(idea_hash, session)
-            logger.info(f"Bootstrap session {session_id} completed and cached")
+            # Validation gate before synthesis (IMP-RESEARCH-002)
+            can_proceed, validation_result = self.validate_before_anchor_generation(session)
+
+            if can_proceed:
+                session.synthesis = self._synthesize_research(session, parsed_idea)
+
+                # Validate synthesis output
+                synthesis_validation = self.validate_synthesis_completeness(session.synthesis)
+                if synthesis_validation.is_complete:
+                    session.current_phase = BootstrapPhase.COMPLETED
+                    # Cache the completed session
+                    self._cache.set(idea_hash, session)
+                    logger.info(f"Bootstrap session {session_id} completed and cached")
+                else:
+                    logger.warning(
+                        f"Bootstrap session {session_id} synthesis incomplete: "
+                        f"{synthesis_validation.error_count} errors, "
+                        f"{synthesis_validation.warning_count} warnings"
+                    )
+                    # Still mark as completed but log the issues
+                    session.current_phase = BootstrapPhase.COMPLETED
+                    self._cache.set(idea_hash, session)
+            else:
+                logger.warning(
+                    f"Bootstrap session {session_id} validation failed before synthesis: "
+                    f"completeness={validation_result.overall_completeness_score:.2%}"
+                )
+                # Store validation issues in synthesis for debugging
+                session.synthesis = {
+                    "validation_failed": True,
+                    "validation_result": validation_result.to_dict(),
+                }
+                session.current_phase = BootstrapPhase.FAILED
         else:
             failed = session.get_failed_phases()
             if failed:

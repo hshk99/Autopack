@@ -97,7 +97,7 @@ See [docs/PROJECT_ISOLATION_ARCHITECTURE.md](docs/PROJECT_ISOLATION_ARCHITECTURE
 - **Run the API (dev)**:
   - `PYTHONPATH=src python -m uvicorn autopack.main:app --host 127.0.0.1 --port 8000`
 - **Run an executor**:
-  - `python src/autopack/autonomous_executor.py --run-id my-run`
+  - `PYTHONPATH=src python -m autopack.autonomous_executor --run-id my-run`
 
 ## Docs (start here)
 

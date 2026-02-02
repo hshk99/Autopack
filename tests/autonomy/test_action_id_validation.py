@@ -194,12 +194,11 @@ class TestActionIdValidation:
             self._create_session(controller, "session-001", "plan-001")
             self._create_proposal(controller, "plan-001", ["action-001"])
 
-            mock_approval_svc = MagicMock()
-            mock_approval_svc.get_approved_actions.return_value = [
-                "action-001",
-                "invalid-id-123",
-                "spoofed-action-456",
-            ]
+            # Use helper to set up mock with proper queue.decisions so IMP-REL-008 passes
+            # The invalid IDs will pass approval validation but fail IMP-SAFETY-011 check
+            mock_approval_svc = self._setup_approval_service_mock(
+                ["action-001", "invalid-id-123", "spoofed-action-456"]
+            )
 
             with caplog.at_level(logging.WARNING):
                 with patch(
@@ -209,9 +208,8 @@ class TestActionIdValidation:
                     controller.execute_approved_proposals("session-001")
 
             # Verify warning was logged about invalid IDs
-            # IMP-REL-008 handles approval ID validation, IMP-SAFETY-011 handles action ID validation
-            assert any("IMP-REL-008" in record.message for record in caplog.records)
-            assert any("invalid" in record.message.lower() for record in caplog.records)
+            assert any("IMP-SAFETY-011" in record.message for record in caplog.records)
+            assert any("invalid action ids" in record.message.lower() for record in caplog.records)
 
     def test_all_invalid_ids_returns_zero_with_error_log(self, caplog):
         """IMP-SAFETY-011: All invalid IDs should return 0 and log error."""
@@ -222,11 +220,11 @@ class TestActionIdValidation:
             self._create_session(controller, "session-001", "plan-001")
             self._create_proposal(controller, "plan-001", ["action-001", "action-002"])
 
-            mock_approval_svc = MagicMock()
-            mock_approval_svc.get_approved_actions.return_value = [
-                "completely-fake-id",
-                "another-fake-id",
-            ]
+            # Use helper to set up mock with proper queue.decisions so IMP-REL-008 passes
+            # These IDs pass approval validation but will all fail IMP-SAFETY-011 check
+            mock_approval_svc = self._setup_approval_service_mock(
+                ["completely-fake-id", "another-fake-id"]
+            )
 
             with caplog.at_level(logging.ERROR):
                 with patch(
@@ -237,8 +235,7 @@ class TestActionIdValidation:
 
             assert result == 0
             # Verify error was logged when all IDs are invalid
-            # IMP-REL-008 handles approval ID validation, IMP-SAFETY-011 handles action ID validation
-            assert any("IMP-REL-008" in record.message for record in caplog.records)
+            assert any("IMP-SAFETY-011" in record.message for record in caplog.records)
 
     def test_empty_proposal_actions_rejects_all(self):
         """IMP-SAFETY-011: Empty proposal actions should reject all approved IDs."""
@@ -267,13 +264,10 @@ class TestActionIdValidation:
             self._create_session(controller, "session-001", "plan-001")
             self._create_proposal(controller, "plan-001", ["action-001", "action-002"])
 
-            # Use helper to properly mock approval service with queue.decisions
+            # Use helper to set up mock with proper queue.decisions so IMP-REL-008 passes
+            # Note: Include duplicate in the decisions list to simulate duplicate approvals
             mock_approval_svc = self._setup_approval_service_mock(
-                [
-                    "action-001",
-                    "action-001",  # Duplicate
-                    "action-002",
-                ]
+                ["action-001", "action-001", "action-002"]
             )
 
             with patch(
@@ -300,8 +294,8 @@ class TestActionIdValidation:
             # Proposal only has safe, limited actions
             self._create_proposal(controller, "plan-001", ["safe-action-001", "safe-action-002"])
 
-            # Use helper to properly mock approval service with queue.decisions
-            # This simulates an attacker who has somehow gotten malicious IDs into the queue
+            # Use helper to set up mock with proper queue.decisions so IMP-REL-008 passes
+            # All IDs pass approval validation, but IMP-SAFETY-011 will reject invalid ones
             mock_approval_svc = self._setup_approval_service_mock(
                 [
                     "delete-all-files",  # Injected malicious ID
@@ -318,7 +312,7 @@ class TestActionIdValidation:
                 result = controller.execute_approved_proposals("session-001")
 
             # Only the 1 valid action should execute
-            # Malicious injected IDs are rejected by IMP-SAFETY-011 (not in proposal)
+            # Malicious injected IDs are rejected
             assert result == 1, (
                 f"Security check failed: Expected only 1 valid action to execute, "
                 f"got {result}. Injected action IDs may have been executed!"

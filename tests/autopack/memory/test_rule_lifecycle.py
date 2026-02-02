@@ -38,7 +38,7 @@ class TestRuleLifecycleTracking:
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._deduplicator = ContentDeduplicator()
+            service._deduplicator = ContentDeduplicator()  # IMP-MAINT-003 extraction
             service.store = mock_store
             service.top_k = 10
             yield service

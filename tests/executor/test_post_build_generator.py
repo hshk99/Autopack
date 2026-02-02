@@ -13,7 +13,6 @@ Tests cover:
 
 from unittest.mock import Mock
 
-
 from autopack.executor.post_build_generator import (
     ArtifactType,
     BuildCharacteristics,

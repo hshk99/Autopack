@@ -28,11 +28,18 @@ from autopack.llm.client_resolution import (  # noqa: F401
     resolve_client_and_model,
 )
 
-# Import prompt builders (PR-LLM-2)
-from autopack.llm.prompts.anthropic_builder_prompts import (  # noqa: F401
-    build_minimal_system_prompt,
-    build_system_prompt,
-    build_user_prompt,
+# Import LLM auditor (IMP-LLM-002)
+from autopack.llm.llm_auditor import (  # noqa: F401
+    AuditFlag,
+    AuditLogEntry,
+    AuditResult,
+    ExecutionMetrics,
+    LLMAuditor,
+    ModelPerformanceStats,
+    OverrideReason,
+    OverrideSuggestion,
+    RoutingReport,
+    get_llm_auditor,
 )
 
 # Import model registry (IMP-LLM-001)
@@ -58,6 +65,13 @@ from autopack.llm.model_validator import (  # noqa: F401
     get_model_validator,
 )
 
+# Import prompt builders (PR-LLM-2)
+from autopack.llm.prompts.anthropic_builder_prompts import (  # noqa: F401
+    build_minimal_system_prompt,
+    build_system_prompt,
+    build_user_prompt,
+)
+
 # Import routing engine (IMP-LLM-001)
 from autopack.llm.routing_engine import (  # noqa: F401
     ComplexityEstimate,
@@ -68,20 +82,6 @@ from autopack.llm.routing_engine import (  # noqa: F401
     RoutingRule,
     RoutingStrategy,
     get_routing_engine,
-)
-
-# Import LLM auditor (IMP-LLM-002)
-from autopack.llm.llm_auditor import (  # noqa: F401
-    AuditFlag,
-    AuditLogEntry,
-    AuditResult,
-    ExecutionMetrics,
-    LLMAuditor,
-    ModelPerformanceStats,
-    OverrideReason,
-    OverrideSuggestion,
-    RoutingReport,
-    get_llm_auditor,
 )
 
 __all__ = [

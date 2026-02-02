@@ -11,13 +11,13 @@ from autopack.research.artifact_generators import (
     generate_do_not_build_report,
     get_registry,
 )
+from autopack.research.models.bootstrap_session import BootstrapSession
 from autopack.research.models.build_decision import (
     BuildDecision,
     BuildDecisionType,
     BuildViabilityMetrics,
     extract_build_decision_from_synthesis,
 )
-from autopack.research.models.bootstrap_session import BootstrapSession
 from autopack.research.orchestrator import ResearchOrchestrator
 
 

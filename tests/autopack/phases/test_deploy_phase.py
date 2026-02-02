@@ -3,15 +3,17 @@
 Comprehensive tests for DeployPhase, DeployConfig, DeployInput, and DeployPhaseExecutor.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from autopack.phases.deploy_phase import (
-    DeployStatus,
     DeployConfig,
     DeployInput,
     DeployOutput,
     DeployPhase,
     DeployPhaseExecutor,
+    DeployStatus,
     create_deploy_phase,
 )
 

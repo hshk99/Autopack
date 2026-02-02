@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.integrations.build_history_integrator import (
-    BuildHistoryIntegrator,
     BuildHistoryInsights,
+    BuildHistoryIntegrator,
     BuildInformedMetrics,
     HistoricalPattern,
     ResearchContextEnrichment,

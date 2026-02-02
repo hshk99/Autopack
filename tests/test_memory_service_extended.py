@@ -21,12 +21,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from autopack.memory import MemoryService
-from autopack.memory.memory_service import (
-    MAX_CONTENT_LENGTH,
-    _compress_content,
-    _validate_project_id,
-)
-from autopack.memory.memory_patterns import ProjectNamespaceError
 from autopack.memory.freshness_filter import (
     COLLECTION_CODE_DOCS,
     COLLECTION_DOCTOR_HINTS,
@@ -34,6 +28,12 @@ from autopack.memory.freshness_filter import (
     COLLECTION_PLANNING,
     COLLECTION_RUN_SUMMARIES,
     COLLECTION_SOT_DOCS,
+)
+from autopack.memory.memory_patterns import ProjectNamespaceError
+from autopack.memory.memory_service import (
+    MAX_CONTENT_LENGTH,
+    _compress_content,
+    _validate_project_id,
 )
 
 

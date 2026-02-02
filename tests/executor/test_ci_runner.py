@@ -9,7 +9,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.ci_runner import (
     parse_pytest_counts,
     persist_ci_log,

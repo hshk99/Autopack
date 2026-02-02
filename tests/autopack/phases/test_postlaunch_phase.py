@@ -3,15 +3,17 @@
 Comprehensive tests for PostlaunchPhase and PostlaunchPhaseExecutor.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from autopack.phases.postlaunch_phase import (
-    PostlaunchStatus,
     PostlaunchConfig,
     PostlaunchInput,
     PostlaunchOutput,
     PostlaunchPhase,
     PostlaunchPhaseExecutor,
+    PostlaunchStatus,
     create_postlaunch_phase,
 )
 

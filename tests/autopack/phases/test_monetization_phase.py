@@ -3,15 +3,17 @@
 Comprehensive tests for MonetizationPhase and MonetizationPhaseExecutor.
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from autopack.phases.monetization_phase import (
-    MonetizationStatus,
     MonetizationConfig,
     MonetizationInput,
     MonetizationOutput,
     MonetizationPhase,
     MonetizationPhaseExecutor,
+    MonetizationStatus,
     create_monetization_phase,
 )
 

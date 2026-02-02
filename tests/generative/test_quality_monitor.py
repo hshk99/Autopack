@@ -3,9 +3,9 @@
 import pytest
 
 from autopack.generative.quality_monitor import (
-    QualityMonitor,
-    QualityMetrics,
     ModelQualitySnapshot,
+    QualityMetrics,
+    QualityMonitor,
 )
 
 

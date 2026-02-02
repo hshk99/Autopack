@@ -13,11 +13,11 @@ import re
 import pytest
 
 from autopack.autonomy.action_allowlist import (
-    ActionClassification,
-    ActionType,
     REQUIRES_APPROVAL_PATTERNS,
     SAFE_ACTION_TYPES,
     SAFE_COMMAND_PATTERNS,
+    ActionClassification,
+    ActionType,
 )
 
 

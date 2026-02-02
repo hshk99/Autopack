@@ -7,7 +7,6 @@ Verifies that deliverables contracts are correctly built from phase scope.
 
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.deliverables_contract import DeliverablesContractBuilder
 
 

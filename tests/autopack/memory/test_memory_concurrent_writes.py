@@ -42,13 +42,13 @@ class TestMemoryServiceConcurrentWrites:
 
     def test_content_hash_deduplication(self):
         """Duplicate insights with same content should be skipped."""
+        from autopack.memory.deduplication import ContentDeduplicator
         from autopack.memory.memory_service import MemoryService
 
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._write_lock = threading.Lock()
-            service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
 
             # Mock the write methods to track calls
@@ -93,13 +93,13 @@ class TestMemoryServiceConcurrentWrites:
 
     def test_different_content_not_deduplicated(self):
         """Insights with different content should not be deduplicated."""
+        from autopack.memory.deduplication import ContentDeduplicator
         from autopack.memory.memory_service import MemoryService
 
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._write_lock = threading.Lock()
-            service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = Mock()
 
             write_calls = []

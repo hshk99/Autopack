@@ -9,7 +9,6 @@ Tests cover:
 - Integration with maintenance cycle
 """
 
-import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
@@ -33,13 +32,13 @@ class TestRuleLifecycleTracking:
     @pytest.fixture
     def memory_service(self, mock_store):
         """Create a MemoryService with mocked store."""
+        from autopack.memory.deduplication import ContentDeduplicator
         from autopack.memory.memory_service import MemoryService
 
         with patch.object(MemoryService, "__init__", lambda self, **kwargs: None):
             service = MemoryService()
             service.enabled = True
-            service._write_lock = threading.Lock()
-            service._content_hashes = set()
+            service._deduplicator = ContentDeduplicator()
             service.store = mock_store
             service.top_k = 10
             yield service

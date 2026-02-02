@@ -7,7 +7,25 @@ The autopilot controller orchestrates the full autonomy loop:
 4. Execute auto-approved actions (if any)
 5. Stop and record if approval required
 
-Default OFF - requires explicit enable flag.
+Feature Gate Configuration (IMP-BLOCKED-002):
+    Autopilot is disabled by default for safety. To enable:
+
+    1. Environment Variable (recommended):
+       export AUTOPACK_AUTOPILOT_ENABLED=true
+
+    2. Alternative alias:
+       export AUTOPILOT_ENABLED=true
+
+    Capability Auto-Detection:
+        Use `detect_autopilot_capabilities(workspace_root)` to check if your
+        environment has all required components before enabling autopilot.
+        This returns an AutopilotCapabilities object with:
+        - workspace_valid: True if workspace directory exists
+        - intention_anchor_found: True if intention_anchor.yaml exists
+        - gap_scanner_available: True if gap scanner module is importable
+        - plan_proposer_available: True if plan proposer module is importable
+        - is_ready: True only if all components are available
+        - missing_components: List of what's missing (for error messages)
 
 BUILD-181 Integration:
 - ExecutorContext for usage tracking, safety profile, scope reduction
@@ -15,6 +33,7 @@ BUILD-181 Integration:
 - Coverage metrics processing
 
 IMP-REL-001: Health-gated task generation with auto-resume support.
+IMP-BLOCKED-002: Auto-detection of autopilot capabilities.
 """
 
 from __future__ import annotations
@@ -69,6 +88,170 @@ from .research_cycle_integration import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# IMP-BLOCKED-002: Autopilot Capability Auto-Detection
+# ============================================================================
+
+
+@dataclass
+class AutopilotCapabilities:
+    """Result of autopilot capability detection.
+
+    IMP-BLOCKED-002: Provides detailed information about whether the system
+    has all required components to run autopilot autonomously.
+
+    Attributes:
+        workspace_valid: True if workspace directory exists and is accessible
+        intention_anchor_found: True if intention_anchor.yaml exists in workspace
+        gap_scanner_available: True if gap scanner module is importable
+        plan_proposer_available: True if plan proposer module is importable
+        executor_context_available: True if executor context can be created
+        is_ready: True only if all required components are available
+        missing_components: List of components that are not available
+        recommendations: List of actionable recommendations to fix issues
+    """
+
+    workspace_valid: bool = False
+    intention_anchor_found: bool = False
+    gap_scanner_available: bool = True  # Default True since it's a core module
+    plan_proposer_available: bool = True  # Default True since it's a core module
+    executor_context_available: bool = True  # Default True since it's a core module
+    missing_components: List[str] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+
+    @property
+    def is_ready(self) -> bool:
+        """Check if all required components are available for autopilot."""
+        return (
+            self.workspace_valid
+            and self.intention_anchor_found
+            and self.gap_scanner_available
+            and self.plan_proposer_available
+            and self.executor_context_available
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert capabilities to dictionary representation."""
+        return {
+            "workspace_valid": self.workspace_valid,
+            "intention_anchor_found": self.intention_anchor_found,
+            "gap_scanner_available": self.gap_scanner_available,
+            "plan_proposer_available": self.plan_proposer_available,
+            "executor_context_available": self.executor_context_available,
+            "is_ready": self.is_ready,
+            "missing_components": self.missing_components,
+            "recommendations": self.recommendations,
+        }
+
+    def get_status_message(self) -> str:
+        """Get a human-readable status message."""
+        if self.is_ready:
+            return "Autopilot capabilities: All components available. Ready to enable."
+        else:
+            missing = ", ".join(self.missing_components) if self.missing_components else "unknown"
+            return f"Autopilot capabilities: Missing components: {missing}"
+
+
+def detect_autopilot_capabilities(
+    workspace_root: Path,
+    check_intention_anchor: bool = True,
+) -> AutopilotCapabilities:
+    """Detect if the system has all required capabilities for autopilot.
+
+    IMP-BLOCKED-002: Auto-detection of autopilot prerequisites to help users
+    understand what's needed before enabling autopilot mode.
+
+    Args:
+        workspace_root: Root directory of the workspace to check
+        check_intention_anchor: Whether to check for intention_anchor.yaml
+
+    Returns:
+        AutopilotCapabilities object with detection results
+
+    Example:
+        ```python
+        from autopack.autonomy.autopilot import detect_autopilot_capabilities
+        from pathlib import Path
+
+        caps = detect_autopilot_capabilities(Path("/path/to/workspace"))
+        if caps.is_ready:
+            print("Ready to enable autopilot!")
+        else:
+            print(f"Missing: {caps.missing_components}")
+            for rec in caps.recommendations:
+                print(f"  - {rec}")
+        ```
+    """
+    caps = AutopilotCapabilities()
+
+    # Check workspace validity
+    if workspace_root.exists() and workspace_root.is_dir():
+        caps.workspace_valid = True
+    else:
+        caps.workspace_valid = False
+        caps.missing_components.append("workspace_directory")
+        caps.recommendations.append(f"Create workspace directory: {workspace_root}")
+
+    # Check for intention anchor file
+    if check_intention_anchor:
+        anchor_paths = [
+            workspace_root / "intention_anchor.yaml",
+            workspace_root / ".autopack" / "intention_anchor.yaml",
+            workspace_root / "config" / "intention_anchor.yaml",
+        ]
+        anchor_found = any(p.exists() for p in anchor_paths)
+        caps.intention_anchor_found = anchor_found
+        if not anchor_found:
+            caps.missing_components.append("intention_anchor")
+            caps.recommendations.append(
+                "Create intention_anchor.yaml in workspace root or .autopack/ directory. "
+                "See docs/INTENTION_ANCHOR_SPEC.md for format."
+            )
+    else:
+        caps.intention_anchor_found = True  # Skip check
+
+    # Check gap scanner availability
+    try:
+        from ..gaps.scanner import scan_workspace  # noqa: F401
+
+        caps.gap_scanner_available = True
+    except ImportError as e:
+        caps.gap_scanner_available = False
+        caps.missing_components.append("gap_scanner")
+        caps.recommendations.append(f"Gap scanner import failed: {e}")
+
+    # Check plan proposer availability
+    try:
+        from ..planning.plan_proposer import propose_plan  # noqa: F401
+
+        caps.plan_proposer_available = True
+    except ImportError as e:
+        caps.plan_proposer_available = False
+        caps.missing_components.append("plan_proposer")
+        caps.recommendations.append(f"Plan proposer import failed: {e}")
+
+    # Check executor context availability
+    try:
+        from .executor_integration import create_executor_context  # noqa: F401
+
+        caps.executor_context_available = True
+    except ImportError as e:
+        caps.executor_context_available = False
+        caps.missing_components.append("executor_context")
+        caps.recommendations.append(f"Executor context import failed: {e}")
+
+    # Log the detection result
+    if caps.is_ready:
+        logger.info("[IMP-BLOCKED-002] Autopilot capability check passed: all components available")
+    else:
+        logger.info(
+            f"[IMP-BLOCKED-002] Autopilot capability check: "
+            f"missing components: {caps.missing_components}"
+        )
+
+    return caps
 
 
 # ============================================================================
@@ -688,9 +871,7 @@ class PhaseStateMachine:
         if not entry:
             raise ValueError(f"Phase '{phase_id}' not found")
 
-        transition = self._set_state(
-            phase_id, PhaseExecutionState.ROLLED_BACK, reason, "rollback"
-        )
+        transition = self._set_state(phase_id, PhaseExecutionState.ROLLED_BACK, reason, "rollback")
         entry.rollback_count += 1
 
         logger.info(
@@ -959,6 +1140,117 @@ class AutopilotController:
 
         # IMP-LIFECYCLE-002: Phase state machine for sequencing
         self._phase_state_machine: Optional[PhaseStateMachine] = None
+
+        # IMP-BLOCKED-002: Capability detection results
+        self._capabilities: Optional[AutopilotCapabilities] = None
+
+    # =========================================================================
+    # IMP-BLOCKED-002: Capability Detection Methods
+    # =========================================================================
+
+    def check_capabilities(
+        self,
+        check_intention_anchor: bool = True,
+    ) -> AutopilotCapabilities:
+        """Check if all required capabilities are available for autopilot.
+
+        IMP-BLOCKED-002: Runs capability detection and caches the result.
+        This helps users understand what's needed before enabling autopilot.
+
+        Args:
+            check_intention_anchor: Whether to check for intention_anchor.yaml
+
+        Returns:
+            AutopilotCapabilities object with detection results
+        """
+        self._capabilities = detect_autopilot_capabilities(
+            self.workspace_root,
+            check_intention_anchor=check_intention_anchor,
+        )
+        return self._capabilities
+
+    def get_capabilities(self) -> Optional[AutopilotCapabilities]:
+        """Get cached capability detection results.
+
+        Returns:
+            Cached AutopilotCapabilities or None if not yet checked
+        """
+        return self._capabilities
+
+    def is_ready_for_autonomous_execution(self) -> tuple:
+        """Check if autopilot is ready for autonomous execution.
+
+        IMP-BLOCKED-002: Comprehensive readiness check including both
+        the enabled flag and capability detection.
+
+        Returns:
+            Tuple of (is_ready: bool, reason: str, capabilities: AutopilotCapabilities)
+        """
+        # Check if explicitly enabled
+        if not self.enabled:
+            return (
+                False,
+                "Autopilot is disabled. Set AUTOPACK_AUTOPILOT_ENABLED=true to enable.",
+                self._capabilities,
+            )
+
+        # Run capability detection if not already done
+        if self._capabilities is None:
+            self.check_capabilities()
+
+        # Check capabilities
+        if not self._capabilities.is_ready:
+            missing = ", ".join(self._capabilities.missing_components)
+            return (
+                False,
+                f"Autopilot enabled but missing required components: {missing}",
+                self._capabilities,
+            )
+
+        return (True, "Autopilot ready for autonomous execution", self._capabilities)
+
+    @staticmethod
+    def get_enable_instructions() -> str:
+        """Get instructions for enabling autopilot.
+
+        IMP-BLOCKED-002: Returns clear, actionable instructions for users
+        who want to enable the autopilot feature.
+
+        Returns:
+            Multi-line string with enable instructions
+        """
+        return """
+Autopilot Feature Gate (IMP-BLOCKED-002)
+========================================
+
+Autopilot is disabled by default for safety. To enable:
+
+1. Set environment variable (recommended):
+   export AUTOPACK_AUTOPILOT_ENABLED=true
+
+2. Or use the alias:
+   export AUTOPILOT_ENABLED=true
+
+Prerequisites:
+- Valid workspace directory
+- intention_anchor.yaml file in workspace
+- All core modules (gap_scanner, plan_proposer) available
+
+To check if your environment is ready:
+    from autopack.autonomy.autopilot import detect_autopilot_capabilities
+    from pathlib import Path
+
+    caps = detect_autopilot_capabilities(Path("/path/to/workspace"))
+    print(caps.get_status_message())
+    if not caps.is_ready:
+        for rec in caps.recommendations:
+            print(f"  - {rec}")
+
+Configuration options (feature_flags.yaml):
+- AUTOPACK_AUTOPILOT_ENABLED: Enable/disable autopilot (default: true)
+- AUTOPACK_AUTOPILOT_FREQUENCY: Phase frequency for gap scans (default: 5)
+- AUTOPACK_AUTOPILOT_MAX_PROPOSALS: Max proposals per session (default: 3)
+"""
 
     # =========================================================================
     # IMP-LIFECYCLE-002: Phase State Machine Methods
@@ -2334,8 +2626,7 @@ class AutopilotController:
             return None
 
         logger.info(
-            f"[IMP-RESEARCH-002] Starting gap research retry loop "
-            f"(max_retries={max_retries})"
+            f"[IMP-RESEARCH-002] Starting gap research retry loop " f"(max_retries={max_retries})"
         )
 
         last_outcome = None
@@ -2366,8 +2657,8 @@ class AutopilotController:
 
                 outcome = await self.execute_integrated_research_cycle(
                     analysis_results={
-                        'retry_attempt': retry_attempt + 1,
-                        'max_retries': max_retries,
+                        "retry_attempt": retry_attempt + 1,
+                        "max_retries": max_retries,
                     }
                 )
 
@@ -2399,9 +2690,7 @@ class AutopilotController:
                 )
 
             except Exception as e:
-                logger.error(
-                    f"[IMP-RESEARCH-002] Retry {retry_attempt + 1} failed with error: {e}"
-                )
+                logger.error(f"[IMP-RESEARCH-002] Retry {retry_attempt + 1} failed with error: {e}")
                 if retry_attempt == max_retries - 1:
                     logger.error(
                         "[IMP-RESEARCH-002] Max retries exceeded, giving up on gap research"
@@ -2447,17 +2736,17 @@ class AutopilotController:
             gap_metrics = self.executor_ctx.get_gap_detection_metrics()
 
         return {
-            'is_paused_for_gaps': (
+            "is_paused_for_gaps": (
                 self._task_generation_paused
                 and self._pause_reason
                 and "gap" in self._pause_reason.lower()
             ),
-            'pause_reason': self._pause_reason,
-            'can_retry': self.can_attempt_gap_retry(),
-            'last_research_outcome': (
+            "pause_reason": self._pause_reason,
+            "can_retry": self.can_attempt_gap_retry(),
+            "last_research_outcome": (
                 self._last_research_outcome.to_dict() if self._last_research_outcome else None
             ),
-            'gap_metrics': gap_metrics,
+            "gap_metrics": gap_metrics,
         }
 
     def get_last_research_outcome(self) -> Optional[ResearchCycleOutcome]:

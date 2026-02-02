@@ -608,29 +608,54 @@ class AutonomousExecutor:
         logger.info("[PR-EXE-11] Builder/Auditor pipeline orchestrators initialized")
 
         # IMP-AUTOPILOT-001: Initialize autopilot for periodic gap scanning and improvement proposals
+        # IMP-BLOCKED-002: Improved feature gate with capability auto-detection
         self.autopilot = None
         self._autopilot_phase_count = 0  # Track phases for periodic invocation
         if settings.autopilot_enabled:
             try:
-                from autopack.autonomy.autopilot import AutopilotController
+                from autopack.autonomy.autopilot import (
+                    AutopilotController,
+                    detect_autopilot_capabilities,
+                )
 
-                self.autopilot = AutopilotController(
-                    workspace_root=Path(self.workspace),
-                    project_id=self.project_id,
-                    run_id=self.run_id,
-                    enabled=True,
+                # IMP-BLOCKED-002: Check capabilities before initializing
+                caps = detect_autopilot_capabilities(
+                    Path(self.workspace),
+                    check_intention_anchor=True,
                 )
-                logger.info(
-                    f"[IMP-AUTOPILOT-001] Autopilot enabled "
-                    f"(frequency: every {settings.autopilot_gap_scan_frequency} phases, "
-                    f"max_proposals: {settings.autopilot_max_proposals_per_session})"
-                )
+
+                if caps.is_ready:
+                    self.autopilot = AutopilotController(
+                        workspace_root=Path(self.workspace),
+                        project_id=self.project_id,
+                        run_id=self.run_id,
+                        enabled=True,
+                    )
+                    logger.info(
+                        f"[IMP-AUTOPILOT-001] Autopilot enabled "
+                        f"(frequency: every {settings.autopilot_gap_scan_frequency} phases, "
+                        f"max_proposals: {settings.autopilot_max_proposals_per_session})"
+                    )
+                else:
+                    # Capabilities not met - log detailed message
+                    missing = ", ".join(caps.missing_components)
+                    logger.warning(
+                        f"[IMP-BLOCKED-002] Autopilot enabled but capabilities not met. "
+                        f"Missing: {missing}"
+                    )
+                    for rec in caps.recommendations:
+                        logger.info(f"[IMP-BLOCKED-002]   Recommendation: {rec}")
+                    self.autopilot = None
             except Exception as e:
                 logger.warning(f"[IMP-AUTOPILOT-001] Autopilot initialization failed: {e}")
                 self.autopilot = None
         else:
+            # IMP-BLOCKED-002: Improved disabled message with instructions
             logger.info(
-                "[IMP-AUTOPILOT-001] Autopilot disabled (set AUTOPILOT_ENABLED=true to enable)"
+                "[IMP-BLOCKED-002] Autopilot disabled. To enable autonomous execution:\n"
+                "  1. Set AUTOPACK_AUTOPILOT_ENABLED=true (or AUTOPILOT_ENABLED=true)\n"
+                "  2. Ensure workspace has intention_anchor.yaml\n"
+                "  See: AutopilotController.get_enable_instructions() for full details"
             )
 
         # [Run-Level Health Budget] Prevent infinite retry loops (GPT_RESPONSE5 recommendation)

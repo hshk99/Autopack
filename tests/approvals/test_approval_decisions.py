@@ -17,7 +17,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -151,8 +151,6 @@ class TestRiskSeverityThresholds:
 
     def test_threshold_boundary_low_to_medium(self, approval_service, sample_task):
         """Test boundary between LOW and MEDIUM risk thresholds."""
-        mock_protector = MagicMock(spec=RegressionProtector)
-
         # Just below MEDIUM threshold
         decision_low = approval_service.evaluate_task_authorization(
             sample_task,

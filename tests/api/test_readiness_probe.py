@@ -313,10 +313,11 @@ class TestLifespanIntegration:
         with patch("autopack.api.app.get_api_key", return_value="test-key"):
             with patch("autopack.api.app.init_db"):
                 with patch("autopack.api.app.approval_timeout_cleanup"):
-                    with patch.dict(os.environ, {"TESTING": "0"}):
-                        async with lifespan(mock_app):
-                            # Inside lifespan, should be initialized
-                            assert _init_state.is_initialized() is True
+                    with patch("autopack.api.app.validate_startup_config"):
+                        with patch.dict(os.environ, {"TESTING": "0"}):
+                            async with lifespan(mock_app):
+                                # Inside lifespan, should be initialized
+                                assert _init_state.is_initialized() is True
 
     @pytest.mark.asyncio
     async def test_lifespan_records_db_init_failure(self):
@@ -331,10 +332,11 @@ class TestLifespanIntegration:
                 "autopack.api.app.init_db",
                 side_effect=Exception("Schema missing"),
             ):
-                with patch.dict(os.environ, {"TESTING": "0"}):
-                    with pytest.raises(Exception, match="Schema missing"):
-                        async with lifespan(mock_app):
-                            pass
+                with patch("autopack.api.app.validate_startup_config"):
+                    with patch.dict(os.environ, {"TESTING": "0"}):
+                        with pytest.raises(Exception, match="Schema missing"):
+                            async with lifespan(mock_app):
+                                pass
 
         # Should have recorded the error
         errors = _init_state.get_errors()

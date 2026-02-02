@@ -7,8 +7,6 @@ Measures performance improvements from LRU eviction and compression.
 import time
 import sys
 from pathlib import Path
-from typing import Any
-import json
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -48,12 +46,12 @@ def benchmark_lru_eviction():
     num_requests = 500
 
     # Test basic cache (unbounded)
-    print(f"\nTest Setup:")
+    print("\nTest Setup:")
     print(f"  - Max cache size: {max_size}")
     print(f"  - Number of requests: {num_requests}")
 
     # Basic cache - no eviction
-    print(f"\nBasic Cache (no eviction):")
+    print("\nBasic Cache (no eviction):")
     basic_cache = ResearchCache(ttl_hours=24)
 
     start_time = time.time()
@@ -66,10 +64,10 @@ def benchmark_lru_eviction():
 
     print(f"  - Time: {basic_time:.4f} seconds")
     print(f"  - Final cache size: {basic_size} entries (unbounded)")
-    print(f"  - Memory impact: HIGH (no eviction)")
+    print("  - Memory impact: HIGH (no eviction)")
 
     # Optimized cache with LRU
-    print(f"\nOptimized Cache (LRU eviction):")
+    print("\nOptimized Cache (LRU eviction):")
     opt_cache = OptimizedResearchCache(
         ttl_hours=24,
         max_size=max_size,
@@ -88,7 +86,7 @@ def benchmark_lru_eviction():
     print(f"  - Time: {opt_time:.4f} seconds")
     print(f"  - Final cache size: {opt_size} entries (bounded to {max_size})")
     print(f"  - Evictions: {stats['evictions']}")
-    print(f"  - Memory impact: LOW (bounded cache)")
+    print("  - Memory impact: LOW (bounded cache)")
     print(f"  - Performance ratio: {basic_time / opt_time:.2f}x")
 
 
@@ -102,7 +100,7 @@ def benchmark_cache_hit_rates():
     num_requests = 1000
     locality = 0.8  # 80% of requests hit top 20% of entries
 
-    print(f"\nTest Setup:")
+    print("\nTest Setup:")
     print(f"  - Cache size: {cache_size}")
     print(f"  - Number of requests: {num_requests}")
     print(f"  - Locality: {locality * 100}% of requests to {int(cache_size * 0.2)} popular entries")
@@ -114,13 +112,13 @@ def benchmark_cache_hit_rates():
     )
 
     # Populate cache
-    print(f"\nPopulating cache...")
+    print("\nPopulating cache...")
     for i in range(cache_size):
         session = create_mock_session()
         opt_cache.set(f"hash_{i}", session)
 
     # Perform requests with locality
-    print(f"Running requests...")
+    print("Running requests...")
     start_time = time.time()
     popular_hashes = [f"hash_{i}" for i in range(int(cache_size * 0.2))]
     uncommon_hashes = [f"hash_{i}" for i in range(int(cache_size * 0.2), cache_size)]
@@ -134,13 +132,13 @@ def benchmark_cache_hit_rates():
             # Less likely to hit (use uncommon entries)
             hash_key = uncommon_hashes[(i // 100) % len(uncommon_hashes)]
 
-        result = opt_cache.get(hash_key)
+        opt_cache.get(hash_key)
         request_count += 1
 
     elapsed = time.time() - start_time
 
     stats = opt_cache.get_stats()
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"  - Total requests: {request_count}")
     print(f"  - Cache hits: {stats['hits']}")
     print(f"  - Cache misses: {stats['misses']}")
@@ -158,12 +156,12 @@ def benchmark_compression():
     cache_size = 50
     session_size = 500000  # 500KB sessions
 
-    print(f"\nTest Setup:")
+    print("\nTest Setup:")
     print(f"  - Cache size: {cache_size}")
     print(f"  - Session size: {session_size / 1024:.0f} KB")
 
     # Without compression
-    print(f"\nWithout Compression:")
+    print("\nWithout Compression:")
     cache_no_compress = OptimizedResearchCache(
         ttl_hours=24,
         max_size=cache_size,
@@ -176,13 +174,13 @@ def benchmark_compression():
         cache_no_compress.set(f"hash_{i}", session)
 
     time_no_compress = time.time() - start_time
-    stats_no_compress = cache_no_compress.get_stats()
+    cache_no_compress.get_stats()
 
     print(f"  - Time to populate: {time_no_compress:.4f} seconds")
     print(f"  - Cache size: {cache_size} entries")
 
     # With compression
-    print(f"\nWith Compression:")
+    print("\nWith Compression:")
     cache_compress = OptimizedResearchCache(
         ttl_hours=24,
         max_size=cache_size,
@@ -206,7 +204,7 @@ def benchmark_compression():
         avg_saved = stats_compress["total_bytes_saved_by_compression"] / stats_compress["compressions"]
         print(f"  - Average bytes saved per entry: {avg_saved / 1024:.1f} KB")
 
-    print(f"\nCompression Overhead:")
+    print("\nCompression Overhead:")
     print(f"  - Extra time for compression: {(time_compress - time_no_compress) * 1000:.2f} ms")
 
 
@@ -219,9 +217,9 @@ def benchmark_memory_usage():
     cache_size = 50
     session_sizes = [50000, 100000, 500000, 1000000]
 
-    print(f"\nTest Setup:")
+    print("\nTest Setup:")
     print(f"  - Cache size: {cache_size}")
-    print(f"  - Testing various session sizes")
+    print("  - Testing various session sizes")
 
     results = []
 
@@ -237,7 +235,7 @@ def benchmark_memory_usage():
             session = create_mock_session(size_bytes=session_size)
             cache.set(f"hash_{i}", session)
 
-        stats = cache.get_stats()
+        cache.get_stats()
 
         # Calculate approximate memory usage
         total_stored = 0
@@ -277,8 +275,8 @@ def benchmark_scalability():
     cache_sizes = [10, 50, 100, 500]
     requests_per_cache = 100
 
-    print(f"\nTest Setup:")
-    print(f"  - Testing caches of various sizes")
+    print("\nTest Setup:")
+    print("  - Testing caches of various sizes")
     print(f"  - Requests per cache: {requests_per_cache}")
 
     results = []

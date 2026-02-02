@@ -50,6 +50,11 @@ logger = logging.getLogger(__name__)
 # Default cache TTL: 24 hours
 CACHE_TTL_HOURS = 24
 
+# Default iteration loop configuration
+DEFAULT_MAX_RETRIES = 3
+DEFAULT_CONFIDENCE_THRESHOLD = 0.6
+DEFAULT_MIN_CONFIDENCE_FOR_COMPLETION = 0.4
+
 
 class ResearchCache:
     """Cache for research results with 24-hour TTL.
@@ -160,6 +165,9 @@ class ResearchOrchestrator:
         max_concurrent_phases: int = 3,
         max_phase_resources: float = 1.0,
         enable_cache_optimization: bool = True,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
+        min_confidence_for_completion: float = DEFAULT_MIN_CONFIDENCE_FOR_COMPLETION,
     ):
         """Initialize the ResearchOrchestrator.
 
@@ -170,9 +178,17 @@ class ResearchOrchestrator:
             max_concurrent_phases: Maximum concurrent research phases (default: 3)
             max_phase_resources: Maximum total resource usage for phases (default: 1.0)
             enable_cache_optimization: Enable LRU eviction and compression (default: True)
+            max_retries: Maximum retry attempts for failed research agents (default: 3)
+            confidence_threshold: Threshold below which findings trigger re-iteration (default: 0.6)
+            min_confidence_for_completion: Minimum confidence required to mark session complete (default: 0.4)
         """
         self.sessions: dict[str, ResearchSession] = {}
         self.bootstrap_sessions: dict[str, BootstrapSession] = {}
+
+        # Iteration loop configuration for retry and low-confidence handling
+        self._max_retries = max_retries
+        self._confidence_threshold = confidence_threshold
+        self._min_confidence_for_completion = min_confidence_for_completion
 
         # Use optimized cache with LRU eviction and compression
         if enable_cache_optimization:
@@ -281,6 +297,51 @@ class ResearchOrchestrator:
         """
         return self._scheduler.get_metrics().to_dict()
 
+    def get_iteration_config(self) -> dict[str, Any]:
+        """Get current iteration loop configuration.
+
+        Returns:
+            Dictionary with iteration loop settings
+        """
+        return {
+            "max_retries": self._max_retries,
+            "confidence_threshold": self._confidence_threshold,
+            "min_confidence_for_completion": self._min_confidence_for_completion,
+        }
+
+    def set_iteration_config(
+        self,
+        max_retries: Optional[int] = None,
+        confidence_threshold: Optional[float] = None,
+        min_confidence_for_completion: Optional[float] = None,
+    ) -> None:
+        """Update iteration loop configuration.
+
+        Args:
+            max_retries: Maximum retry attempts for failed research agents
+            confidence_threshold: Threshold below which findings trigger re-iteration
+            min_confidence_for_completion: Minimum confidence required to mark session complete
+        """
+        if max_retries is not None:
+            if max_retries < 0:
+                raise ValueError("max_retries must be non-negative")
+            self._max_retries = max_retries
+            logger.debug(f"Updated max_retries to {max_retries}")
+
+        if confidence_threshold is not None:
+            if not 0.0 <= confidence_threshold <= 1.0:
+                raise ValueError("confidence_threshold must be between 0.0 and 1.0")
+            self._confidence_threshold = confidence_threshold
+            logger.debug(f"Updated confidence_threshold to {confidence_threshold}")
+
+        if min_confidence_for_completion is not None:
+            if not 0.0 <= min_confidence_for_completion <= 1.0:
+                raise ValueError("min_confidence_for_completion must be between 0.0 and 1.0")
+            self._min_confidence_for_completion = min_confidence_for_completion
+            logger.debug(
+                f"Updated min_confidence_for_completion to {min_confidence_for_completion}"
+            )
+
     def get_phase_execution_order(self) -> list[str]:
         """Get the optimal phase execution order based on dependencies and priorities.
 
@@ -348,6 +409,297 @@ class ResearchOrchestrator:
         if can_proceed:
             self._budget_enforcer.start_phase(phase_name)
         return can_proceed
+
+    def _calculate_phase_confidence(self, phase_data: Optional[dict[str, Any]]) -> float:
+        """Calculate confidence score for a research phase result.
+
+        Analyzes phase data to determine the quality and confidence of findings.
+
+        Args:
+            phase_data: Data from a completed research phase
+
+        Returns:
+            Confidence score between 0.0 and 1.0
+        """
+        if not phase_data:
+            return 0.0
+
+        confidence_factors = []
+
+        # Check for explicit confidence scores in results
+        if "confidence" in phase_data:
+            confidence_factors.append(phase_data["confidence"])
+        if "confidence_score" in phase_data:
+            confidence_factors.append(phase_data["confidence_score"])
+
+        # Check for score-based confidence (normalized)
+        for score_key in ["attractiveness_score", "intensity_score", "feasibility_score"]:
+            if score_key in phase_data:
+                # Normalize scores assuming max of 10
+                normalized = min(1.0, phase_data[score_key] / 10.0)
+                confidence_factors.append(normalized)
+
+        # Check for data completeness indicators
+        if "details" in phase_data and phase_data["details"]:
+            confidence_factors.append(0.8)  # Has detailed results
+        else:
+            confidence_factors.append(0.4)  # Missing details
+
+        # Check for indicators/factors evaluated
+        for key in ["indicators_evaluated", "factors_evaluated", "parameters_evaluated"]:
+            if key in phase_data and phase_data[key]:
+                factor_count = len(phase_data[key]) if isinstance(phase_data[key], list) else 1
+                # More factors evaluated = higher confidence
+                confidence_factors.append(min(1.0, factor_count / 5.0))
+
+        if not confidence_factors:
+            return 0.5  # Default moderate confidence if no indicators
+
+        return sum(confidence_factors) / len(confidence_factors)
+
+    def _get_session_overall_confidence(self, session: BootstrapSession) -> float:
+        """Calculate overall confidence score for a bootstrap session.
+
+        Aggregates confidence from all completed research phases.
+
+        Args:
+            session: BootstrapSession with research phases
+
+        Returns:
+            Overall confidence score between 0.0 and 1.0
+        """
+        phase_confidences = []
+
+        # Check each research phase
+        if session.market_research and session.market_research.data:
+            phase_confidences.append(self._calculate_phase_confidence(session.market_research.data))
+
+        if session.competitive_analysis and session.competitive_analysis.data:
+            phase_confidences.append(
+                self._calculate_phase_confidence(session.competitive_analysis.data)
+            )
+
+        if session.technical_feasibility and session.technical_feasibility.data:
+            phase_confidences.append(
+                self._calculate_phase_confidence(session.technical_feasibility.data)
+            )
+
+        if not phase_confidences:
+            return 0.0
+
+        return sum(phase_confidences) / len(phase_confidences)
+
+    def _identify_low_confidence_phases(
+        self, session: BootstrapSession
+    ) -> list[tuple[BootstrapPhase, float]]:
+        """Identify phases with confidence below threshold.
+
+        Args:
+            session: BootstrapSession to analyze
+
+        Returns:
+            List of (phase, confidence) tuples for low-confidence phases
+        """
+        low_confidence_phases = []
+
+        phase_data_map = [
+            (BootstrapPhase.MARKET_RESEARCH, session.market_research),
+            (BootstrapPhase.COMPETITIVE_ANALYSIS, session.competitive_analysis),
+            (BootstrapPhase.TECHNICAL_FEASIBILITY, session.technical_feasibility),
+        ]
+
+        for phase, phase_result in phase_data_map:
+            if phase_result and phase_result.data:
+                confidence = self._calculate_phase_confidence(phase_result.data)
+                if confidence < self._confidence_threshold:
+                    low_confidence_phases.append((phase, confidence))
+                    logger.debug(
+                        f"Phase {phase.value} has low confidence: {confidence:.2f} "
+                        f"(threshold: {self._confidence_threshold})"
+                    )
+
+        return low_confidence_phases
+
+    async def _retry_failed_phases(
+        self,
+        session: BootstrapSession,
+        parsed_idea: ParsedIdea,
+        failed_phases: list[tuple[BootstrapPhase, list[str]]],
+        attempt: int = 1,
+    ) -> list[BootstrapPhase]:
+        """Retry failed research phases with exponential backoff.
+
+        Args:
+            session: BootstrapSession to update
+            parsed_idea: ParsedIdea with project details
+            failed_phases: List of (phase, errors) tuples for failed phases
+            attempt: Current retry attempt number
+
+        Returns:
+            List of phases that were successfully recovered
+        """
+        if attempt > self._max_retries:
+            logger.warning(
+                f"Max retries ({self._max_retries}) exceeded for session {session.session_id}"
+            )
+            return []
+
+        recovered_phases = []
+        phase_runners = {
+            BootstrapPhase.MARKET_RESEARCH: self._run_market_research,
+            BootstrapPhase.COMPETITIVE_ANALYSIS: self._run_competitive_analysis,
+            BootstrapPhase.TECHNICAL_FEASIBILITY: self._run_technical_feasibility,
+        }
+
+        for phase, errors in failed_phases:
+            if phase not in phase_runners:
+                continue
+
+            logger.info(
+                f"Retrying phase {phase.value} (attempt {attempt}/{self._max_retries}) "
+                f"for session {session.session_id}"
+            )
+
+            # Reset phase state for retry
+            if phase == BootstrapPhase.MARKET_RESEARCH:
+                session.market_research = None
+            elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS:
+                session.competitive_analysis = None
+            elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY:
+                session.technical_feasibility = None
+
+            try:
+                await phase_runners[phase](session, parsed_idea)
+
+                # Check if phase completed successfully
+                phase_result = None
+                if phase == BootstrapPhase.MARKET_RESEARCH:
+                    phase_result = session.market_research
+                elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS:
+                    phase_result = session.competitive_analysis
+                elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY:
+                    phase_result = session.technical_feasibility
+
+                if phase_result and phase_result.data:
+                    recovered_phases.append(phase)
+                    logger.info(f"Successfully recovered phase {phase.value} on attempt {attempt}")
+
+            except Exception as e:
+                logger.warning(f"Retry attempt {attempt} failed for phase {phase.value}: {e}")
+
+        return recovered_phases
+
+    async def _iterate_on_low_confidence(
+        self,
+        session: BootstrapSession,
+        parsed_idea: ParsedIdea,
+        low_confidence_phases: list[tuple[BootstrapPhase, float]],
+        iteration: int = 1,
+    ) -> int:
+        """Re-run phases with low confidence findings to improve quality.
+
+        Args:
+            session: BootstrapSession to update
+            parsed_idea: ParsedIdea with project details
+            low_confidence_phases: List of (phase, confidence) tuples
+            iteration: Current iteration number
+
+        Returns:
+            Number of phases successfully improved
+        """
+        if iteration > self._max_retries:
+            logger.warning(
+                f"Max iterations ({self._max_retries}) exceeded for confidence improvement"
+            )
+            return 0
+
+        improved_count = 0
+        phase_runners = {
+            BootstrapPhase.MARKET_RESEARCH: self._run_market_research,
+            BootstrapPhase.COMPETITIVE_ANALYSIS: self._run_competitive_analysis,
+            BootstrapPhase.TECHNICAL_FEASIBILITY: self._run_technical_feasibility,
+        }
+
+        for phase, current_confidence in low_confidence_phases:
+            if phase not in phase_runners:
+                continue
+
+            logger.info(
+                f"Iterating on phase {phase.value} to improve confidence "
+                f"(current: {current_confidence:.2f}, target: {self._confidence_threshold}, "
+                f"iteration {iteration}/{self._max_retries})"
+            )
+
+            # Store previous result for comparison
+            previous_data = None
+            if phase == BootstrapPhase.MARKET_RESEARCH and session.market_research:
+                previous_data = session.market_research.data
+            elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS and session.competitive_analysis:
+                previous_data = session.competitive_analysis.data
+            elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY and session.technical_feasibility:
+                previous_data = session.technical_feasibility.data
+
+            try:
+                # Reset and re-run the phase
+                if phase == BootstrapPhase.MARKET_RESEARCH:
+                    session.market_research = None
+                elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS:
+                    session.competitive_analysis = None
+                elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY:
+                    session.technical_feasibility = None
+
+                await phase_runners[phase](session, parsed_idea)
+
+                # Check if confidence improved
+                new_data = None
+                if phase == BootstrapPhase.MARKET_RESEARCH and session.market_research:
+                    new_data = session.market_research.data
+                elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS and session.competitive_analysis:
+                    new_data = session.competitive_analysis.data
+                elif (
+                    phase == BootstrapPhase.TECHNICAL_FEASIBILITY and session.technical_feasibility
+                ):
+                    new_data = session.technical_feasibility.data
+
+                if new_data:
+                    new_confidence = self._calculate_phase_confidence(new_data)
+                    if new_confidence > current_confidence:
+                        improved_count += 1
+                        logger.info(
+                            f"Phase {phase.value} confidence improved: "
+                            f"{current_confidence:.2f} -> {new_confidence:.2f}"
+                        )
+                    else:
+                        # Revert to previous result if not improved
+                        if previous_data:
+                            if phase == BootstrapPhase.MARKET_RESEARCH:
+                                session.market_research.data = previous_data
+                            elif phase == BootstrapPhase.COMPETITIVE_ANALYSIS:
+                                session.competitive_analysis.data = previous_data
+                            elif phase == BootstrapPhase.TECHNICAL_FEASIBILITY:
+                                session.technical_feasibility.data = previous_data
+                            logger.debug(
+                                f"Phase {phase.value} not improved, keeping previous result"
+                            )
+
+            except Exception as e:
+                logger.warning(f"Iteration {iteration} failed for phase {phase.value}: {e}")
+                # Restore previous data on failure
+                if previous_data:
+                    if phase == BootstrapPhase.MARKET_RESEARCH and session.market_research:
+                        session.market_research.data = previous_data
+                    elif (
+                        phase == BootstrapPhase.COMPETITIVE_ANALYSIS
+                        and session.competitive_analysis
+                    ):
+                        session.competitive_analysis.data = previous_data
+                    elif (
+                        phase == BootstrapPhase.TECHNICAL_FEASIBILITY
+                        and session.technical_feasibility
+                    ):
+                        session.technical_feasibility.data = previous_data
+
+        return improved_count
 
     def start_session(
         self, intent_title: str, intent_description: str, intent_objectives: list
@@ -460,16 +812,62 @@ class ResearchOrchestrator:
         self.bootstrap_sessions[session_id] = session
         logger.info(f"Started bootstrap session {session_id} for: {parsed_idea.title}")
 
-        # Execute research phases
+        # Execute research phases with iteration loop for retry and confidence improvement
         if parallel:
             session.parallel_execution_used = True
             await self._execute_research_parallel(session, parsed_idea)
         else:
             await self._execute_research_sequential(session, parsed_idea)
 
-        # Synthesize results if all phases completed
-        if session.is_complete():
+        # Iteration loop: retry failed phases
+        failed_phases = session.get_failed_phases()
+        retry_attempt = 1
+        while failed_phases and retry_attempt <= self._max_retries:
+            logger.info(
+                f"Iteration loop: retrying {len(failed_phases)} failed phases "
+                f"(attempt {retry_attempt}/{self._max_retries})"
+            )
+            recovered = await self._retry_failed_phases(
+                session, parsed_idea, failed_phases, retry_attempt
+            )
+            if not recovered:
+                break
+            failed_phases = session.get_failed_phases()
+            retry_attempt += 1
+
+        # Iteration loop: improve low-confidence findings
+        iteration = 1
+        while iteration <= self._max_retries:
+            low_confidence_phases = self._identify_low_confidence_phases(session)
+            if not low_confidence_phases:
+                break
+
+            logger.info(
+                f"Iteration loop: improving {len(low_confidence_phases)} low-confidence phases "
+                f"(iteration {iteration}/{self._max_retries})"
+            )
+            improved = await self._iterate_on_low_confidence(
+                session, parsed_idea, low_confidence_phases, iteration
+            )
+            if improved == 0:
+                # No improvement made, stop iterating
+                break
+            iteration += 1
+
+        # Calculate final confidence score
+        final_confidence = self._get_session_overall_confidence(session)
+        logger.info(f"Bootstrap session {session_id} final confidence: {final_confidence:.2f}")
+
+        # Synthesize results if phases completed with acceptable confidence
+        if session.is_complete() or final_confidence >= self._min_confidence_for_completion:
             session.synthesis = self._synthesize_research(session, parsed_idea)
+            # Add iteration metrics to synthesis
+            session.synthesis["iteration_metrics"] = {
+                "retry_attempts": retry_attempt - 1,
+                "confidence_iterations": iteration - 1,
+                "final_confidence": final_confidence,
+                "confidence_threshold": self._confidence_threshold,
+            }
             session.current_phase = BootstrapPhase.COMPLETED
             # Cache the completed session
             self._cache.set(idea_hash, session)
@@ -479,7 +877,14 @@ class ResearchOrchestrator:
             if failed:
                 session.current_phase = BootstrapPhase.FAILED
                 logger.warning(
-                    f"Bootstrap session {session_id} failed phases: {[p[0].value for p in failed]}"
+                    f"Bootstrap session {session_id} failed phases after {retry_attempt - 1} retries: "
+                    f"{[p[0].value for p in failed]}"
+                )
+            elif final_confidence < self._min_confidence_for_completion:
+                session.current_phase = BootstrapPhase.FAILED
+                logger.warning(
+                    f"Bootstrap session {session_id} confidence too low: "
+                    f"{final_confidence:.2f} < {self._min_confidence_for_completion}"
                 )
 
         return session

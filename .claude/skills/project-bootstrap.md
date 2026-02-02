@@ -285,6 +285,40 @@ Throughout execution, report progress:
 - `--haiku`: Use haiku for all agents (faster, cheaper)
 - `--opus`: Use opus for all agents (higher quality)
 
+## Supported Project Types
+
+The bootstrap pipeline automatically detects and handles these project categories:
+
+| Project Type | Description | Risk Level | Example Ideas |
+|-------------|-------------|------------|---------------|
+| **CONTENT** | Video, audio, publishing, social media | LOW | YouTube automation, podcast tools, blog platforms |
+| **ECOMMERCE** | Online stores, marketplaces, selling | MEDIUM | Etsy shops, dropshipping, marketplaces |
+| **TRADING** | Financial, crypto, investments | HIGH | Trading bots, crypto signals, portfolio tools |
+| **AUTOMATION** | Workflows, bots, integrations | MEDIUM | CI/CD tools, task automation, ETL pipelines |
+| **OTHER** | Mobile apps, general software | MEDIUM | Fitness apps, utilities, general tools |
+
+### Project Type Detection Examples
+
+```
+# YouTube/Video Projects → CONTENT type
+/project-bootstrap "YouTube Shorts automation tool with AI video generation"
+
+# Etsy/E-commerce Projects → ECOMMERCE type
+/project-bootstrap "Etsy listing automation with AI product descriptions"
+
+# Trading Projects → TRADING type (HIGH risk)
+/project-bootstrap "Crypto trading signal bot with technical analysis"
+
+# Dropshipping Projects → ECOMMERCE type
+/project-bootstrap "Automated dropshipping store with supplier integration"
+
+# Creative Commerce Projects → CONTENT or ECOMMERCE type
+/project-bootstrap "AI art print store with print-on-demand fulfillment"
+
+# Mobile App Projects → OTHER type
+/project-bootstrap "Mobile fitness tracking app with wearable integration"
+```
+
 ## Example Usage
 
 ```

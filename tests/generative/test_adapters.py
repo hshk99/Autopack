@@ -1,5 +1,7 @@
 """Tests for provider adapters."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from src.autopack.generative.adapters import (
@@ -284,23 +286,79 @@ class TestSelfHostedAdapter:
     async def test_generate_voice(self):
         """Test voice generation."""
         adapter = SelfHostedAdapter(base_url="http://localhost", port=8000)
-        result = await adapter.generate_voice(
-            text="hello",
-            model_id="kokoro-82m",
-        )
-        assert "audio_url" in result
-        assert result["metadata"]["provider"] == "self_hosted"
+
+        # Mock the aiohttp session
+        with patch("aiohttp.ClientSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.read = AsyncMock(return_value=b"audio_data")
+
+            mock_session.post = AsyncMock()
+            mock_session.post.return_value.__aenter__.return_value = mock_response
+            mock_session.__aenter__.return_value = mock_session
+            mock_session.__aexit__.return_value = AsyncMock()
+
+            mock_session_class.return_value = mock_session
+
+            result = await adapter.generate_voice(
+                text="hello",
+                model_id="kokoro-82m",
+            )
+            assert "audio_url" in result
+            assert result["metadata"]["provider"] == "self_hosted"
+            assert result["metadata"]["model"] == "kokoro-82m"
 
     @pytest.mark.asyncio
     async def test_remove_background(self):
         """Test background removal."""
         adapter = SelfHostedAdapter()
-        result = await adapter.remove_background(
-            image_url="http://example.com/image.jpg",
-            model_id="birefnet",
-        )
-        assert "image_url" in result
-        assert result["metadata"]["provider"] == "self_hosted"
+
+        # Mock the aiohttp session
+        with patch("aiohttp.ClientSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_get_response = AsyncMock()
+            mock_get_response.status = 200
+            mock_get_response.read = AsyncMock(return_value=b"image_data")
+
+            mock_post_response = AsyncMock()
+            mock_post_response.status = 200
+            mock_post_response.read = AsyncMock(return_value=b"processed_image_data")
+
+            mock_session.get = AsyncMock()
+            mock_session.get.return_value.__aenter__.return_value = mock_get_response
+            mock_session.post = AsyncMock()
+            mock_session.post.return_value.__aenter__.return_value = mock_post_response
+            mock_session.__aenter__.return_value = mock_session
+            mock_session.__aexit__.return_value = AsyncMock()
+
+            mock_session_class.return_value = mock_session
+
+            result = await adapter.remove_background(
+                image_url="http://example.com/image.jpg",
+                model_id="birefnet",
+            )
+            assert "image_url" in result
+            assert result["metadata"]["provider"] == "self_hosted"
+            assert result["metadata"]["model"] == "birefnet"
+
+    @pytest.mark.asyncio
+    async def test_validate_credentials(self):
+        """Test credential validation."""
+        adapter = SelfHostedAdapter()
+        result = await adapter.validate_credentials()
+        # Should return False when service is not available
+        assert isinstance(result, bool)
+
+    @pytest.mark.asyncio
+    async def test_get_available_models(self):
+        """Test getting available models."""
+        adapter = SelfHostedAdapter()
+        models = await adapter.get_available_models()
+        assert "voice_tts" in models
+        assert "background_removal" in models
+        assert len(models["voice_tts"]) > 0
+        assert len(models["background_removal"]) > 0
 
 
 class TestAdapterRegistry:

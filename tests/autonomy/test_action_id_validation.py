@@ -209,8 +209,9 @@ class TestActionIdValidation:
                     controller.execute_approved_proposals("session-001")
 
             # Verify warning was logged about invalid IDs
-            assert any("IMP-SAFETY-011" in record.message for record in caplog.records)
-            assert any("invalid action ids" in record.message.lower() for record in caplog.records)
+            # IMP-REL-008 handles approval ID validation, IMP-SAFETY-011 handles action ID validation
+            assert any("IMP-REL-008" in record.message for record in caplog.records)
+            assert any("invalid" in record.message.lower() for record in caplog.records)
 
     def test_all_invalid_ids_returns_zero_with_error_log(self, caplog):
         """IMP-SAFETY-011: All invalid IDs should return 0 and log error."""
@@ -236,7 +237,8 @@ class TestActionIdValidation:
 
             assert result == 0
             # Verify error was logged when all IDs are invalid
-            assert any("IMP-SAFETY-011" in record.message for record in caplog.records)
+            # IMP-REL-008 handles approval ID validation, IMP-SAFETY-011 handles action ID validation
+            assert any("IMP-REL-008" in record.message for record in caplog.records)
 
     def test_empty_proposal_actions_rejects_all(self):
         """IMP-SAFETY-011: Empty proposal actions should reject all approved IDs."""
@@ -265,13 +267,14 @@ class TestActionIdValidation:
             self._create_session(controller, "session-001", "plan-001")
             self._create_proposal(controller, "plan-001", ["action-001", "action-002"])
 
-            mock_approval_svc = MagicMock()
-            # Duplicate valid IDs
-            mock_approval_svc.get_approved_actions.return_value = [
-                "action-001",
-                "action-001",  # Duplicate
-                "action-002",
-            ]
+            # Use helper to properly mock approval service with queue.decisions
+            mock_approval_svc = self._setup_approval_service_mock(
+                [
+                    "action-001",
+                    "action-001",  # Duplicate
+                    "action-002",
+                ]
+            )
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",
@@ -297,14 +300,16 @@ class TestActionIdValidation:
             # Proposal only has safe, limited actions
             self._create_proposal(controller, "plan-001", ["safe-action-001", "safe-action-002"])
 
-            mock_approval_svc = MagicMock()
-            # Attacker tries to inject dangerous action IDs
-            mock_approval_svc.get_approved_actions.return_value = [
-                "delete-all-files",  # Injected malicious ID
-                "safe-action-001",  # Valid ID
-                "execute-backdoor",  # Injected malicious ID
-                "rm-rf-root",  # Injected malicious ID
-            ]
+            # Use helper to properly mock approval service with queue.decisions
+            # This simulates an attacker who has somehow gotten malicious IDs into the queue
+            mock_approval_svc = self._setup_approval_service_mock(
+                [
+                    "delete-all-files",  # Injected malicious ID
+                    "safe-action-001",  # Valid ID
+                    "execute-backdoor",  # Injected malicious ID
+                    "rm-rf-root",  # Injected malicious ID
+                ]
+            )
 
             with patch(
                 "autopack.autonomy.approval_service.ApprovalService",
@@ -313,7 +318,7 @@ class TestActionIdValidation:
                 result = controller.execute_approved_proposals("session-001")
 
             # Only the 1 valid action should execute
-            # Malicious injected IDs are rejected
+            # Malicious injected IDs are rejected by IMP-SAFETY-011 (not in proposal)
             assert result == 1, (
                 f"Security check failed: Expected only 1 valid action to execute, "
                 f"got {result}. Injected action IDs may have been executed!"

@@ -998,7 +998,11 @@ async def lifespan(app: FastAPI):
             nonlocal autopack_env, api_key
             # IMP-OPS-013: Validate configuration at startup
             # This catches invalid config values early with clear error messages
-            validate_startup_config()
+            # Skip validation in TESTING mode to allow unit tests to run without full config
+            if os.getenv("TESTING") != "1":
+                validate_startup_config()
+            else:
+                logger.info("[STARTUP] Skipping config validation in TESTING mode")
 
             # P0 Security: In production mode, require AUTOPACK_API_KEY to be set
             # This prevents accidentally running an unauthenticated API in production

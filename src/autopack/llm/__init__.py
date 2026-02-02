@@ -70,6 +70,20 @@ from autopack.llm.routing_engine import (  # noqa: F401
     get_routing_engine,
 )
 
+# Import LLM auditor (IMP-LLM-002)
+from autopack.llm.llm_auditor import (  # noqa: F401
+    AuditFlag,
+    AuditLogEntry,
+    AuditResult,
+    ExecutionMetrics,
+    LLMAuditor,
+    ModelPerformanceStats,
+    OverrideReason,
+    OverrideSuggestion,
+    RoutingReport,
+    get_llm_auditor,
+)
+
 __all__ = [
     # Client resolution
     "resolve_client_and_model",
@@ -105,4 +119,15 @@ __all__ = [
     "RoutingRule",
     "RoutingStrategy",
     "get_routing_engine",
+    # LLM auditor (IMP-LLM-002)
+    "AuditFlag",
+    "AuditLogEntry",
+    "AuditResult",
+    "ExecutionMetrics",
+    "LLMAuditor",
+    "ModelPerformanceStats",
+    "OverrideReason",
+    "OverrideSuggestion",
+    "RoutingReport",
+    "get_llm_auditor",
 ]

@@ -147,6 +147,9 @@ class TestAutopilotMetricsIntegration:
             session_id="session-123",
             started_at=datetime.now(timezone.utc),
             status="completed",
+            anchor_id="test-anchor-id",
+            gap_report_id="test-gap-report-id",
+            plan_proposal_id="test-plan-proposal-id",
         )
 
         # Record completion
@@ -170,6 +173,15 @@ class TestAutopilotMetricsIntegration:
             SessionOutcome.FAILED,
         ]
 
+        # Map SessionOutcome to valid AutopilotSessionV1.status values
+        # AutopilotSessionV1.status only accepts: running, completed, blocked_approval_required, failed, aborted
+        outcome_to_status = {
+            SessionOutcome.BLOCKED_APPROVAL: "blocked_approval_required",
+            SessionOutcome.BLOCKED_CIRCUIT_BREAKER: "aborted",
+            SessionOutcome.BLOCKED_RESEARCH: "aborted",
+            SessionOutcome.FAILED: "failed",
+        }
+
         executor_ctx = MagicMock()
         executor_ctx.circuit_breaker.state.value = "closed"
         executor_ctx.circuit_breaker.health_score = 0.9
@@ -188,7 +200,10 @@ class TestAutopilotMetricsIntegration:
                 run_id="test-run",
                 session_id=f"session-{outcome.value}",
                 started_at=datetime.now(timezone.utc),
-                status=outcome.value,
+                status=outcome_to_status[outcome],
+                anchor_id="test-anchor-id",
+                gap_report_id="test-gap-report-id",
+                plan_proposal_id="test-plan-proposal-id",
             )
 
             autopilot_controller._record_session_metrics(outcome)
@@ -224,6 +239,9 @@ class TestAutopilotMetricsIntegration:
             session_id="session-test",
             started_at=datetime.now(timezone.utc),
             status="completed",
+            anchor_id="test-anchor-id",
+            gap_report_id="test-gap-report-id",
+            plan_proposal_id="test-plan-proposal-id",
         )
         autopilot_controller._record_session_metrics(SessionOutcome.COMPLETED)
 
@@ -271,6 +289,9 @@ class TestAutopilotMetricsIntegration:
             session_id="session-123",
             started_at=datetime.now(timezone.utc),
             status="completed",
+            anchor_id="test-anchor-id",
+            gap_report_id="test-gap-report-id",
+            plan_proposal_id="test-plan-proposal-id",
         )
         autopilot_controller._record_session_metrics(SessionOutcome.COMPLETED)
 

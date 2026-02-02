@@ -235,8 +235,14 @@ class TestAutopilotAPIFailureRollback:
         anchor.raw_input_digest = "test-digest"
 
         with patch("autopack.autonomy.autopilot.create_executor_context") as mock_create_ctx:
-            mock_create_ctx.return_value = MagicMock()
-            mock_create_ctx.return_value.circuit_breaker.is_available.return_value = True
+            mock_ctx = MagicMock()
+            mock_ctx.circuit_breaker.is_available.return_value = True
+            mock_ctx.circuit_breaker.state.value = "closed"
+            mock_ctx.circuit_breaker.health_score = 1.0
+            mock_ctx.circuit_breaker.total_checks = 0
+            mock_ctx.circuit_breaker.checks_passed = 0
+            mock_ctx.get_budget_remaining.return_value = 100.0
+            mock_create_ctx.return_value = mock_ctx
 
             with patch("autopack.autonomy.autopilot.scan_workspace") as mock_scan:
                 mock_scan.side_effect = RuntimeError("Gap scan failed")
@@ -257,6 +263,11 @@ class TestAutopilotAPIFailureRollback:
         with patch("autopack.autonomy.autopilot.create_executor_context") as mock_create_ctx:
             mock_ctx = MagicMock()
             mock_ctx.circuit_breaker.is_available.return_value = True
+            mock_ctx.circuit_breaker.state.value = "closed"
+            mock_ctx.circuit_breaker.health_score = 1.0
+            mock_ctx.circuit_breaker.total_checks = 0
+            mock_ctx.circuit_breaker.checks_passed = 0
+            mock_ctx.get_budget_remaining.return_value = 100.0
             mock_create_ctx.return_value = mock_ctx
 
             with patch("autopack.autonomy.autopilot.scan_workspace") as mock_scan:
@@ -285,6 +296,11 @@ class TestAutopilotAPIFailureRollback:
         with patch("autopack.autonomy.autopilot.create_executor_context") as mock_create_ctx:
             mock_ctx = MagicMock()
             mock_ctx.circuit_breaker.is_available.return_value = True
+            mock_ctx.circuit_breaker.state.value = "closed"
+            mock_ctx.circuit_breaker.health_score = 1.0
+            mock_ctx.circuit_breaker.total_checks = 0
+            mock_ctx.circuit_breaker.checks_passed = 0
+            mock_ctx.get_budget_remaining.return_value = 100.0
             mock_create_ctx.return_value = mock_ctx
 
             with patch("autopack.autonomy.autopilot.scan_workspace") as mock_scan:
@@ -315,8 +331,14 @@ class TestAutopilotAPIFailureRollback:
         error_message = "API connection timeout"
 
         with patch("autopack.autonomy.autopilot.create_executor_context") as mock_create_ctx:
-            mock_create_ctx.return_value = MagicMock()
-            mock_create_ctx.return_value.circuit_breaker.is_available.return_value = True
+            mock_ctx = MagicMock()
+            mock_ctx.circuit_breaker.is_available.return_value = True
+            mock_ctx.circuit_breaker.state.value = "closed"
+            mock_ctx.circuit_breaker.health_score = 1.0
+            mock_ctx.circuit_breaker.total_checks = 0
+            mock_ctx.circuit_breaker.checks_passed = 0
+            mock_ctx.get_budget_remaining.return_value = 100.0
+            mock_create_ctx.return_value = mock_ctx
 
             with patch("autopack.autonomy.autopilot.scan_workspace") as mock_scan:
                 mock_scan.side_effect = RuntimeError(error_message)
@@ -335,6 +357,11 @@ class TestAutopilotAPIFailureRollback:
         with patch("autopack.autonomy.autopilot.create_executor_context") as mock_create_ctx:
             mock_ctx = MagicMock()
             mock_ctx.circuit_breaker.is_available.return_value = True
+            mock_ctx.circuit_breaker.state.value = "closed"
+            mock_ctx.circuit_breaker.health_score = 1.0
+            mock_ctx.circuit_breaker.total_checks = 0
+            mock_ctx.circuit_breaker.checks_passed = 0
+            mock_ctx.get_budget_remaining.return_value = 100.0
             mock_create_ctx.return_value = mock_ctx
 
             with patch("autopack.autonomy.autopilot.scan_workspace") as mock_scan:

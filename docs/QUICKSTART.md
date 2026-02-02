@@ -90,7 +90,7 @@ INFO:     Application startup complete
 **Verify** (in another terminal):
 ```bash
 curl http://localhost:8000/health
-# Expected: {"status": "ok"} or similar
+# Expected: {"status": "healthy", "database": "connected", ...}
 ```
 
 ---
@@ -114,7 +114,7 @@ Remove-Item Env:AUTOPACK_DB_BOOTSTRAP  # Windows PowerShell
 PYTHONPATH=src pytest tests/ -v --tb=short
 
 # Run a specific test file (faster):
-PYTHONPATH=src pytest tests/test_main.py -v
+PYTHONPATH=src pytest tests/test_api.py -v
 ```
 
 **Expected:** Most tests pass (some marked `aspirational` may be skipped).
@@ -158,7 +158,7 @@ PYTHONPATH=src python -m autopack.autonomous_executor --run-id telemetry-collect
 | "Connection refused" (port 8000) | API not running. Start it in Terminal 1. |
 | "Database locked" | Close other executors. Only one can run at a time. |
 | "ModuleNotFoundError" | Run `pip install -r requirements-dev.txt` again. |
-| Tests take too long | Run a single file: `pytest tests/test_main.py -v` |
+| Tests take too long | Run a single file: `pytest tests/test_api.py -v` |
 
 ---
 

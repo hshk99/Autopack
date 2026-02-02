@@ -1,7 +1,6 @@
 """Tests for model discovery and validation system."""
 
 import pytest
-from datetime import datetime
 
 from src.autopack.research.model_validator import (
     BenchmarkScore,

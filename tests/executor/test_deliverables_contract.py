@@ -7,7 +7,6 @@ Verifies that deliverables contracts are correctly built from phase scope.
 
 from unittest.mock import Mock, patch
 
-
 from autopack.executor.deliverables_contract import DeliverablesContractBuilder
 
 
@@ -365,5 +364,5 @@ class TestDeliverablesContractBuilder:
         # Only first 3 should be shown
         lines = result.split("\n")
         # Count "DO NOT use:" occurrences
-        do_not_use_count = sum(1 for line in lines if "DO NOT use:" in line)
+        sum(1 for line in lines if "DO NOT use:" in line)
         # Should be limited to reasonable number

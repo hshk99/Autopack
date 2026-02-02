@@ -10,17 +10,13 @@ This module exercises:
 5. Error scenarios and decision routing
 """
 
-import json
 import time
-from datetime import datetime
-from typing import Dict, List, Optional
-from unittest.mock import MagicMock, patch
+from typing import Dict
+from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.research.models.bootstrap_session import BootstrapPhase
 from autopack.research.orchestrator import ResearchOrchestrator
-
 
 # =============================================================================
 # Enums and Constants
@@ -201,7 +197,7 @@ class TestResearchOrchestrationE2E:
     def test_research_pipeline_multi_phase_execution(self, research_execution_context):
         """Test research pipeline executes all required phases."""
         # Setup
-        orchestrator = ResearchOrchestrator()
+        ResearchOrchestrator()
         research_phases = [
             "market_analysis",
             "competitive_analysis",
@@ -295,11 +291,7 @@ class TestBuildDecisionLogicE2E:
 
         # Verify
         assert decision == BuildDecision.BUILD_WITH_CAUTION
-        assert (
-            0.4
-            <= risky_research_output["confidence_scores"]["overall"]
-            < 0.7
-        )
+        assert 0.4 <= risky_research_output["confidence_scores"]["overall"] < 0.7
 
     def test_non_viable_project_decision_is_do_not_build(self, non_viable_research_output):
         """Test that non-viable projects get DO_NOT_BUILD decision."""
@@ -371,8 +363,6 @@ class TestDecisionBasedArtifactGenerationE2E:
     def test_deployment_guide_generated_for_build_decision(self, viable_research_output):
         """Test that deployment guides are generated for BUILD decisions."""
         # Setup
-        decision = "BUILD"
-        research_output = viable_research_output
 
         # Mock deployment guide generation (aspirational)
         deployment_artifacts = {
@@ -533,14 +523,9 @@ class TestResearchToDeploymentCompleteE2E:
         Flow: Research → Decision (BUILD_WITH_CAUTION) → Conditional Artifacts
         """
         # Phase 1: Research
-        assert (
-            0.4
-            <= risky_research_output["confidence_scores"]["overall"]
-            < 0.7
-        )
+        assert 0.4 <= risky_research_output["confidence_scores"]["overall"] < 0.7
 
         # Phase 2: Build decision
-        decision = BuildDecision.BUILD_WITH_CAUTION
 
         # Phase 3: Artifact generation (with caution)
         expected_artifacts = [

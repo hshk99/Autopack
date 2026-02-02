@@ -129,7 +129,7 @@ def validate_gates() -> Dict[str, object]:
         }
     """
     validation = validate_feature_state()
-    status_code = 200 if validation["valid"] else 207  # 207 Multi-Status for warnings
+    200 if validation["valid"] else 207  # 207 Multi-Status for warnings
     return validation
 
 

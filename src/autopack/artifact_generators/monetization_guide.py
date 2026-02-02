@@ -7,7 +7,7 @@ payment provider integration, pricing strategies, and compliance checklists.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +128,7 @@ class MonetizationGuide:
             revenue_models = [m for m in revenue_models if m in self.REVENUE_MODELS]
             if not revenue_models:
                 revenue_models = list(self.REVENUE_MODELS.keys())
-                logger.warning(
-                    "[MonetizationGuide] No valid revenue models specified, using all"
-                )
+                logger.warning("[MonetizationGuide] No valid revenue models specified, using all")
 
         if payment_providers is None:
             payment_providers = ["stripe"]
@@ -191,9 +189,7 @@ This monetization guide provides a comprehensive strategy for {product_name} to 
 
 """
 
-    def _generate_executive_summary(
-        self, revenue_models: List[str], pricing_strategy: str
-    ) -> str:
+    def _generate_executive_summary(self, revenue_models: List[str], pricing_strategy: str) -> str:
         """Generate executive summary.
 
         Args:
@@ -203,9 +199,7 @@ This monetization guide provides a comprehensive strategy for {product_name} to 
         Returns:
             Markdown executive summary
         """
-        models_text = ", ".join(
-            self.REVENUE_MODELS[m]["name"] for m in revenue_models
-        )
+        models_text = ", ".join(self.REVENUE_MODELS[m]["name"] for m in revenue_models)
 
         return f"""## Executive Summary
 
@@ -446,7 +440,7 @@ Enterprise License (unlimited): $999
         Returns:
             Markdown roadmap
         """
-        return f"""## Implementation Roadmap
+        return """## Implementation Roadmap
 
 ### Phase 1: Foundation (Weeks 1-4)
 - [ ] Set up payment processor account (Stripe recommended)

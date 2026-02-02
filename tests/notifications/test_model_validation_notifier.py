@@ -1,7 +1,5 @@
 """Tests for ModelValidationNotifier (IMP-NOTIFY-001)."""
 
-import os
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -256,7 +254,9 @@ class TestModelValidationNotifier:
         mock_response.json.return_value = {"ok": True, "result": {"message_id": 1}}
         mock_post.return_value = mock_response
 
-        result = notifier.send_model_validation_report(sample_model, "req-001", approval_timeout_hours=48)
+        result = notifier.send_model_validation_report(
+            sample_model, "req-001", approval_timeout_hours=48
+        )
 
         assert result["success"]
         call_args = mock_post.call_args

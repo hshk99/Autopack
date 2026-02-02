@@ -1,12 +1,11 @@
 """Tests for quality monitoring and auto-switching."""
 
 import pytest
-from datetime import datetime
 
 from autopack.generative.quality_monitor import (
-    QualityMonitor,
-    QualityMetrics,
     ModelQualitySnapshot,
+    QualityMetrics,
+    QualityMonitor,
 )
 
 

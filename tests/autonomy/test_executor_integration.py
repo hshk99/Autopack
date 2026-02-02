@@ -555,7 +555,7 @@ class TestExecutorContextBudgetEnforcement:
             ctx.get_budget_status()
 
         # Count warnings for 75%
-        warnings_75_1 = caplog.text.count("75%")
+        caplog.text.count("75%")
 
         # Clear the log
         caplog.clear()

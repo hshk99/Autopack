@@ -10,8 +10,6 @@ Tests cover:
 
 import asyncio
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List
 
 import pytest
 
@@ -260,9 +258,7 @@ class TestMultiProjectOrchestrator:
 
         projects = [ProjectObjective(project_id=f"proj{i}", objective="Test") for i in range(3)]
 
-        results = await orchestrator.execute_projects(
-            projects=projects, executor_func=mock_executor
-        )
+        await orchestrator.execute_projects(projects=projects, executor_func=mock_executor)
 
         # Check progress
         progress = orchestrator.get_progress()

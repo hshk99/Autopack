@@ -614,7 +614,7 @@ class TestAtomicWriteJson:
         data = {"atomic": "write"}
 
         # Count temp files before
-        temp_files_before = list(temp_dir.glob(".atomic.json.*.tmp"))
+        list(temp_dir.glob(".atomic.json.*.tmp"))
 
         atomic_write_json(target, data)
 

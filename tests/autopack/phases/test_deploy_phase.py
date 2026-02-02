@@ -3,16 +3,17 @@
 Comprehensive tests for DeployPhase, DeployConfig, DeployInput, and DeployPhaseExecutor.
 """
 
-import pytest
-from datetime import datetime
 from pathlib import Path
+
+import pytest
+
 from autopack.phases.deploy_phase import (
-    DeployStatus,
     DeployConfig,
     DeployInput,
     DeployOutput,
     DeployPhase,
     DeployPhaseExecutor,
+    DeployStatus,
     create_deploy_phase,
 )
 
@@ -294,7 +295,7 @@ class TestDeployPhaseExecutor:
             input_data=input_data,
         )
 
-        result = executor.execute(phase)
+        executor.execute(phase)
 
         history_file = tmp_path / "BUILD_HISTORY.md"
         assert history_file.exists()

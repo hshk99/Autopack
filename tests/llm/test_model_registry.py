@@ -190,7 +190,9 @@ class TestModelInfo:
             provider="test",
             display_name="Test Model",
             tier=ModelTier.STANDARD,
-            capabilities=ModelCapabilities(capabilities=("coding", "reasoning"), benchmark_scores={}),
+            capabilities=ModelCapabilities(
+                capabilities=("coding", "reasoning"), benchmark_scores={}
+            ),
             cost=ModelCost(0.001, 0.002),
             limits=ModelLimits(100000, 4096),
         )
@@ -273,7 +275,9 @@ class TestModelRegistry:
             provider="test",
             display_name="Model 1",
             tier=ModelTier.STANDARD,
-            capabilities=ModelCapabilities(capabilities=("coding", "reasoning"), benchmark_scores={}),
+            capabilities=ModelCapabilities(
+                capabilities=("coding", "reasoning"), benchmark_scores={}
+            ),
             cost=ModelCost(0.001, 0.002),
             limits=ModelLimits(100000, 4096),
         )

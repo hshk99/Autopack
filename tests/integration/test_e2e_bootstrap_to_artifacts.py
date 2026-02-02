@@ -10,25 +10,16 @@ This module exercises:
 5. Artifact persistence and retrieval
 """
 
-import json
 import time
-from datetime import datetime
-from typing import Dict, List
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autopack.cli.commands.bootstrap import (
-    READY_FOR_BUILD_MARKER,
-    BootstrapOptions,
-    BootstrapRunner,
-)
 from autopack.intention_anchor.v2 import IntentionAnchorV2
 from autopack.research.anchor_mapper import ResearchToAnchorMapper
 from autopack.research.artifact_generators import PostBuildArtifactGenerator
 from autopack.research.idea_parser import IdeaParser, ProjectType, RiskProfile
 from autopack.research.orchestrator import ResearchOrchestrator
-
 
 # =============================================================================
 # Test Fixtures
@@ -270,7 +261,7 @@ class TestBootstrapToArtifactsE2E:
         """
         # Setup
         parser = IdeaParser()
-        parsed_idea = parser.parse_single(ecommerce_project_idea)
+        parser.parse_single(ecommerce_project_idea)
 
         # Mock anchor
         mock_anchor = MagicMock(spec=IntentionAnchorV2)
@@ -309,9 +300,7 @@ class TestBootstrapToArtifactsE2E:
         # Check that the instance can be used
         assert isinstance(artifact_gen, PostBuildArtifactGenerator)
 
-    def test_complete_workflow_timing_tracking(
-        self, ecommerce_project_idea, performance_baseline
-    ):
+    def test_complete_workflow_timing_tracking(self, ecommerce_project_idea, performance_baseline):
         """Test that workflow execution can be timed for performance baseline."""
         # Setup
         performance_baseline["start_time"] = time.time()
@@ -351,7 +340,9 @@ class TestBootstrapToArtifactsE2E:
             parsed = parser.parse_single(invalid_idea)
             # Parser should handle gracefully without crashing
             # Empty/whitespace ideas should return None or very low confidence
-            assert parsed is None or (hasattr(parsed, 'confidence_score') and parsed.confidence_score < 0.5)
+            assert parsed is None or (
+                hasattr(parsed, "confidence_score") and parsed.confidence_score < 0.5
+            )
 
     def test_parsed_idea_contains_all_required_fields(self, ecommerce_project_idea):
         """Test that parsed ideas contain all required fields for downstream processing."""
@@ -387,7 +378,7 @@ class TestArtifactGenerationE2E:
         """Test that code artifacts can be generated from project idea."""
         # Setup
         parser = IdeaParser()
-        parsed_idea = parser.parse_single(ecommerce_project_idea)
+        parser.parse_single(ecommerce_project_idea)
 
         # Mock code generation
         with patch("autopack.research.artifact_generators.CodeGenerator") as mock_gen:
@@ -415,7 +406,7 @@ class TestArtifactGenerationE2E:
         """Test that deployment guides are generated correctly."""
         # Setup
         parser = IdeaParser()
-        parsed_idea = parser.parse_single(ecommerce_project_idea)
+        parser.parse_single(ecommerce_project_idea)
 
         # Mock deployment guide generation (aspirational)
         mock_artifacts = {
@@ -434,7 +425,7 @@ class TestArtifactGenerationE2E:
         """Test that CI/CD pipeline configurations are generated."""
         # Setup
         parser = IdeaParser()
-        parsed_idea = parser.parse_single(ecommerce_project_idea)
+        parser.parse_single(ecommerce_project_idea)
 
         # Mock CI/CD generation
         with patch("autopack.research.artifact_generators.CICDGenerator") as mock_gen:

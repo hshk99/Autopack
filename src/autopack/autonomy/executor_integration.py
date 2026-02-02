@@ -943,11 +943,11 @@ class ExecutorContext:
         self._gap_pause_count += 1
 
         pause_info = {
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'gaps_remaining': gaps_remaining,
-            'gaps_addressed': gaps_addressed,
-            'reason': reason,
-            'pause_number': self._gap_pause_count,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "gaps_remaining": gaps_remaining,
+            "gaps_addressed": gaps_addressed,
+            "reason": reason,
+            "pause_number": self._gap_pause_count,
         }
 
         self._last_gap_pause_details = pause_info
@@ -969,13 +969,13 @@ class ExecutorContext:
             Dictionary with gap detection and pause metrics
         """
         return {
-            'gap_detection_count': self._gap_detection_count,
-            'gap_pause_count': self._gap_pause_count,
-            'total_gaps_detected': self._total_gaps_detected,
-            'total_gaps_addressed': self._total_gaps_addressed,
-            'gaps_remaining': self._total_gaps_detected - self._total_gaps_addressed,
-            'last_gap_pause': self._last_gap_pause_details,
-            'gap_pause_history': self._gap_pause_history[-5:] if self._gap_pause_history else [],
+            "gap_detection_count": self._gap_detection_count,
+            "gap_pause_count": self._gap_pause_count,
+            "total_gaps_detected": self._total_gaps_detected,
+            "total_gaps_addressed": self._total_gaps_addressed,
+            "gaps_remaining": self._total_gaps_detected - self._total_gaps_addressed,
+            "last_gap_pause": self._last_gap_pause_details,
+            "gap_pause_history": self._gap_pause_history[-5:] if self._gap_pause_history else [],
         }
 
     def has_detected_gaps(self) -> bool:

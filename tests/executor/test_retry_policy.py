@@ -257,7 +257,7 @@ class TestNextAttemptState:
         """Verify escalation_level is preserved (for future use)."""
         for level in [0, 1, 2]:
             ctx = AttemptContext(attempt_index=0, max_attempts=5, escalation_level=level)
-            decision = next_attempt_state(ctx, "FAILED")
+            next_attempt_state(ctx, "FAILED")
 
             # Escalation level doesn't affect current decision logic
             # but is preserved in context for future use

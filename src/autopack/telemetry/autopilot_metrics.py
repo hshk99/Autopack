@@ -698,7 +698,7 @@ class AutopilotHealthCollector:
 
         try:
             with open(file, "r") as f:
-                data = json.load(f)
+                json.load(f)
 
             # Note: This is a simplified load for analysis
             # In production, would fully reconstruct metrics objects

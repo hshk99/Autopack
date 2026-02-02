@@ -675,7 +675,7 @@ class TestMCPScannerWithCache:
         )
 
         # Modify registry to verify we're getting cached result
-        original_count = len(scanner.registry)
+        len(scanner.registry)
         scanner.registry.pop()
 
         result2 = await scanner.scan_mcp_registry(
@@ -753,12 +753,12 @@ class TestMCPScannerWithCache:
         """Test that different requirements produce separate cache entries."""
         scanner = MCPRegistryScanner()
 
-        result1 = await scanner.scan_mcp_registry(
+        await scanner.scan_mcp_registry(
             "app",
             {"needs_search": True},
         )
 
-        result2 = await scanner.scan_mcp_registry(
+        await scanner.scan_mcp_registry(
             "app",
             {"needs_database": True},
         )

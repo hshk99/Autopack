@@ -2,7 +2,7 @@
 
 Autopack is an **autonomous project factory** — a system that transforms rough project ideas into production-ready, monetizable applications with minimal human intervention.
 
-**Core capability**: Idea → Research → Planning → Build → Deploy → Monetize
+**Core capability**: Idea → Research → Planning → Build → Document → Deploy → Monetize
 
 ## Vision: Fully Autonomous Project Creation
 
@@ -48,6 +48,7 @@ Autopack is designed so that high-signal information **survives** and becomes re
 - **Research phase** — Market analysis, competitive intelligence, technical feasibility gathered
 - **Anchor generation** — Research findings map to 8 pivot intention types (NorthStar, Safety, Evidence, Scope, Budget, Memory, Governance, Parallelism)
 - **Planning / execution artifacts** (run/tier/phase outcomes, summaries, telemetry) are produced during runs
+- **Documentation phase** — Generates comprehensive API docs, architecture guides, user manuals, and examples
 - **Tidy consolidates** durable learnings into the SOT ledgers above (append-only)
 - **Optional runtime retrieval**: the executor can index/retrieve SOT chunks via `MemoryService` (vector memory: Qdrant/FAISS) when enabled:
   - `AUTOPACK_ENABLE_SOT_MEMORY_INDEXING=true`

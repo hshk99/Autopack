@@ -96,6 +96,7 @@ class TestTimeoutCleanup:
             if record.levelname == "WARNING"
         )
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="sleep command not available on Windows")
     @patch("autopack.autonomy.action_executor.psutil")
     def test_psutil_used_for_process_cleanup(self, mock_psutil, executor):
         """Test that psutil is used when available for process tree cleanup."""
@@ -110,6 +111,7 @@ class TestTimeoutCleanup:
         # psutil.Process should have been called during cleanup
         assert mock_psutil.Process.called
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="sleep command not available on Windows")
     def test_multiple_timeouts_dont_exhaust_resources(self, executor):
         """Test that multiple timeouts don't accumulate zombie processes."""
         for _ in range(3):
@@ -120,6 +122,7 @@ class TestTimeoutCleanup:
         # If resources weren't cleaned up properly, this would eventually fail
         # Just completing without error indicates cleanup is working
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="bash command not available on Windows")
     def test_normal_exit_codes_preserved(self, executor):
         """Test that non-zero exit codes are properly preserved."""
         result = executor.execute_command("bash -c 'exit 42'")

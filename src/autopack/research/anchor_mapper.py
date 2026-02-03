@@ -40,6 +40,7 @@ from ..intention_anchor.v2 import (
 )
 from .idea_parser import ParsedIdea, ProjectType, RiskProfile
 from .models.bootstrap_session import BootstrapSession
+from .security.prompt_sanitizer import PromptSanitizer, RiskLevel
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +391,8 @@ class ResearchToAnchorMapper:
                 "[SECURITY] Attempted to enable auto_populate_safety_risk_never_allow. "
                 "This is not allowed. The flag will remain False."
             )
+        # Initialize prompt sanitizer for injection prevention (BUILD-SECURITY)
+        self.prompt_sanitizer = PromptSanitizer()
 
     def map_to_anchor(
         self,
@@ -515,7 +518,12 @@ class ResearchToAnchorMapper:
                 confidence_factors.append(0.7)
 
             if idea.description:
-                desired_outcomes.append(f"Implement: {idea.description[:100]}")
+                # Sanitize user-provided description (BUILD-SECURITY: prompt injection prevention)
+                sanitized_desc = self.prompt_sanitizer.sanitize_for_prompt(
+                    idea.description[:100],
+                    RiskLevel.HIGH
+                )
+                desired_outcomes.append(f"Implement: {sanitized_desc}")
                 sources.append("parsed_idea.description")
                 confidence_factors.append(0.6)
 

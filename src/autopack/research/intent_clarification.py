@@ -14,6 +14,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
+from .security.prompt_sanitizer import PromptSanitizer, RiskLevel
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,7 +55,8 @@ class IntentClarificationAgent:
 
     def __init__(self):
         """Initialize intent clarification agent."""
-        pass
+        # Initialize prompt sanitizer for injection prevention (BUILD-SECURITY)
+        self.prompt_sanitizer = PromptSanitizer()
 
     async def clarify_intent(self, query: Any) -> ClarifiedIntent:
         """Clarify research intent from a query.
@@ -193,7 +196,12 @@ class IntentClarificationAgent:
             elif "implementation" in aspect.lower():
                 questions.append("How is this typically implemented?")
             else:
-                questions.append(f"What are the key aspects of {aspect}?")
+                # Sanitize user-provided aspect (BUILD-SECURITY: prompt injection prevention)
+                sanitized_aspect = self.prompt_sanitizer.sanitize_for_prompt(
+                    aspect,
+                    RiskLevel.MEDIUM
+                )
+                questions.append(f"What are the key aspects of {sanitized_aspect}?")
 
         # Ensure at least 3 questions
         while len(questions) < 3:

@@ -20,6 +20,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from .security.prompt_sanitizer import PromptSanitizer, RiskLevel
 from ..intention_anchor.v2 import (
     BudgetCostIntention,
     EvidenceVerificationIntention,
@@ -277,6 +278,8 @@ class QAController:
         self.project_type = project_type
         self.autonomous = autonomous
         self._file_answers: dict[str, str] = {}
+        # Initialize prompt sanitizer for injection prevention (BUILD-SECURITY)
+        self.prompt_sanitizer = PromptSanitizer()
 
         if answer_source == AnswerSource.FILE and answers_file:
             self._load_file_answers()
@@ -697,8 +700,12 @@ class QAController:
                     # Single value - try to infer the key
                     merged_data["value"] = data
             except json.JSONDecodeError:
-                # Plain text answer - store as value
-                merged_data["value"] = answer.answer_text
+                # Plain text answer - sanitize and store as value (BUILD-SECURITY: prompt injection prevention)
+                sanitized_answer = self.prompt_sanitizer.sanitize_for_prompt(
+                    answer.answer_text,
+                    RiskLevel.HIGH
+                )
+                merged_data["value"] = sanitized_answer
 
         # Apply to the appropriate pivot
         if pivot_field == "north_star":

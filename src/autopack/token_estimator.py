@@ -984,6 +984,60 @@ class TokenEstimator:
 
         return budget
 
+    def enforce_budget(
+        self,
+        estimate: TokenEstimate,
+        budget: int,
+        complexity: str = "medium",
+    ) -> Dict[str, Any]:
+        """Enforce token budget constraints before phase execution.
+
+        Per IMP-GENAI-002: Validates that the budget is sufficient for the
+        estimated tokens. If budget is insufficient, returns recommendations
+        for escalation with circuit breaker pattern to prevent infinite overflows.
+
+        Args:
+            estimate: Token estimate from estimate()
+            budget: Allocated budget (max_tokens)
+            complexity: Phase complexity
+
+        Returns:
+            Dict with enforcement results:
+            - status: str (ok, warning, exceeded, critical)
+            - should_escalate: bool
+            - recommended_budget: int (if escalation needed)
+            - utilization_pct: float
+            - message: str (explanation)
+        """
+        from .planning.token_budget_enforcer import TokenBudgetEnforcer
+
+        enforcer = TokenBudgetEnforcer()
+        validation = enforcer.validate_pre_call(
+            estimated_tokens=estimate.estimated_tokens,
+            budget_tokens=budget,
+            complexity=complexity,
+        )
+
+        result = {
+            "status": validation.status.value,
+            "should_escalate": validation.should_escalate,
+            "utilization_pct": validation.utilization_pct,
+            "message": validation.recommendation,
+        }
+
+        if validation.should_escalate:
+            result["recommended_budget"] = enforcer.get_escalated_budget(
+                current_budget=budget,
+                complexity=complexity,
+            )
+
+        logger.info(
+            f"[TokenEstimator] Budget enforcement: {result['status']} "
+            f"(utilization={result['utilization_pct'] * 100:.1f}%)"
+        )
+
+        return result
+
     def _estimate_deliverable(self, deliverable: str, category: str) -> int:
         """
         Estimate tokens for single deliverable.

@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Mapping
 
 from autopack.research.gatherers.web_scraper import WebScraper
+from autopack.research.security.prompt_sanitizer import PromptSanitizer, RiskLevel
 
 
 @dataclass(frozen=True)
@@ -27,6 +28,8 @@ class Finding:
 class CompilationAgent:
     def __init__(self):
         self.scraper = WebScraper()
+        # Initialize prompt sanitizer for injection prevention (BUILD-SECURITY)
+        self.prompt_sanitizer = PromptSanitizer()
 
     # === API used by existing tests ===
     def compile_report(self, findings: List[Mapping[str, Any]]) -> str:
@@ -49,6 +52,12 @@ class CompilationAgent:
         texts: List[Dict[str, Any]] = []
         for u in urls:
             text = self.scraper.fetch_content(u)
+            # Sanitize web-scraped content (BUILD-SECURITY: prevent prompt injection via scraped data)
+            if text:
+                text = self.prompt_sanitizer.sanitize_for_prompt(
+                    text,
+                    RiskLevel.MEDIUM
+                )
             texts.append({"type": "web", "content": text, "source_url": u})
         return {"findings": texts}
 

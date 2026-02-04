@@ -1972,7 +1972,7 @@ Configuration options (feature_flags.yaml):
                 self._record_session_metrics(SessionOutcome.BLOCKED_CIRCUIT_BREAKER)
                 return self.session
 
-            logger.info("[Autopilot] Health gates passed. " "Executing bounded batch...")
+            logger.info("[Autopilot] Health gates passed. Executing bounded batch...")
             self._execute_bounded_batch(proposal)
 
             # Mark session as completed
@@ -2112,7 +2112,7 @@ Configuration options (feature_flags.yaml):
         """
         self._resume_callbacks.append(callback)
         logger.debug(
-            f"[IMP-REL-001] Registered resume callback " f"(total: {len(self._resume_callbacks)})"
+            f"[IMP-REL-001] Registered resume callback (total: {len(self._resume_callbacks)})"
         )
 
     def unregister_resume_callback(self, callback: Callable[[], None]) -> bool:
@@ -2292,14 +2292,13 @@ Configuration options (feature_flags.yaml):
             # Trigger if we have critical gaps or many total gaps
             if critical_gaps > 0:
                 logger.info(
-                    f"[IMP-AUTO-001] Follow-up research recommended: "
-                    f"{critical_gaps} critical gaps"
+                    f"[IMP-AUTO-001] Follow-up research recommended: {critical_gaps} critical gaps"
                 )
                 return True
 
             if total_gaps >= 5:
                 logger.info(
-                    f"[IMP-AUTO-001] Follow-up research recommended: " f"{total_gaps} total gaps"
+                    f"[IMP-AUTO-001] Follow-up research recommended: {total_gaps} total gaps"
                 )
                 return True
 
@@ -2555,7 +2554,7 @@ Configuration options (feature_flags.yaml):
             # Pause task generation due to critical gaps
             self._pause_task_generation(f"Research cycle BLOCK: {outcome.reason}")
             logger.warning(
-                f"[IMP-AUT-001] Task generation paused due to research BLOCK: " f"{outcome.reason}"
+                f"[IMP-AUT-001] Task generation paused due to research BLOCK: {outcome.reason}"
             )
 
         elif outcome.decision == ResearchCycleDecision.PAUSE_FOR_RESEARCH:
@@ -2626,7 +2625,7 @@ Configuration options (feature_flags.yaml):
             return None
 
         logger.info(
-            f"[IMP-RESEARCH-002] Starting gap research retry loop " f"(max_retries={max_retries})"
+            f"[IMP-RESEARCH-002] Starting gap research retry loop (max_retries={max_retries})"
         )
 
         last_outcome = None
@@ -3215,7 +3214,7 @@ Configuration options (feature_flags.yaml):
         for decision in approval_svc.queue.decisions:
             if decision.action_id == approval_id:
                 if decision.decision != "approve":
-                    return f"Approval ID has decision '{decision.decision}', " "not 'approve'"
+                    return f"Approval ID has decision '{decision.decision}', not 'approve'"
                 break
 
         return None

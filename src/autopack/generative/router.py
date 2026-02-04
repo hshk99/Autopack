@@ -363,8 +363,7 @@ class GenerativeModelRouter:
             Exception: If generation fails in the adapter
         """
         logger.debug(
-            f"Executing {capability_type} with {model.model_id} on {provider.name} "
-            f"(adapter-backed)"
+            f"Executing {capability_type} with {model.model_id} on {provider.name} (adapter-backed)"
         )
 
         # Get the adapter for this provider

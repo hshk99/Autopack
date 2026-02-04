@@ -143,10 +143,10 @@ All times are in UTC. Follow this guide to minimize impact and customer disrupti
 
 """
         for key, level in self.SEVERITY_LEVELS.items():
-            content += f"""### {level['name']}
-- **Impact**: {level['impact']}
-- **Response Time**: Within {level['response_time']}
-- **Escalation**: {level['escalation_time']}
+            content += f"""### {level["name"]}
+- **Impact**: {level["impact"]}
+- **Response Time**: Within {level["response_time"]}
+- **Escalation**: {level["escalation_time"]}
 
 """
 
@@ -856,7 +856,7 @@ kubectl chaos daemon kill-pod \\
 ### Availability
 - **Target Uptime**: {uptime_target}%
 - **Error Budget**: {error_budget}% per month
-- **Acceptable Downtime**: ~{downtime_per_month:.0f} minutes/month (~{downtime_per_month/60:.1f} hours)
+- **Acceptable Downtime**: ~{downtime_per_month:.0f} minutes/month (~{downtime_per_month / 60:.1f} hours)
 
 **Measured by**: Percentage of successful API responses from monitoring perspective
 (external health checks, not internal)

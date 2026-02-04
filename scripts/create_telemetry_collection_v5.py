@@ -491,14 +491,14 @@ def create_run():
             )
             session.add(phase)
             print(
-                f"  [{phase_def['phase_index']+1:2d}] {phase_def['phase_id']:40s} ({phase_def['complexity']:6s} {phase_def['task_category']})"
+                f"  [{phase_def['phase_index'] + 1:2d}] {phase_def['phase_id']:40s} ({phase_def['complexity']:6s} {phase_def['task_category']})"
             )
 
         session.commit()
 
-        print(f"\n{'='*75}")
+        print(f"\n{'=' * 75}")
         print("TELEMETRY COLLECTION RUN V5 CREATED")
-        print(f"{'='*75}")
+        print(f"{'=' * 75}")
         print(f"Run ID: {RUN_ID}")
         print(f"Total phases: {len(PHASES)}")
         print("\nPhase breakdown:")
@@ -519,7 +519,7 @@ def create_run():
         print("\nTo analyze telemetry:")
         print(f'  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="{db_url}" \\')
         print("      python scripts/analyze_token_telemetry_v3.py --success-only")
-        print(f"{'='*75}\n")
+        print(f"{'=' * 75}\n")
 
     except Exception as e:
         session.rollback()

@@ -399,7 +399,7 @@ class PostBuildArtifactGenerator:
         """Generate deployment runbook."""
         content = f"""# Deployment Runbook: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 **Category**: Deployment Operations
 
 ---
@@ -485,7 +485,7 @@ If issues are detected:
         """Generate troubleshooting runbook."""
         content = f"""# Troubleshooting Runbook: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 **Category**: Troubleshooting
 
 ---
@@ -505,7 +505,7 @@ If issues are detected:
 docker logs <container_id>
 
 # Check application logs
-kubectl logs deployment/{build_characteristics.project_name.lower().replace(' ', '-')}
+kubectl logs deployment/{build_characteristics.project_name.lower().replace(" ", "-")}
 
 # Check environment variables
 kubectl describe pod <pod_name>
@@ -602,7 +602,7 @@ curl -w "@curl-format.txt" -o /dev/null -s http://localhost:{build_characteristi
         """Generate scaling runbook."""
         content = f"""# Scaling Runbook: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 **Category**: Scaling Operations
 
 ---
@@ -613,10 +613,10 @@ curl -w "@curl-format.txt" -o /dev/null -s http://localhost:{build_characteristi
 
 ```bash
 # Scale up replicas
-kubectl scale deployment/{build_characteristics.project_name.lower().replace(' ', '-')} --replicas=5
+kubectl scale deployment/{build_characteristics.project_name.lower().replace(" ", "-")} --replicas=5
 
 # Verify scaling
-kubectl get pods -l app={build_characteristics.project_name.lower().replace(' ', '-')}
+kubectl get pods -l app={build_characteristics.project_name.lower().replace(" ", "-")}
 ```
 
 ### Auto-Scaling Configuration
@@ -625,12 +625,12 @@ kubectl get pods -l app={build_characteristics.project_name.lower().replace(' ',
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {build_characteristics.project_name.lower().replace(' ', '-')}-hpa
+  name: {build_characteristics.project_name.lower().replace(" ", "-")}-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {build_characteristics.project_name.lower().replace(' ', '-')}
+    name: {build_characteristics.project_name.lower().replace(" ", "-")}
   minReplicas: 2
   maxReplicas: 10
   metrics:
@@ -694,7 +694,7 @@ resources:
         """Generate incident response runbook."""
         content = f"""# Incident Response Runbook: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 **Category**: Incident Response
 
 ---
@@ -724,22 +724,22 @@ resources:
 curl -s http://localhost:{build_characteristics.port}/health | jq
 
 # Check recent deployments
-kubectl rollout history deployment/{build_characteristics.project_name.lower().replace(' ', '-')}
+kubectl rollout history deployment/{build_characteristics.project_name.lower().replace(" ", "-")}
 
 # Check error logs
-kubectl logs -l app={build_characteristics.project_name.lower().replace(' ', '-')} --tail=100 | grep -i error
+kubectl logs -l app={build_characteristics.project_name.lower().replace(" ", "-")} --tail=100 | grep -i error
 ```
 
 ### 3. Mitigate (As soon as possible)
 
 **Option A: Rollback**
 ```bash
-kubectl rollout undo deployment/{build_characteristics.project_name.lower().replace(' ', '-')}
+kubectl rollout undo deployment/{build_characteristics.project_name.lower().replace(" ", "-")}
 ```
 
 **Option B: Scale Up**
 ```bash
-kubectl scale deployment/{build_characteristics.project_name.lower().replace(' ', '-')} --replicas=10
+kubectl scale deployment/{build_characteristics.project_name.lower().replace(" ", "-")} --replicas=10
 ```
 
 **Option C: Feature Flag Disable**
@@ -808,7 +808,7 @@ kubectl scale deployment/{build_characteristics.project_name.lower().replace(' '
 
         content = f"""# Monitoring Configuration: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ---
 
@@ -818,7 +818,7 @@ kubectl scale deployment/{build_characteristics.project_name.lower().replace(' '
 
 ```yaml
 scrape_configs:
-  - job_name: '{build_characteristics.project_name.lower().replace(' ', '-')}'
+  - job_name: '{build_characteristics.project_name.lower().replace(" ", "-")}'
     static_configs:
       - targets: ['localhost:{build_characteristics.port}']
     metrics_path: '/metrics'
@@ -998,7 +998,7 @@ app.get('/metrics', async (req, res) => {{
         app_name = build_characteristics.project_name.lower().replace(" ", "-")
         content = f"""# Alerting Rules: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ---
 
@@ -1176,7 +1176,7 @@ receivers:
 
         content = f"""# Docker Configuration: {build_characteristics.project_name}
 
-**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 ---
 
@@ -1235,12 +1235,12 @@ logs
 
 ```bash
 # Build image
-docker build -t {build_characteristics.project_name.lower().replace(' ', '-')}:latest .
+docker build -t {build_characteristics.project_name.lower().replace(" ", "-")}:latest .
 
 # Run container
 docker run -d -p {build_characteristics.port}:{build_characteristics.port} \\
-  --name {build_characteristics.project_name.lower().replace(' ', '-')} \\
-  {build_characteristics.project_name.lower().replace(' ', '-')}:latest
+  --name {build_characteristics.project_name.lower().replace(" ", "-")} \\
+  {build_characteristics.project_name.lower().replace(" ", "-")}:latest
 
 # Using docker-compose
 docker-compose up -d

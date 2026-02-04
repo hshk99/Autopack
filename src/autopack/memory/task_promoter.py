@@ -158,7 +158,7 @@ class MemoryTaskPromoter:
         self._promoted_insights: Set[str] = set()
 
         logger.debug(
-            "[IMP-LOOP-032] MemoryTaskPromoter initialized " "(threshold=%d, project=%s)",
+            "[IMP-LOOP-032] MemoryTaskPromoter initialized (threshold=%d, project=%s)",
             self._threshold,
             self._project_id,
         )
@@ -302,7 +302,7 @@ class MemoryTaskPromoter:
             promotable = promotable[:limit]
 
             logger.info(
-                "[IMP-LOOP-032] Found %d promotable insights " "(scanned %d, threshold=%d)",
+                "[IMP-LOOP-032] Found %d promotable insights (scanned %d, threshold=%d)",
                 len(promotable),
                 len(raw_insights),
                 effective_threshold,
@@ -424,7 +424,7 @@ class MemoryTaskPromoter:
             persisted = self._task_generator.persist_tasks([task], run_id=run_id)
 
             logger.info(
-                "[IMP-LOOP-032] Successfully promoted insight %s to task %s " "(persisted=%d)",
+                "[IMP-LOOP-032] Successfully promoted insight %s to task %s (persisted=%d)",
                 insight.insight_id,
                 task.task_id,
                 persisted,

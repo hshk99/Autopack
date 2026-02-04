@@ -115,7 +115,7 @@ def create_diagnostics_parity_124_run():
                 complexity="MEDIUM",
                 builder_mode="BUILD",
                 scope={
-                    "chunk_number": config.get("chunk_number", f"diagnostics-parity-{idx+1}"),
+                    "chunk_number": config.get("chunk_number", f"diagnostics-parity-{idx + 1}"),
                     "deliverables": config.get("deliverables", {}),
                     "features": config.get("features", []),
                     "validation": config.get("validation", {}),

@@ -733,8 +733,7 @@ class BootstrapOutputValidator:
         # Validate numeric fields are non-negative if set
         if budget.token_cap_global is not None and budget.token_cap_global < 0:
             result.add_error(
-                f"budget_cost.token_cap_global must be non-negative, "
-                f"got {budget.token_cap_global}",
+                f"budget_cost.token_cap_global must be non-negative, got {budget.token_cap_global}",
                 "$.pivot_intentions.budget_cost.token_cap_global",
             )
         if budget.token_cap_per_call is not None and budget.token_cap_per_call < 0:
@@ -745,8 +744,7 @@ class BootstrapOutputValidator:
             )
         if budget.time_cap_seconds is not None and budget.time_cap_seconds < 0:
             result.add_error(
-                f"budget_cost.time_cap_seconds must be non-negative, "
-                f"got {budget.time_cap_seconds}",
+                f"budget_cost.time_cap_seconds must be non-negative, got {budget.time_cap_seconds}",
                 "$.pivot_intentions.budget_cost.time_cap_seconds",
             )
 

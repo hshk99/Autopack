@@ -433,8 +433,7 @@ class PriorityEngine:
                 roi_factor = 1.0 - (ratio * 0.5)  # 1.0 -> 0.5
 
             logger.debug(
-                "[IMP-TASK-002] ROI factor for %s: %.2f (payback=%d phases, "
-                "roi=%.2f, category=%s)",
+                "[IMP-TASK-002] ROI factor for %s: %.2f (payback=%d phases, roi=%.2f, category=%s)",
                 task_id,
                 roi_factor,
                 payback_phases,

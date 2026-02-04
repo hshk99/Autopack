@@ -29,30 +29,36 @@ def in_memory_db():
 
     # Create runs table
     with engine.connect() as conn:
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE runs (
                 id TEXT PRIMARY KEY,
                 state TEXT NOT NULL
             )
-        """))
+        """)
+        )
         conn.commit()
 
         # Create phases table
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE phases (
                 phase_id TEXT PRIMARY KEY,
                 state TEXT NOT NULL
             )
-        """))
+        """)
+        )
         conn.commit()
 
         # Create tiers table
-        conn.execute(text("""
+        conn.execute(
+            text("""
             CREATE TABLE tiers (
                 tier_id TEXT PRIMARY KEY,
                 state TEXT NOT NULL
             )
-        """))
+        """)
+        )
         conn.commit()
 
     yield db_url

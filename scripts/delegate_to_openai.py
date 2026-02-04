@@ -190,21 +190,21 @@ Be precise, specific, and provide code examples where applicable.""",
         result_file = self._save_delegation_result(result)
         print(f"[OpenAI Delegation] Result saved: {result_file}")
 
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("OPENAI DELEGATION COMPLETE")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"\nRequest File: {request_file}")
         print(f"Result File: {result_file}")
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print("ANALYSIS SUMMARY")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print(f"\nRoot Cause:\n{result.root_cause}\n")
         print(f"Confidence: {result.confidence}\n")
         if result.recommended_fixes:
             print(f"Recommended Fixes ({len(result.recommended_fixes)}):")
             for i, fix in enumerate(result.recommended_fixes, 1):
                 print(f"  {i}. {fix.get('description', 'N/A')}")
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
 
         return result
 
@@ -413,18 +413,18 @@ Generated: {result.timestamp}
 """
         for fix in result.recommended_fixes:
             doc += f"""
-### Fix {fix.get('priority', 'N/A')}
+### Fix {fix.get("priority", "N/A")}
 
-**Description**: {fix.get('description', '')}
+**Description**: {fix.get("description", "")}
 
-**File**: `{fix.get('file', '')}`
+**File**: `{fix.get("file", "")}`
 
 **Changes**:
 ```python
-{fix.get('changes', '')}
+{fix.get("changes", "")}
 ```
 
-**Rationale**: {fix.get('rationale', '')}
+**Rationale**: {fix.get("rationale", "")}
 
 ---
 """

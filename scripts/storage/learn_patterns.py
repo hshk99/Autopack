@@ -68,9 +68,9 @@ def analyze_patterns(args):
             print("  Need more approval history data (minimum 5 approvals per pattern)")
             return 1
 
-        print(f"\n{'='*100}")
+        print(f"\n{'=' * 100}")
         print(f"Found {len(patterns)} patterns:")
-        print(f"{'='*100}\n")
+        print(f"{'=' * 100}\n")
 
         for i, pattern in enumerate(patterns, 1):
             print(f"{i}. [{pattern.pattern_type}] {pattern.description}")
@@ -128,9 +128,9 @@ def list_rules(args):
                 print(f"  (status filter: {args.status})")
             return 1
 
-        print(f"\n{'='*100}")
+        print(f"\n{'=' * 100}")
         print(f"Learned Rules ({len(rules)} total):")
-        print(f"{'='*100}\n")
+        print(f"{'=' * 100}\n")
 
         for rule in rules:
             status_emoji = {
@@ -230,9 +230,9 @@ def get_recommendations(args):
 
         stats = engine.get_scan_statistics(lookback_days=args.lookback_days)
 
-        print(f"\n{'='*100}")
+        print(f"\n{'=' * 100}")
         print("Scan Statistics:")
-        print(f"{'='*100}")
+        print(f"{'=' * 100}")
         print(f"  Scans analyzed: {stats['scan_count']}")
         print(f"  Date range: {stats.get('date_range_days', 0)} days")
         print(f"  Total candidates: {stats.get('total_candidates', 0):,}")
@@ -243,9 +243,9 @@ def get_recommendations(args):
             print("  Need at least 2 scans to generate recommendations")
             return 1
 
-        print(f"\n{'='*100}")
+        print(f"\n{'=' * 100}")
         print(f"Recommendations ({len(recommendations)} total):")
-        print(f"{'='*100}\n")
+        print(f"{'=' * 100}\n")
 
         priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 

@@ -49,9 +49,9 @@ class DecisionEngine:
 
     def decide(self, gaps: List[ResearchGap], context: ProjectContext) -> DecisionReport:
         """Make implementation decisions for all gaps"""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"MAKING DECISIONS: {self.project_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         report = DecisionReport(project_id=self.project_id)
 
@@ -75,9 +75,9 @@ class DecisionEngine:
             decision = self._make_decision(gap, context)
             report.decisions.append(decision)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("DECISION MAKING COMPLETE")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         self._print_summary(report)
 
         return report
@@ -96,21 +96,21 @@ GAP DETAILS:
 - Desired State: {gap.desired_state}
 - Priority: {gap.priority.value}
 - Effort: {gap.effort.value}
-- Source Research: {', '.join(gap.source_research)}
+- Source Research: {", ".join(gap.source_research)}
 
 PROJECT CONTEXT:
 Vision: {context.vision_statement or "Not specified"}
-Target Users: {', '.join(context.target_users[:5]) if context.target_users else "Not specified"}
-Core Principles: {', '.join(context.core_principles[:5]) if context.core_principles else "Not specified"}
+Target Users: {", ".join(context.target_users[:5]) if context.target_users else "Not specified"}
+Core Principles: {", ".join(context.core_principles[:5]) if context.core_principles else "Not specified"}
 
 Market Position:
-- Key Competitors: {', '.join(context.key_competitors[:3]) if context.key_competitors else "Not specified"}
-- Competitive Advantages: {', '.join(context.competitive_advantages[:3]) if context.competitive_advantages else "Not specified"}
+- Key Competitors: {", ".join(context.key_competitors[:3]) if context.key_competitors else "Not specified"}
+- Competitive Advantages: {", ".join(context.competitive_advantages[:3]) if context.competitive_advantages else "Not specified"}
 
-Domain Focus: {', '.join(context.domain_focus[:3]) if context.domain_focus else "General purpose"}
+Domain Focus: {", ".join(context.domain_focus[:3]) if context.domain_focus else "General purpose"}
 
 Technical Constraints:
-- Tech Stack: {', '.join(context.tech_stack[:5]) if context.tech_stack else "Not specified"}
+- Tech Stack: {", ".join(context.tech_stack[:5]) if context.tech_stack else "Not specified"}
 - Architecture Constraints: {len(context.architecture_constraints)} documented decisions
 - Known Issues: {len(context.known_issues)} active issues
 
@@ -228,9 +228,9 @@ class DecisionRouter:
 
     def route(self, report: DecisionReport) -> Dict:
         """Route decisions to appropriate locations"""
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"ROUTING DECISIONS: {self.project_id}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         routing_summary = {"implement_now": 0, "implement_later": 0, "review": 0, "reject": 0}
 
@@ -258,9 +258,9 @@ class DecisionRouter:
             self._route_to_rejected(reject)
             routing_summary["reject"] = len(reject)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("ROUTING COMPLETE")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print("Summary:")
         print(f"  • Active: {routing_summary['implement_now']}")
         print(f"  • Future plan: {routing_summary['implement_later']}")

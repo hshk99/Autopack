@@ -20,11 +20,11 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import List
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from autopack.events import Event, EventFilter, EventPriority, EventType
+from autopack.events import Event, EventPriority, EventType
 from autopack.events.handlers import (
     AuditHandler,
     BaseEventHandler,
@@ -360,7 +360,6 @@ class TestLoggingHandler:
 
     def test_logging_handler_custom_logger(self):
         """Test LoggingHandler uses custom logger."""
-        custom_logger = logging.getLogger("custom.logger")
         handler = LoggingHandler(logger_name="custom.logger")
         assert handler._logger.name == "custom.logger"
 
@@ -658,7 +657,7 @@ class TestPersistenceHandler:
         """Test PersistenceHandler creates parent directories."""
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "nested" / "deep" / "events.jsonl"
-            handler = PersistenceHandler(output_path)
+            PersistenceHandler(output_path)
             assert output_path.parent.exists()
 
     def test_persistence_handler_preserves_event_data(self, approval_event):
@@ -925,9 +924,7 @@ class TestBaseEventHandler:
         handler = MockHandler()
         import asyncio
 
-        before = datetime.utcnow()
         asyncio.run(handler(phase_event))
-        after = datetime.utcnow()
 
         stats = handler.get_stats()
         assert stats["last_event_time"] is not None

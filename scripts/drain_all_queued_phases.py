@@ -61,9 +61,9 @@ def main():
         timeout_count = 0
 
         for i, phase in enumerate(phases, 1):
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
             print(f"[{i}/{len(phases)}] Draining: {phase.phase_id}")
-            print(f"{'='*80}")
+            print(f"{'=' * 80}")
 
             # Run drain_one_phase
             env = os.environ.copy()
@@ -108,16 +108,16 @@ def main():
 
     # Print summary
     elapsed = (datetime.now() - start_time).total_seconds()
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print("BATCH DRAIN SUMMARY")
-    print(f"{'='*80}")
+    print(f"{'=' * 80}")
     print(f"Run ID: {args.run_id}")
     print(f"Total phases: {len(phases)}")
     print(f"Successful: {success_count}")
     print(f"Failed: {failure_count}")
     print(f"Timed out: {timeout_count}")
-    print(f"Elapsed time: {elapsed:.1f}s ({elapsed/60:.1f}m)")
-    print(f"{'='*80}")
+    print(f"Elapsed time: {elapsed:.1f}s ({elapsed / 60:.1f}m)")
+    print(f"{'=' * 80}")
 
     return 0 if failure_count == 0 and timeout_count == 0 else 1
 

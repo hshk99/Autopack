@@ -57,8 +57,7 @@ class CacheMetrics:
         bytes_saved = original_size - compressed_size
         self.total_bytes_saved_by_compression += bytes_saved
         logger.debug(
-            f"Compression: {original_size} → {compressed_size} bytes "
-            f"(saved {bytes_saved} bytes)"
+            f"Compression: {original_size} → {compressed_size} bytes (saved {bytes_saved} bytes)"
         )
 
     def record_decompression(self) -> None:
@@ -327,8 +326,7 @@ class CacheEntry:
                 self.is_compressed = True
                 self.metrics.record_compression(original_size, compressed_size)
                 logger.debug(
-                    f"Stored session with compression: "
-                    f"{original_size} → {compressed_size} bytes"
+                    f"Stored session with compression: {original_size} → {compressed_size} bytes"
                 )
             else:
                 self._data = serialized
@@ -492,13 +490,13 @@ class CacheOptimizer:
             "suggested_config": suggested_config,
             "rationale": {
                 "max_size": (
-                    f"Current eviction rate: {eviction_rate*100:.1f}%. "
+                    f"Current eviction rate: {eviction_rate * 100:.1f}%. "
                     f"Consider increasing max_size to reduce evictions."
                     if suggested_config["max_size"] != current_config["max_size"]
                     else "Max size is optimal."
                 ),
                 "compression_threshold": (
-                    f"Average compression savings: {avg_compression_ratio/1024:.1f}KB. "
+                    f"Average compression savings: {avg_compression_ratio / 1024:.1f}KB. "
                     f"Lower threshold to compress more aggressively."
                     if suggested_config["compression_threshold"]
                     != current_config["compression_threshold"]

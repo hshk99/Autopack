@@ -54,10 +54,7 @@ class CompilationAgent:
             text = self.scraper.fetch_content(u)
             # Sanitize web-scraped content (BUILD-SECURITY: prevent prompt injection via scraped data)
             if text:
-                text = self.prompt_sanitizer.sanitize_for_prompt(
-                    text,
-                    RiskLevel.MEDIUM
-                )
+                text = self.prompt_sanitizer.sanitize_for_prompt(text, RiskLevel.MEDIUM)
             texts.append({"type": "web", "content": text, "source_url": u})
         return {"findings": texts}
 

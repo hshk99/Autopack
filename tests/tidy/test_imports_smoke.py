@@ -30,9 +30,9 @@ def test_tidy_imports():
         assert hasattr(pending_moves, "retry_pending_moves"), "retry_pending_moves function missing"
         assert hasattr(io_utils, "atomic_write_json"), "atomic_write_json function missing"
         assert hasattr(lease, "Lease"), "Lease class missing"
-        assert hasattr(
-            autonomous_runs_cleaner, "cleanup_autonomous_runs"
-        ), "cleanup_autonomous_runs function missing"
+        assert hasattr(autonomous_runs_cleaner, "cleanup_autonomous_runs"), (
+            "cleanup_autonomous_runs function missing"
+        )
 
     finally:
         # Clean up sys.path
@@ -59,9 +59,9 @@ def test_tidy_cross_module_imports():
             queue_file = Path(tmpdir) / "queue.json"
             workspace = Path(tmpdir) / "workspace"
             queue = pending_moves.PendingMovesQueue(queue_file=queue_file, workspace_root=workspace)
-            assert (
-                queue is not None
-            ), "PendingMovesQueue instantiation failed (cross-module import issue)"
+            assert queue is not None, (
+                "PendingMovesQueue instantiation failed (cross-module import issue)"
+            )
 
     finally:
         sys.path = original_path
@@ -77,9 +77,9 @@ def test_no_relative_imports_in_tidy():
     content = pending_moves_path.read_text(encoding="utf-8")
 
     # Should not contain "from .io_utils import"
-    assert (
-        "from .io_utils import" not in content
-    ), "pending_moves.py contains relative import (from .io_utils) - use 'from io_utils import' instead"
+    assert "from .io_utils import" not in content, (
+        "pending_moves.py contains relative import (from .io_utils) - use 'from io_utils import' instead"
+    )
 
     # Check other critical modules
     for module_name in ["io_utils.py", "lease.py"]:
@@ -88,6 +88,6 @@ def test_no_relative_imports_in_tidy():
             module_content = module_path.read_text(encoding="utf-8")
             # Check for relative imports pattern: "from ."
             relative_import_pattern = "from ."
-            assert (
-                relative_import_pattern not in module_content
-            ), f"{module_name} contains relative import - use absolute imports instead"
+            assert relative_import_pattern not in module_content, (
+                f"{module_name} contains relative import - use absolute imports instead"
+            )

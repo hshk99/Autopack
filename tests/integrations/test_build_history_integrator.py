@@ -440,7 +440,9 @@ class TestIntegrationWithResearchPipeline:
             metrics_by_tech_stack = {}
 
         focus_areas = integrator._identify_research_focus_areas(
-            MockAnalysisResult(), insights, "Implementation"  # type: ignore
+            MockAnalysisResult(),
+            insights,
+            "Implementation",  # type: ignore
         )
 
         assert isinstance(focus_areas, list)
@@ -487,7 +489,8 @@ class TestIntegrationWithResearchPipeline:
             metrics_by_tech_stack = {"python": {}}
 
         requirements = integrator._determine_validation_requirements(
-            insights, MockAnalysisResult()  # type: ignore
+            insights,
+            MockAnalysisResult(),  # type: ignore
         )
 
         assert isinstance(requirements, list)
@@ -514,7 +517,8 @@ class TestIntegrationWithResearchPipeline:
             metrics_by_tech_stack = {}
 
         estimated_hours = integrator._estimate_research_time(
-            insights, MockAnalysisResult()  # type: ignore
+            insights,
+            MockAnalysisResult(),  # type: ignore
         )
 
         assert isinstance(estimated_hours, (int, float))

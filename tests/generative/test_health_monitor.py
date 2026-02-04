@@ -49,7 +49,7 @@ class TestHealthMonitor:
 
         # Mark failures up to threshold
         for i in range(3):
-            monitor.mark_failure("test_provider", f"Error {i+1}")
+            monitor.mark_failure("test_provider", f"Error {i + 1}")
 
         health = monitor.get_health_status("test_provider")
         assert health.consecutive_failures == 3

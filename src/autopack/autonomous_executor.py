@@ -495,15 +495,15 @@ class AutonomousExecutor:
         # [Goal Anchoring] Per GPT_RESPONSE27: Prevent context drift during re-planning
         # PhaseGoal-lite implementation - lightweight anchor + telemetry (Phase 1)
         # Note: These are still used for goal anchoring (not moved to PhaseStateManager)
-        self._phase_original_intent: Dict[str, str] = (
-            {}
-        )  # phase_id -> one-line intent extracted from description
-        self._phase_original_description: Dict[str, str] = (
-            {}
-        )  # phase_id -> original description before any replanning
-        self._phase_replan_history: Dict[str, List[Dict]] = (
-            {}
-        )  # phase_id -> list of {attempt, description, reason, alignment}
+        self._phase_original_intent: Dict[
+            str, str
+        ] = {}  # phase_id -> one-line intent extracted from description
+        self._phase_original_description: Dict[
+            str, str
+        ] = {}  # phase_id -> original description before any replanning
+        self._phase_replan_history: Dict[
+            str, List[Dict]
+        ] = {}  # phase_id -> list of {attempt, description, reason, alignment}
         self._run_replan_telemetry: List[Dict] = []  # All replans in this run for telemetry
 
         # PR-EXE-9: Initialize phase state manager for database state persistence
@@ -701,12 +701,12 @@ class AutonomousExecutor:
         self._doctor_context_by_phase: Dict[str, DoctorContextSummary] = {}
         self._doctor_calls_by_phase: Dict[str, int] = {}  # (run_id:phase_id) -> doctor call count
         self._last_doctor_response_by_phase: Dict[str, DoctorResponse] = {}
-        self._last_error_category_by_phase: Dict[str, str] = (
-            {}
-        )  # Track error categories for is_complex_failure
-        self._distinct_error_cats_by_phase: Dict[str, set] = (
-            {}
-        )  # Track distinct error categories per (run, phase)
+        self._last_error_category_by_phase: Dict[
+            str, str
+        ] = {}  # Track error categories for is_complex_failure
+        self._distinct_error_cats_by_phase: Dict[
+            str, set
+        ] = {}  # Track distinct error categories per (run, phase)
         # Run-level Doctor budgets
         self._run_doctor_calls: int = 0  # Total Doctor calls this run
         self._run_doctor_strong_calls: int = 0  # Strong-model Doctor calls this run

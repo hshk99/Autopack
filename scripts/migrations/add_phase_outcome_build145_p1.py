@@ -115,13 +115,15 @@ def upgrade(engine: Engine) -> None:
             print("✓ Column 'phase_outcome' already exists, skipping column creation")
 
             # Verify existing data
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN phase_outcome IS NULL THEN 1 ELSE 0 END) as null_count,
                        SUM(CASE WHEN phase_outcome = 'COMPLETE' THEN 1 ELSE 0 END) as complete_count,
                        SUM(CASE WHEN phase_outcome = 'FAILED' THEN 1 ELSE 0 END) as failed_count
                 FROM token_efficiency_metrics
-            """))
+            """)
+            )
             row = result.fetchone()
             if row:
                 print("✓ Existing metrics breakdown:")
@@ -137,18 +139,22 @@ def upgrade(engine: Engine) -> None:
         print("      Nullable: TRUE (backward compatible with existing rows)")
 
         # SQLite and PostgreSQL both support this syntax
-        conn.execute(text("""
+        conn.execute(
+            text("""
             ALTER TABLE token_efficiency_metrics
             ADD COLUMN phase_outcome VARCHAR(50) NULL
-        """))
+        """)
+        )
         print("      ✓ Column 'phase_outcome' added")
 
         print("\n[2/2] Creating index on phase_outcome for efficient filtering")
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE INDEX idx_token_efficiency_metrics_phase_outcome
                 ON token_efficiency_metrics(phase_outcome)
-            """))
+            """)
+            )
             print("      ✓ Index 'idx_token_efficiency_metrics_phase_outcome' created")
         except Exception as e:
             if "already exists" in str(e).lower():
@@ -157,10 +163,12 @@ def upgrade(engine: Engine) -> None:
                 raise
 
         print("\n[3/3] Verification")
-        result = conn.execute(text("""
+        result = conn.execute(
+            text("""
             SELECT COUNT(*) as total_rows
             FROM token_efficiency_metrics
-        """))
+        """)
+        )
         row = result.fetchone()
         if row:
             print(f"      Total rows: {row[0]}")
@@ -192,9 +200,11 @@ def downgrade(engine: Engine) -> None:
 
         print("\n[1/2] Dropping index: idx_token_efficiency_metrics_phase_outcome")
         try:
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 DROP INDEX idx_token_efficiency_metrics_phase_outcome
-            """))
+            """)
+            )
             print("      ✓ Index dropped")
         except Exception as e:
             if "no such index" in str(e).lower() or "does not exist" in str(e).lower():
@@ -216,10 +226,12 @@ def downgrade(engine: Engine) -> None:
             return
         else:
             # PostgreSQL and other databases support DROP COLUMN
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 ALTER TABLE token_efficiency_metrics
                 DROP COLUMN phase_outcome
-            """))
+            """)
+            )
             print("      ✓ Column 'phase_outcome' dropped")
 
     print("\n" + "=" * 80)

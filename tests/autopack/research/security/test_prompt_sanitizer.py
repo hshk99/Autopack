@@ -120,9 +120,9 @@ class TestControlCharacterEscaping:
 
     def test_escape_quotes(self, sanitizer):
         """Test escaping of quotes."""
-        text = 'String with "quotes" and \'apostrophes\''
+        text = "String with \"quotes\" and 'apostrophes'"
         result = sanitizer.escape_control_chars(text)
-        assert r'\"' in result
+        assert r"\"" in result
         assert r"\'" in result
 
     def test_escape_backslash(self, sanitizer):

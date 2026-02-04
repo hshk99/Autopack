@@ -394,15 +394,15 @@ def test_run_report_mode_no_sot_writes():
 
             # Check content unchanged
             current_content = file_path.read_text(encoding="utf-8")
-            assert (
-                current_content == original_state["content"]
-            ), f"{file_path} content was modified!"
+            assert current_content == original_state["content"], (
+                f"{file_path} content was modified!"
+            )
 
             # Check mtime unchanged
             current_mtime = file_path.stat().st_mtime
-            assert (
-                current_mtime == original_state["mtime"]
-            ), f"{file_path} mtime changed (file was written to)!"
+            assert current_mtime == original_state["mtime"], (
+                f"{file_path} mtime changed (file was written to)!"
+            )
 
 
 # =============================================================================

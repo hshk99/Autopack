@@ -702,8 +702,7 @@ class QAController:
             except json.JSONDecodeError:
                 # Plain text answer - sanitize and store as value (BUILD-SECURITY: prompt injection prevention)
                 sanitized_answer = self.prompt_sanitizer.sanitize_for_prompt(
-                    answer.answer_text,
-                    RiskLevel.HIGH
+                    answer.answer_text, RiskLevel.HIGH
                 )
                 merged_data["value"] = sanitized_answer
 

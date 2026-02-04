@@ -166,8 +166,7 @@ class EventTriggerManager:
             self._event_history.pop(0)
 
         logger.info(
-            f"[EventTriggerManager] Processing event: {event.event_type.value} "
-            f"from {event.source}"
+            f"[EventTriggerManager] Processing event: {event.event_type.value} from {event.source}"
         )
 
         # Get handlers for this event type
@@ -196,8 +195,7 @@ class EventTriggerManager:
                 )
 
         logger.info(
-            f"[EventTriggerManager] Event processed: {invoked} handlers invoked, "
-            f"{failed} failed"
+            f"[EventTriggerManager] Event processed: {invoked} handlers invoked, {failed} failed"
         )
 
     def get_handler_count(self, event_type: Optional[EventType] = None) -> int:

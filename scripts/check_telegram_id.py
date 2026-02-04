@@ -66,9 +66,9 @@ def main():
 
     value = sys.argv[1].strip()
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("CHECKING TELEGRAM ID")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"\nValue: {value[:30]}..." if len(value) > 30 else f"\nValue: {value}")
 
     # Check if it's a bot token (has colon)

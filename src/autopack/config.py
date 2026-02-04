@@ -834,8 +834,7 @@ def validate_config(config: Settings) -> list[str]:
     database_url = os.getenv("DATABASE_URL") or os.getenv("DATABASE_URL_FILE")
     if not database_url:
         errors.append(
-            "DATABASE_URL is required. "
-            "Set DATABASE_URL or DATABASE_URL_FILE environment variable."
+            "DATABASE_URL is required. Set DATABASE_URL or DATABASE_URL_FILE environment variable."
         )
 
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY_FILE")

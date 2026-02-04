@@ -321,9 +321,9 @@ class AgentLauncher:
         Returns:
             Dict with results per agent
         """
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"🤖 Agent Launcher: {event}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print(f"[AgentLauncher] Project: {self.project_id}")
         if run_id:
             print(f"[AgentLauncher] Run ID: {run_id}")
@@ -350,9 +350,9 @@ class AgentLauncher:
                 results[agent_role] = {"success": False, "error": str(e), "tokens_used": 0}
 
         # Summary
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("✅ Agent Launcher Complete")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         print(f"Agents launched: {len(results)}")
         print(f"Total tokens: {total_tokens:,}")
         print(f"Successes: {sum(1 for r in results.values() if r.get('success'))}")

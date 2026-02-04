@@ -37,9 +37,9 @@ class TestGapScannerBaselinePolicy:
         gaps = scanner._detect_baseline_policy_drift()
 
         baseline_gaps = [g for g in gaps if "baseline_policy" in g.gap_type]
-        assert (
-            not baseline_gaps
-        ), f"GapScanner emitted baseline policy gap on clean repo: {baseline_gaps}"
+        assert not baseline_gaps, (
+            f"GapScanner emitted baseline policy gap on clean repo: {baseline_gaps}"
+        )
 
     def test_gap_scanner_detects_missing_baseline_in_empty_dir(self, tmp_path):
         """GapScanner should detect missing baseline in workspace without config."""
@@ -95,9 +95,9 @@ class TestRiskScorerProtectedPaths:
                     if path_pattern.startswith("config/") or path_pattern.startswith(".github/"):
                         missing_paths.append(path_pattern)
 
-        assert (
-            not missing_paths
-        ), f"RiskScorer references non-existent protected paths: {missing_paths}"
+        assert not missing_paths, (
+            f"RiskScorer references non-existent protected paths: {missing_paths}"
+        )
 
     def test_risk_scorer_protected_paths_include_critical_configs(self):
         """RiskScorer must protect critical config paths."""
@@ -125,27 +125,27 @@ class TestCIWorkflowEnforcement:
         assert ci_yml.exists(), "ci.yml not found"
 
         content = ci_yml.read_text(encoding="utf-8")
-        assert (
-            "check_docs_drift.py" in content
-        ), "CI workflow must invoke scripts/check_docs_drift.py"
+        assert "check_docs_drift.py" in content, (
+            "CI workflow must invoke scripts/check_docs_drift.py"
+        )
 
     def test_ci_invokes_workspace_structure_verification(self):
         """CI must invoke verify_workspace_structure.py."""
         ci_yml = REPO_ROOT / ".github" / "workflows" / "ci.yml"
         content = ci_yml.read_text(encoding="utf-8")
 
-        assert (
-            "verify_workspace_structure.py" in content
-        ), "CI workflow must invoke scripts/tidy/verify_workspace_structure.py"
+        assert "verify_workspace_structure.py" in content, (
+            "CI workflow must invoke scripts/tidy/verify_workspace_structure.py"
+        )
 
     def test_ci_invokes_sot_summary_check(self):
         """CI must invoke sot_summary_refresh.py --check."""
         ci_yml = REPO_ROOT / ".github" / "workflows" / "ci.yml"
         content = ci_yml.read_text(encoding="utf-8")
 
-        assert (
-            "sot_summary_refresh.py" in content and "--check" in content
-        ), "CI workflow must invoke scripts/tidy/sot_summary_refresh.py --check"
+        assert "sot_summary_refresh.py" in content and "--check" in content, (
+            "CI workflow must invoke scripts/tidy/sot_summary_refresh.py --check"
+        )
 
     def test_ci_invokes_doc_link_check(self):
         """CI must invoke doc link checks."""
@@ -159,9 +159,9 @@ class TestCIWorkflowEnforcement:
         ci_yml = REPO_ROOT / ".github" / "workflows" / "ci.yml"
         content = ci_yml.read_text(encoding="utf-8")
 
-        assert (
-            "pytest" in content and "tests/docs/" in content
-        ), "CI workflow must run pytest tests/docs/"
+        assert "pytest" in content and "tests/docs/" in content, (
+            "CI workflow must run pytest tests/docs/"
+        )
 
 
 class TestDocsDriftCheckerCompleteness:
@@ -175,9 +175,9 @@ class TestDocsDriftCheckerCompleteness:
         content = drift_checker.read_text(encoding="utf-8")
 
         # Must block autopack.api.server:app (legacy)
-        assert (
-            "autopack.api.server" in content or "api.server:app" in content
-        ), "Drift checker must block legacy autopack.api.server:app references"
+        assert "autopack.api.server" in content or "api.server:app" in content, (
+            "Drift checker must block legacy autopack.api.server:app references"
+        )
 
     def test_drift_checker_blocks_compose_service_drift(self):
         """scripts/check_docs_drift.py must block compose service name drift."""
@@ -185,9 +185,9 @@ class TestDocsDriftCheckerCompleteness:
         content = drift_checker.read_text(encoding="utf-8")
 
         # Must detect old service names (api, postgres)
-        assert (
-            "postgres" in content.lower() or "api" in content
-        ), "Drift checker must block legacy compose service names"
+        assert "postgres" in content.lower() or "api" in content, (
+            "Drift checker must block legacy compose service names"
+        )
 
     def test_drift_checker_excludes_historical_files(self):
         """scripts/check_docs_drift.py must exclude historical files from checks."""
@@ -195,9 +195,9 @@ class TestDocsDriftCheckerCompleteness:
         content = drift_checker.read_text(encoding="utf-8")
 
         # Should exclude historical files
-        assert (
-            "BUILD_HISTORY" in content or "EXCLUDED_PATHS" in content
-        ), "Drift checker must exclude historical ledger files"
+        assert "BUILD_HISTORY" in content or "EXCLUDED_PATHS" in content, (
+            "Drift checker must exclude historical ledger files"
+        )
 
 
 class TestEnforcementLadderIntegrity:

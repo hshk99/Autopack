@@ -58,11 +58,13 @@ class TestPackageDetector:
         """Test analyzing file with simple imports."""
         # Create test file
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 import os
                 import sys
                 import json
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)
@@ -74,11 +76,13 @@ class TestPackageDetector:
     def test_analyze_file_from_imports(self, tmp_path):
         """Test analyzing file with from imports."""
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 from pathlib import Path
                 from typing import List, Dict
                 from collections import defaultdict
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)
@@ -90,11 +94,13 @@ class TestPackageDetector:
     def test_analyze_file_third_party_imports(self, tmp_path):
         """Test analyzing file with third-party imports."""
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 import pytest
                 import requests
                 from fastapi import FastAPI
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)
@@ -245,11 +251,13 @@ class TestPackageDetector:
     def test_nested_module_imports(self, tmp_path):
         """Test handling of nested module imports."""
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 from os.path import join
                 from collections.abc import Mapping
                 import xml.etree.ElementTree
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)
@@ -261,11 +269,13 @@ class TestPackageDetector:
     def test_relative_imports_skipped(self, tmp_path):
         """Test that relative imports are skipped."""
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 from . import module
                 from .. import parent
                 from ...package import something
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)
@@ -342,11 +352,13 @@ class TestPackageDetector:
     def test_multiple_imports_same_package(self, tmp_path):
         """Test handling multiple imports of the same package."""
         test_file = tmp_path / "test.py"
-        test_file.write_text(dedent("""
+        test_file.write_text(
+            dedent("""
                 import os
                 from os import path
                 from os.path import join
-                """))
+                """)
+        )
 
         detector = PackageDetector(project_root=tmp_path)
         requirements = detector._analyze_file(test_file)

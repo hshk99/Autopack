@@ -48,7 +48,8 @@ def build_project_a():
     create_project_if_not_exists(project_path)
 
     supervisor = Supervisor(
-        api_url="http://localhost:8000", target_repo_path=project_path  # ← Isolated to this project
+        api_url="http://localhost:8000",
+        target_repo_path=project_path,  # ← Isolated to this project
     )
 
     # Define build plan
@@ -110,7 +111,8 @@ def build_project_b():
     create_project_if_not_exists(project_path)
 
     supervisor = Supervisor(
-        api_url="http://localhost:8000", target_repo_path=project_path  # ← Isolated to this project
+        api_url="http://localhost:8000",
+        target_repo_path=project_path,  # ← Isolated to this project
     )
 
     # Define build plan

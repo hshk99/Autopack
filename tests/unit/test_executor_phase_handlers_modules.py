@@ -68,9 +68,9 @@ class TestPhaseHandlerSignatures:
         sig = inspect.signature(mod.execute)
 
         # Check return annotation exists
-        assert (
-            sig.return_annotation is not inspect.Signature.empty
-        ), f"{module_name}.execute() missing return type annotation"
+        assert sig.return_annotation is not inspect.Signature.empty, (
+            f"{module_name}.execute() missing return type annotation"
+        )
 
 
 class TestDiagnosticsHandlersDelegation:
@@ -155,6 +155,6 @@ class TestNoCircularImports:
         # Filter to only top-level imports (not indented)
         top_level_imports = [line for line in import_lines if not line.startswith((" ", "\t"))]
 
-        assert (
-            len(top_level_imports) == 0
-        ), f"{module_name} has top-level autonomous_executor import: {top_level_imports}"
+        assert len(top_level_imports) == 0, (
+            f"{module_name} has top-level autonomous_executor import: {top_level_imports}"
+        )

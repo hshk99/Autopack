@@ -34,8 +34,7 @@ class RetryBudgetExhaustedError(Exception):
         self.budget_limit = budget_limit
         self.last_error = last_error
         super().__init__(
-            f"{message}: {total_retries}/{budget_limit} retries exhausted. "
-            f"Last error: {last_error}"
+            f"{message}: {total_retries}/{budget_limit} retries exhausted. Last error: {last_error}"
         )
 
 
@@ -120,8 +119,7 @@ class ErrorHandler:
                 # Log successful recovery if this was a retry
                 if retries > 0:
                     logger.info(
-                        f"[RETRY_SUCCESS] Function {func_name} succeeded after "
-                        f"{retries} retries"
+                        f"[RETRY_SUCCESS] Function {func_name} succeeded after {retries} retries"
                     )
 
                 return result

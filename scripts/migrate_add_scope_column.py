@@ -23,11 +23,13 @@ def migrate():
     db = SessionLocal()
     try:
         # Check if column already exists (PostgreSQL)
-        result = db.execute(text("""
+        result = db.execute(
+            text("""
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name='phases' AND column_name='scope'
-        """))
+        """)
+        )
 
         if result.fetchone():
             print("[OK] Column 'scope' already exists in phases table")

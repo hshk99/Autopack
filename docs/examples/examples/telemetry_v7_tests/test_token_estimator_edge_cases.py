@@ -67,12 +67,14 @@ class TokenEstimator:
 
         # Apply category multiplier (default to medium if not specified)
         category_multiplier = self.CATEGORY_WEIGHTS.get(
-            category.lower() if category else "medium", 1.5  # Default to medium
+            category.lower() if category else "medium",
+            1.5,  # Default to medium
         )
 
         # Apply complexity multiplier (default to medium if not specified)
         complexity_multiplier = self.COMPLEXITY_WEIGHTS.get(
-            complexity.lower() if complexity else "medium", 1.3  # Default to medium
+            complexity.lower() if complexity else "medium",
+            1.3,  # Default to medium
         )
 
         # Calculate final estimate

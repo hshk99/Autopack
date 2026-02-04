@@ -471,6 +471,5 @@ class PatternLibrary:
 
         pattern.last_updated = datetime.now()
         logger.debug(
-            f"Pattern {pattern_id} applied: success={success}, "
-            f"new_rate={pattern.success_rate:.2f}"
+            f"Pattern {pattern_id} applied: success={success}, new_rate={pattern.success_rate:.2f}"
         )

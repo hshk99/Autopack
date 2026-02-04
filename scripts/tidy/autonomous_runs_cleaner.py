@@ -490,9 +490,9 @@ def cleanup_autonomous_runs(
             print("[CLEANUP] .autonomous_runs/ does not exist, skipping")
         return 0, 0
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("Phase 3: .autonomous_runs/ Cleanup")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"Mode: {'DRY-RUN' if dry_run else 'EXECUTE'}")
     print(f"Keep last N runs: {keep_last_n_runs}")
     print(f"Minimum age for cleanup: {min_age_days} days")

@@ -30,7 +30,8 @@ def migrate():
     with engine.connect() as conn:
         if is_sqlite:
             # SQLite version
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TABLE learned_rules (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -48,7 +49,8 @@ def migrate():
                     description TEXT,
                     notes TEXT
                 )
-            """))
+            """)
+            )
             conn.execute(text("CREATE INDEX idx_learned_rules_status ON learned_rules(status)"))
             conn.execute(
                 text(
@@ -60,7 +62,8 @@ def migrate():
             )
         else:
             # PostgreSQL version
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE TABLE learned_rules (
                     id SERIAL PRIMARY KEY,
                     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -78,7 +81,8 @@ def migrate():
                     description TEXT,
                     notes TEXT
                 )
-            """))
+            """)
+            )
             conn.execute(text("CREATE INDEX idx_learned_rules_status ON learned_rules(status)"))
             conn.execute(
                 text(

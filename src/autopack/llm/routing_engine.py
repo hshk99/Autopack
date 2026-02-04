@@ -624,9 +624,7 @@ class RoutingEngine:
                     break
 
         # All attempts failed
-        raise Exception(
-            f"All attempts failed for task type {task_type}. " f"Last error: {last_error}"
-        )
+        raise Exception(f"All attempts failed for task type {task_type}. Last error: {last_error}")
 
     def get_routing_stats(self) -> Dict[str, Any]:
         """Get routing statistics.

@@ -46,12 +46,12 @@ class UniversalResearchAnalysisPipeline:
 
     def run(self) -> dict:
         """Run the complete universal analysis pipeline"""
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("UNIVERSAL RESEARCH ANALYSIS PIPELINE")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Project: {self.project_id}")
         print(f"Started: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         results = {
             "project_id": self.project_id,
@@ -60,9 +60,9 @@ class UniversalResearchAnalysisPipeline:
         }
 
         # Phase 1: Context Assembly
-        print(f"\n{'#'*70}")
+        print(f"\n{'#' * 70}")
         print("PHASE 1: CONTEXT ASSEMBLY")
-        print(f"{'#'*70}\n")
+        print(f"{'#' * 70}\n")
         print("Building comprehensive project context from:")
         print("  • SOT files (BUILD_HISTORY, ARCHITECTURE_DECISIONS, DEBUG_LOG, etc.)")
         print("  • Research files (product vision, market research, domain requirements)")
@@ -89,9 +89,9 @@ class UniversalResearchAnalysisPipeline:
             return results
 
         # Phase 2: Research Analysis
-        print(f"\n{'#'*70}")
+        print(f"\n{'#' * 70}")
         print("PHASE 2: RESEARCH ANALYSIS")
-        print(f"{'#'*70}\n")
+        print(f"{'#' * 70}\n")
         print("Analyzing research to find gaps:")
         print("  • Feature gaps (market/user research vs implemented)")
         print("  • Compliance gaps (regulatory requirements vs current)")
@@ -118,9 +118,9 @@ class UniversalResearchAnalysisPipeline:
             return results
 
         # Phase 3: Decision Making
-        print(f"\n{'#'*70}")
+        print(f"\n{'#' * 70}")
         print("PHASE 3: DECISION MAKING")
-        print(f"{'#'*70}\n")
+        print(f"{'#' * 70}\n")
         print("Making strategic implementation decisions:")
         print("  • IMPLEMENT_NOW: Add to active development")
         print("  • IMPLEMENT_LATER: Add to FUTURE_PLAN")
@@ -164,9 +164,9 @@ class UniversalResearchAnalysisPipeline:
             return results
 
         # Phase 4: Decision Routing
-        print(f"\n{'#'*70}")
+        print(f"\n{'#' * 70}")
         print("PHASE 4: DECISION ROUTING")
-        print(f"{'#'*70}\n")
+        print(f"{'#' * 70}\n")
         print("Routing decisions to appropriate locations:")
         print("  • IMPLEMENT_NOW → archive/research/active/")
         print("  • IMPLEMENT_LATER → docs/FUTURE_PLAN.md")
@@ -277,9 +277,9 @@ class UniversalResearchAnalysisPipeline:
 
     def _print_final_summary(self, results, analysis, report):
         """Print final summary"""
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("PIPELINE COMPLETE")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
         print(f"Duration: {results['duration_seconds']:.1f} seconds\n")
 
@@ -315,7 +315,7 @@ class UniversalResearchAnalysisPipeline:
                 print(f"  • {decision.gap.title} (ROI: {decision.roi_score:.1f})")
             print()
 
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
 
 def main():

@@ -483,7 +483,7 @@ class MultiProjectOrchestrator:
         results = []
         for project in projects:
             if self._stop_requested:
-                logger.warning("[MultiProjectOrchestrator] Stopping execution: " "stop requested")
+                logger.warning("[MultiProjectOrchestrator] Stopping execution: stop requested")
                 break
 
             result = await self._execute_single_project(project, executor_func, executor_kwargs)

@@ -161,15 +161,13 @@ class TokenBudgetEnforcer:
         if was_truncated:
             status = BudgetStatus.EXCEEDED
             recommendation = (
-                f"Output truncated at {actual_tokens} tokens. " f"Increase budget by 50% for retry"
+                f"Output truncated at {actual_tokens} tokens. Increase budget by 50% for retry"
             )
             should_escalate = True
             self.overflow_count += 1
         elif utilization >= 0.95:
             status = BudgetStatus.WARNING
-            recommendation = (
-                f"High utilization ({utilization * 100:.1f}%). " f"May truncate on retry"
-            )
+            recommendation = f"High utilization ({utilization * 100:.1f}%). May truncate on retry"
             should_escalate = True
         else:
             status = BudgetStatus.OK

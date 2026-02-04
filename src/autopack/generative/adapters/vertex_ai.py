@@ -263,9 +263,10 @@ class VertexAIAdapter(ProviderAdapter):
             try:
                 # Attempt to get location info as a simple credentials validation
                 from google.cloud import aiplatform as aip
-                location_client = aip.gapic.LocationsClient(
+
+                _ = aip.gapic.LocationsClient(
                     credentials=credentials,
-                )
+                )  # noqa: F841 - Creating client validates credentials
                 # If we get here, credentials are valid
                 self.logger.debug(f"Vertex AI credentials validated for project {project_id}")
                 return True

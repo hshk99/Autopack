@@ -520,8 +520,7 @@ class ResearchToAnchorMapper:
             if idea.description:
                 # Sanitize user-provided description (BUILD-SECURITY: prompt injection prevention)
                 sanitized_desc = self.prompt_sanitizer.sanitize_for_prompt(
-                    idea.description[:100],
-                    RiskLevel.HIGH
+                    idea.description[:100], RiskLevel.HIGH
                 )
                 desired_outcomes.append(f"Implement: {sanitized_desc}")
                 sources.append("parsed_idea.description")

@@ -61,7 +61,7 @@ def main():
     print("\n" + "=" * 80)
     print(f"Total telemetry samples collected: {total_samples}")
     print("Target: 9 samples (4 from P1, 5 from P2)")
-    print(f"Progress: {total_samples}/9 ({total_samples/9*100:.1f}%)")
+    print(f"Progress: {total_samples}/9 ({total_samples / 9 * 100:.1f}%)")
 
 
 if __name__ == "__main__":

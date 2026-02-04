@@ -77,8 +77,7 @@ def migrate_add_doctor_outcome_table(dry_run: bool = False):
         # Check indexes
         result = db.execute(
             text(
-                "SELECT COUNT(*) as count FROM pg_indexes "
-                "WHERE tablename = 'doctor_outcome_events'"
+                "SELECT COUNT(*) as count FROM pg_indexes WHERE tablename = 'doctor_outcome_events'"
             )
         )
         index_count = result.fetchone()[0]

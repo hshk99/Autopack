@@ -411,7 +411,9 @@ class AnchorValidator:
         rule_id = (
             getattr(rule, "rule_id", None)
             if hasattr(rule, "rule_id")
-            else rule.get("rule_id") if isinstance(rule, dict) else None
+            else rule.get("rule_id")
+            if isinstance(rule, dict)
+            else None
         )
         if not rule_id:
             result.add_error("auto_approve_rule missing required field 'rule_id'", path)
@@ -419,7 +421,9 @@ class AnchorValidator:
         description = (
             getattr(rule, "description", None)
             if hasattr(rule, "description")
-            else rule.get("description") if isinstance(rule, dict) else None
+            else rule.get("description")
+            if isinstance(rule, dict)
+            else None
         )
         if not description:
             result.add_error("auto_approve_rule missing required field 'description'", path)
@@ -427,7 +431,9 @@ class AnchorValidator:
         conditions = (
             getattr(rule, "conditions", None)
             if hasattr(rule, "conditions")
-            else rule.get("conditions") if isinstance(rule, dict) else None
+            else rule.get("conditions")
+            if isinstance(rule, dict)
+            else None
         )
         if conditions is None:
             result.add_error("auto_approve_rule missing required field 'conditions'", path)

@@ -198,8 +198,7 @@ class IntentClarificationAgent:
             else:
                 # Sanitize user-provided aspect (BUILD-SECURITY: prompt injection prevention)
                 sanitized_aspect = self.prompt_sanitizer.sanitize_for_prompt(
-                    aspect,
-                    RiskLevel.MEDIUM
+                    aspect, RiskLevel.MEDIUM
                 )
                 questions.append(f"What are the key aspects of {sanitized_aspect}?")
 

@@ -10,13 +10,10 @@ Part of IMP-TESTING-003: LLM model validation edge cases not tested.
 
 import asyncio
 import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
 
 from autopack.llm.model_validator import (
     AnalysisBenchmark,
     BenchmarkResult,
-    BenchmarkTest,
     CodingBenchmark,
     ModelValidator,
     ReasoningBenchmark,
@@ -36,12 +33,16 @@ class TestTimeoutBehavior:
 
         def slow_model_call(prompt: str) -> str:
             import time
+
             time.sleep(1.0)  # Simulate slow response
             return "response"
 
         result = await benchmark.run("test-model", slow_model_call)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.benchmark_name == "reasoning"
         assert result.latency_ms > 0
 
@@ -52,12 +53,16 @@ class TestTimeoutBehavior:
 
         def slow_model_call(prompt: str) -> str:
             import time
+
             time.sleep(1.0)  # Simulate slow response
             return "response"
 
         result = await benchmark.run("test-model", slow_model_call)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.benchmark_name == "coding"
 
     @pytest.mark.asyncio
@@ -67,12 +72,16 @@ class TestTimeoutBehavior:
 
         def slow_model_call(prompt: str) -> str:
             import time
+
             time.sleep(1.0)  # Simulate slow response
             return "response"
 
         result = await benchmark.run("test-model", slow_model_call)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.benchmark_name == "analysis"
 
     @pytest.mark.asyncio
@@ -82,6 +91,7 @@ class TestTimeoutBehavior:
 
         def slow_model_call(prompt: str) -> str:
             import time
+
             time.sleep(1.0)  # Simulate slow response
             return "response"
 
@@ -98,6 +108,7 @@ class TestTimeoutBehavior:
 
         def slow_model_call(prompt: str) -> str:
             import time
+
             time.sleep(1.0)  # Simulate slow response
             return "response"
 
@@ -114,6 +125,7 @@ class TestTimeoutBehavior:
         def intermittent_timeout(prompt: str) -> str:
             # Simulate timeout by sleeping
             import time
+
             time.sleep(0.2)  # Exceed the timeout
             return "transitive relation"
 
@@ -140,7 +152,10 @@ class TestRateLimitHandling:
         result = await benchmark.run("test-model", rate_limited_model)
 
         # Should handle error gracefully
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
         assert result.benchmark_name == "reasoning"
 
@@ -154,7 +169,10 @@ class TestRateLimitHandling:
 
         result = await benchmark.run("test-model", rate_limited_model)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
 
     @pytest.mark.asyncio
@@ -167,7 +185,10 @@ class TestRateLimitHandling:
 
         result = await benchmark.run("test-model", rate_limited_model)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
 
     @pytest.mark.asyncio
@@ -218,7 +239,10 @@ class TestQuotaExhaustionHandling:
 
         result = await benchmark.run("test-model", quota_exhausted_model)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
         assert result.benchmark_name == "reasoning"
 
@@ -232,7 +256,10 @@ class TestQuotaExhaustionHandling:
 
         result = await benchmark.run("test-model", quota_exhausted_model)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
 
     @pytest.mark.asyncio
@@ -245,7 +272,10 @@ class TestQuotaExhaustionHandling:
 
         result = await benchmark.run("test-model", quota_exhausted_model)
 
-        assert result.status == ValidationResultStatus.ERROR or result.status == ValidationResultStatus.FAILED
+        assert (
+            result.status == ValidationResultStatus.ERROR
+            or result.status == ValidationResultStatus.FAILED
+        )
         assert result.score == 0.0
 
     @pytest.mark.asyncio
@@ -288,6 +318,7 @@ class TestBenchmarkResultValidation:
 
         def model_call(prompt: str) -> str:
             import time
+
             time.sleep(0.05)  # 50ms delay
             return "response"
 
@@ -319,16 +350,14 @@ class TestBenchmarkResultValidation:
 
         def very_slow_model(prompt: str) -> str:
             import time
+
             time.sleep(2.0)  # 2 second delay
             return "response"
 
         result = await benchmark.run("test-model", very_slow_model)
 
         # Should fail or error due to timeout
-        assert result.status in (
-            ValidationResultStatus.ERROR,
-            ValidationResultStatus.FAILED
-        )
+        assert result.status in (ValidationResultStatus.ERROR, ValidationResultStatus.FAILED)
 
 
 class TestModelValidatorEdgeCases:
@@ -344,9 +373,7 @@ class TestModelValidatorEdgeCases:
             return "response"
 
         result = await validator.validate_model(
-            "claude-opus-4-5",
-            timeout_model,
-            skip_benchmarks=False
+            "claude-opus-4-5", timeout_model, skip_benchmarks=False
         )
 
         # Should complete even with timeouts
@@ -362,9 +389,7 @@ class TestModelValidatorEdgeCases:
             raise RuntimeError("429 Too Many Requests")
 
         result = await validator.validate_model(
-            "claude-opus-4-5",
-            rate_limited_model,
-            skip_benchmarks=False
+            "claude-opus-4-5", rate_limited_model, skip_benchmarks=False
         )
 
         # Should handle rate limit gracefully
@@ -380,9 +405,7 @@ class TestModelValidatorEdgeCases:
             raise RuntimeError("Quota exceeded")
 
         result = await validator.validate_model(
-            "claude-opus-4-5",
-            quota_model,
-            skip_benchmarks=False
+            "claude-opus-4-5", quota_model, skip_benchmarks=False
         )
 
         # Should handle quota errors gracefully
@@ -397,11 +420,7 @@ class TestModelValidatorEdgeCases:
         async def model_call(prompt: str) -> str:
             return "response"
 
-        result = await validator.validate_model(
-            "claude-opus-4-5",
-            model_call,
-            skip_benchmarks=True
-        )
+        result = await validator.validate_model("claude-opus-4-5", model_call, skip_benchmarks=True)
 
         # Should complete without running benchmarks
         assert result.benchmark_results == []
@@ -416,9 +435,7 @@ class TestModelValidatorEdgeCases:
             return "response"
 
         result = await validator.validate_model(
-            "nonexistent-model",
-            model_call,
-            skip_benchmarks=False
+            "nonexistent-model", model_call, skip_benchmarks=False
         )
 
         # Should handle gracefully
@@ -444,9 +461,7 @@ class TestConcurrentBenchmarkExecution:
             await asyncio.sleep(1.0)
             return "response"
 
-        results = await asyncio.gather(
-            *[b.run("test-model", slow_model) for b in benchmarks]
-        )
+        results = await asyncio.gather(*[b.run("test-model", slow_model) for b in benchmarks])
 
         # All should complete despite timeouts
         assert len(results) == 4

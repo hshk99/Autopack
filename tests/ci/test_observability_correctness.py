@@ -247,6 +247,6 @@ class TestLegacyApprovalPathDocumentation:
         with open(approvals_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        assert (
-            "AUTO_APPROVE_BUILD113" in content
-        ), "AUTO_APPROVE_BUILD113 legacy flag should exist in approvals.py"
+        assert "AUTO_APPROVE_BUILD113" in content, (
+            "AUTO_APPROVE_BUILD113 legacy flag should exist in approvals.py"
+        )

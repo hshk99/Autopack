@@ -71,9 +71,7 @@ def create_scheduled_task(
 
     if auto_execute:
         cmd_parts.append("--interactive")  # Interactive mode for approval
-        print(
-            "⚠️  WARNING: Auto-execution enabled. This will DELETE files without manual approval!"
-        )
+        print("⚠️  WARNING: Auto-execution enabled. This will DELETE files without manual approval!")
         confirm = input("   Type 'YES' to confirm: ")
         if confirm != "YES":
             print("❌ Cancelled")

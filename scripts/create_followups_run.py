@@ -116,7 +116,7 @@ def create_followups_run():
                 complexity="MEDIUM",
                 builder_mode="BUILD",
                 scope={
-                    "chunk_number": config.get("chunk_number", f"followup-{idx+1}"),
+                    "chunk_number": config.get("chunk_number", f"followup-{idx + 1}"),
                     "deliverables": config.get("deliverables", {}),
                     "features": config.get("features", []),
                     "validation": config.get("validation", {}),

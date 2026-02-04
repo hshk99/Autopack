@@ -1534,8 +1534,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
         fingerprint = hashlib.md5(fingerprint_input).hexdigest()
 
         logger.debug(
-            f"[IMP-REL-016] Computed task fingerprint {fingerprint[:8]}... "
-            f"for task {task.task_id}"
+            f"[IMP-REL-016] Computed task fingerprint {fingerprint[:8]}... for task {task.task_id}"
         )
 
         return fingerprint
@@ -2157,7 +2156,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
         from ..memory.task_promoter import MemoryTaskPromoter
 
         logger.info(
-            "[IMP-LOOP-032] Starting memory insight promotion " "(threshold=%d, max=%d)",
+            "[IMP-LOOP-032] Starting memory insight promotion (threshold=%d, max=%d)",
             promotion_threshold,
             max_promotions,
         )
@@ -2197,7 +2196,7 @@ Analyze the pattern and implement a fix to prevent recurrence.
                     result["failed"] += 1
 
             logger.info(
-                "[IMP-LOOP-032] Memory promotion complete: " "scanned=%d, promoted=%d, failed=%d",
+                "[IMP-LOOP-032] Memory promotion complete: scanned=%d, promoted=%d, failed=%d",
                 result["scanned"],
                 result["promoted"],
                 result["failed"],

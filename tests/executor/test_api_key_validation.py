@@ -59,9 +59,9 @@ class TestAPIKeyPatterns:
             "sk-@invalid@chars1234567890",  # Invalid characters
         ]
         for key in invalid_keys:
-            assert not API_KEY_PATTERNS["anthropic"].match(
-                key
-            ), f"Invalid Anthropic key accepted: {key}"
+            assert not API_KEY_PATTERNS["anthropic"].match(key), (
+                f"Invalid Anthropic key accepted: {key}"
+            )
 
     def test_openai_key_valid(self):
         """Test that valid OpenAI keys match the pattern."""
@@ -101,9 +101,9 @@ class TestAPIKeyPatterns:
             "key@with#invalid$chars",  # Invalid characters
         ]
         for key in invalid_keys:
-            assert not API_KEY_PATTERNS["autopack"].match(
-                key
-            ), f"Invalid Autopack key accepted: {key}"
+            assert not API_KEY_PATTERNS["autopack"].match(key), (
+                f"Invalid Autopack key accepted: {key}"
+            )
 
 
 class TestStartupValidatorValidation:

@@ -505,7 +505,7 @@ class TestCostEffectivenessAnalyzer:
             {
                 "component": f"service_{i}",
                 "recommendation": "buy" if i % 2 == 0 else "build",
-                "estimated_cost": f"${100 * (i+1)}/month",
+                "estimated_cost": f"${100 * (i + 1)}/month",
             }
             for i in range(10)
         ]

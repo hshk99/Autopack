@@ -42,9 +42,9 @@ class TestActionClassification:
         ]
         for cmd in commands:
             classification = classify_action(ActionType.COMMAND, cmd)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {cmd} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {cmd} to require approval"
+            )
 
     def test_command_chaining_bypass_blocked(self):
         """IMP-SAFETY-003: Verify command chaining cannot bypass allowlist.
@@ -98,9 +98,9 @@ class TestActionClassification:
         ]
         for path in repo_paths:
             classification = classify_action(ActionType.FILE_WRITE, path)
-            assert (
-                classification == ActionClassification.REQUIRES_APPROVAL
-            ), f"Expected {path} to require approval"
+            assert classification == ActionClassification.REQUIRES_APPROVAL, (
+                f"Expected {path} to require approval"
+            )
 
     def test_tidy_execute_requires_approval(self):
         """Tidy with --execute flag requires approval."""
@@ -257,9 +257,9 @@ class TestMixedApprovalRequirements:
 
         should_block = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
 
-        assert (
-            should_block is False
-        ), "Autopilot should allow execution when all actions are auto-approved"
+        assert should_block is False, (
+            "Autopilot should allow execution when all actions are auto-approved"
+        )
 
     def test_single_blocked_action_blocks_all(self):
         """A single blocked action must block the entire batch."""
@@ -291,9 +291,9 @@ class TestMixedApprovalRequirements:
         should_block_no_safe = summary.auto_approved_actions == 0
         should_block_approval = summary.requires_approval_actions > 0 or summary.blocked_actions > 0
 
-        assert (
-            should_block_no_safe is True
-        ), "Autopilot must block when no actions are auto-approved"
+        assert should_block_no_safe is True, (
+            "Autopilot must block when no actions are auto-approved"
+        )
         assert should_block_approval is True, "Autopilot must block when actions require approval"
 
 

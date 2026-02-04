@@ -1179,9 +1179,9 @@ class TestTaskDeduplication:
         fp1 = generator._compute_task_fingerprint(task1)
         fp2 = generator._compute_task_fingerprint(task2)
 
-        assert (
-            fp1 == fp2
-        ), "Tasks with same title, files, and description should have same fingerprint"
+        assert fp1 == fp2, (
+            "Tasks with same title, files, and description should have same fingerprint"
+        )
 
     def test_compute_task_fingerprint_differs_for_different_titles(self, mock_memory_service):
         """Test that fingerprint differs when titles are different."""

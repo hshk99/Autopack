@@ -242,9 +242,9 @@ class TestAuthPrefixPreservation:
             # Connection refused = routing broken (will raise exception)
 
             acceptable_codes = [200, 401, 404, 405, 422, 500]
-            assert (
-                response.status_code in acceptable_codes
-            ), f"Unexpected status {response.status_code} suggests routing issue"
+            assert response.status_code in acceptable_codes, (
+                f"Unexpected status {response.status_code} suggests routing issue"
+            )
 
         except requests.exceptions.ConnectionError:
             pytest.fail(
@@ -292,9 +292,9 @@ class TestBackendReadiness:
         # Qdrant should be either connected or disabled (both are valid states)
         # If status is "error" or "unknown", that suggests a configuration issue
         acceptable_states = ["connected", "disabled", "error"]  # error is warning-level
-        assert (
-            qdrant_status in acceptable_states
-        ), f"Qdrant status '{qdrant_status}' suggests unexpected state"
+        assert qdrant_status in acceptable_states, (
+            f"Qdrant status '{qdrant_status}' suggests unexpected state"
+        )
 
 
 class TestDatabaseContainer:

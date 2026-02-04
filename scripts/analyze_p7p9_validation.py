@@ -76,7 +76,7 @@ def analyze_p7p9_validation():
     print(f"Truncation Rate: {truncation_rate:.1f}% ({len(truncated)}/{len(post_p7p9)})")
     print("  Target: <25-30%")
     print(
-        f"  Baseline (pre-P7+P9): {len([e for e in pre_p7p9 if e.truncated])/max(len(pre_p7p9),1)*100:.1f}%"
+        f"  Baseline (pre-P7+P9): {len([e for e in pre_p7p9 if e.truncated]) / max(len(pre_p7p9), 1) * 100:.1f}%"
     )
     print()
 

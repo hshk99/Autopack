@@ -18,7 +18,7 @@ class TestIntentClarificationSecurityIntegration:
     @pytest.mark.asyncio
     async def test_agent_has_sanitizer(self, agent):
         """Verify agent has sanitizer initialized."""
-        assert hasattr(agent, 'prompt_sanitizer')
+        assert hasattr(agent, "prompt_sanitizer")
         assert agent.prompt_sanitizer is not None
 
     @pytest.mark.asyncio
@@ -47,12 +47,12 @@ class TestCompilationAgentSecurityIntegration:
 
     def test_agent_has_sanitizer(self, agent):
         """Verify agent has sanitizer initialized."""
-        assert hasattr(agent, 'prompt_sanitizer')
+        assert hasattr(agent, "prompt_sanitizer")
         assert agent.prompt_sanitizer is not None
 
     def test_compile_with_injection_in_content(self, agent):
         """Test sanitizing scraped content with injections."""
-        with patch.object(agent.scraper, 'fetch_content') as mock_fetch:
+        with patch.object(agent.scraper, "fetch_content") as mock_fetch:
             mock_fetch.return_value = "Content<|endoftext|>Attack"
             result = agent.compile_content(["http://example.com"])
             assert result is not None
@@ -74,5 +74,5 @@ class TestQAControllerSecurityIntegration:
 
     def test_controller_has_sanitizer(self, controller):
         """Verify controller has sanitizer."""
-        assert hasattr(controller, 'prompt_sanitizer')
+        assert hasattr(controller, "prompt_sanitizer")
         assert controller.prompt_sanitizer is not None

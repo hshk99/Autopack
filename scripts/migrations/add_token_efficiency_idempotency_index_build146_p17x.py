@@ -143,13 +143,15 @@ def upgrade(engine: Engine) -> None:
 
         # Verify index is working (check for duplicates)
         with engine.connect() as conn:
-            result = conn.execute(text("""
+            result = conn.execute(
+                text("""
                 SELECT run_id, phase_id, phase_outcome, COUNT(*) as count
                 FROM token_efficiency_metrics
                 WHERE phase_outcome IS NOT NULL
                 GROUP BY run_id, phase_id, phase_outcome
                 HAVING COUNT(*) > 1
-            """))
+            """)
+            )
             duplicates = result.fetchall()
             if duplicates:
                 print(f"⚠️  WARNING: Found {len(duplicates)} duplicate terminal outcomes:")
@@ -176,11 +178,13 @@ def upgrade(engine: Engine) -> None:
         with engine.connect() as conn:
             # Set autocommit mode (no transaction)
             conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                 ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                 WHERE phase_outcome IS NOT NULL
-            """))
+            """)
+            )
         print("      ✓ Partial unique index created successfully (PostgreSQL)")
 
     elif dialect == "sqlite":
@@ -193,11 +197,13 @@ def upgrade(engine: Engine) -> None:
         # SQLite can run in transaction
         with engine.begin() as conn:
             try:
-                conn.execute(text("""
+                conn.execute(
+                    text("""
                     CREATE UNIQUE INDEX IF NOT EXISTS ux_token_eff_metrics_run_phase_outcome
                     ON token_efficiency_metrics (run_id, phase_id, phase_outcome)
                     WHERE phase_outcome IS NOT NULL
-                """))
+                """)
+                )
                 print("      ✓ Partial unique index created successfully (SQLite)")
             except Exception as e:
                 if "partial" in str(e).lower() or "WHERE" in str(e):

@@ -70,9 +70,7 @@ class NotificationHelper:
                 "medium": "\u26a0\ufe0f",  # Warning
                 "high": "\U0001f534",  # Red circle
                 "critical": "\U0001f6a8",  # Siren
-            }.get(
-                risk_level, "\u2753"
-            )  # Question mark
+            }.get(risk_level, "\u2753")  # Question mark
 
             # Format message
             message = (

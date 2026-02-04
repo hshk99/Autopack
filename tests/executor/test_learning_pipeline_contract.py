@@ -546,9 +546,9 @@ class TestPersistToMemory:
 
         for hint_type, expected_insight_type in hint_type_mappings.items():
             mapped = pipeline._map_hint_type_to_insight_type(hint_type)
-            assert (
-                mapped == expected_insight_type
-            ), f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+            assert mapped == expected_insight_type, (
+                f"Expected {expected_insight_type} for {hint_type}, got {mapped}"
+            )
 
     def test_persist_maps_unknown_hint_type_to_unknown(self):
         """Test unknown hint types map to 'unknown' insight type"""
@@ -1100,9 +1100,9 @@ class TestLearningMemoryPersistence:
             pipeline.record_hint(phase, hint_type, f"Details for {hint_type}")
 
             call_kwargs = mock_manager.record_failure_category.call_args[1]
-            assert (
-                call_kwargs["category"] == expected_category
-            ), f"Expected {expected_category} for {hint_type}, got {call_kwargs['category']}"
+            assert call_kwargs["category"] == expected_category, (
+                f"Expected {expected_category} for {hint_type}, got {call_kwargs['category']}"
+            )
 
     def test_persist_to_learning_memory_calls_save(self):
         """Test save is called after persisting to learning memory"""

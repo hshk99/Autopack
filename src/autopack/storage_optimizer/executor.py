@@ -656,7 +656,9 @@ class CleanupExecutor:
                     checkpoint_status = (
                         "completed"
                         if result.status == ExecutionStatus.COMPLETED
-                        else "skipped" if result.status == ExecutionStatus.SKIPPED else "failed"
+                        else "skipped"
+                        if result.status == ExecutionStatus.SKIPPED
+                        else "failed"
                     )
 
                     self.checkpoint_logger.log_execution(

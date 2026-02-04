@@ -269,9 +269,7 @@ class TestN1QueryPatternPrevention:
 
         mock_db = MagicMock()
         mock_db.query.return_value.count.return_value = 5
-        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = (
-            runs
-        )
+        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = runs
 
         result = await list_runs(limit=20, offset=0, db=mock_db, _auth="test-key")
 

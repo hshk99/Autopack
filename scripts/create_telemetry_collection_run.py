@@ -276,14 +276,14 @@ def create_run():
             )
             session.add(phase)
             print(
-                f"  [{phase_def['phase_index']+1:2d}] {phase_def['phase_id']:35s} ({phase_def['complexity']:6s} {phase_def['task_category']})"
+                f"  [{phase_def['phase_index'] + 1:2d}] {phase_def['phase_id']:35s} ({phase_def['complexity']:6s} {phase_def['task_category']})"
             )
 
         session.commit()
 
-        print(f"\n{'='*70}")
+        print(f"\n{'=' * 70}")
         print("TELEMETRY COLLECTION RUN CREATED")
-        print(f"{'='*70}")
+        print(f"{'=' * 70}")
         print(f"Run ID: {RUN_ID}")
         print(f"Total phases: {len(PHASES)}")
         print("\nPhase breakdown:")
@@ -302,7 +302,7 @@ def create_run():
         print("\nOr drain all phases in batch:")
         print(f'  PYTHONUTF8=1 PYTHONPATH=src DATABASE_URL="{db_url}" \\')
         print(f"      python scripts/batch_drain_controller.py --run-id {RUN_ID} --batch-size 10")
-        print(f"{'='*70}\n")
+        print(f"{'=' * 70}\n")
 
     except Exception as e:
         session.rollback()

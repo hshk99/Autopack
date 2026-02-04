@@ -196,7 +196,7 @@ def validate_destination_path(source: Path, dest: Path, repo_root: Path) -> tupl
             if rel_parts[i] == rel_parts[i + 1]:
                 return (
                     False,
-                    f"Duplicate nesting detected: .../{rel_parts[i]}/{rel_parts[i+1]}/... (probable path construction bug)",
+                    f"Duplicate nesting detected: .../{rel_parts[i]}/{rel_parts[i + 1]}/... (probable path construction bug)",
                 )
 
         # Check for excessive depth (more than 10 levels is suspicious)
@@ -577,7 +577,7 @@ def detect_malformed_paths(root: Path, verbose: bool = False) -> List[Tuple[Path
                     fixed_path = root / Path(*collapsed_parts)
 
                     if current != fixed_path:
-                        reason = f"Duplicate nesting: {parts[i]}/{parts[i+1]} -> {parts[i]}"
+                        reason = f"Duplicate nesting: {parts[i]}/{parts[i + 1]} -> {parts[i]}"
                         repairs.append((current, fixed_path, reason))
                         if verbose:
                             print(f"[SELF-HEAL] Detected: {current} -> {fixed_path} ({reason})")
@@ -1580,7 +1580,7 @@ def main():
         try:
             # Import from src/ without requiring PYTHONPATH from caller.
             sys.path.insert(0, str(REPO_ROOT / "src"))
-            from autopack.model_registry import get_tool_model  # noqa: WPS433
+            from autopack.model_registry import get_tool_model
 
             args.semantic_model = get_tool_model("tidy_semantic", default="glm-4.6") or "glm-4.6"
         except Exception:

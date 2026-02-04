@@ -800,8 +800,7 @@ class CostEffectivenessAnalyzer:
                 cost_val = proj_data.get(cost_key)
                 if isinstance(cost_val, float) and (math.isnan(cost_val) or math.isinf(cost_val)):
                     raise ValueError(
-                        f"Invalid AI projection {year_key}[{cost_key}]: "
-                        f"cannot be NaN or Infinity"
+                        f"Invalid AI projection {year_key}[{cost_key}]: cannot be NaN or Infinity"
                     )
 
         logger.info("Cost analysis validation passed")

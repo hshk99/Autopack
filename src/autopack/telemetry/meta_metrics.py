@@ -1733,8 +1733,7 @@ class MetaMetricsTracker:
             new_status: New health status
         """
         logger.info(
-            f"[IMP-REL-001] Health transition detected: "
-            f"{old_status.value} -> {new_status.value}"
+            f"[IMP-REL-001] Health transition detected: {old_status.value} -> {new_status.value}"
         )
 
         # Check for recovery transition (auto-resume trigger)

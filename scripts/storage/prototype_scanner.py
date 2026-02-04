@@ -113,7 +113,11 @@ class WizTreeScanner:
         try:
             # Run WizTree
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=600, check=True  # 10 minute timeout
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=True,  # 10 minute timeout
             )
 
             elapsed = time.time() - start_time
@@ -393,8 +397,8 @@ def main():
         print("DISK USAGE SUMMARY")
         print("=" * 70)
         print(f"Total Space: {total_gb:.2f} GB")
-        print(f"Used Space:  {used_gb:.2f} GB ({used_gb/total_gb*100:.1f}%)")
-        print(f"Free Space:  {free_gb:.2f} GB ({free_gb/total_gb*100:.1f}%)")
+        print(f"Used Space:  {used_gb:.2f} GB ({used_gb / total_gb * 100:.1f}%)")
+        print(f"Free Space:  {free_gb:.2f} GB ({free_gb / total_gb * 100:.1f}%)")
     except Exception as e:
         print(f"[Warning] Could not get disk usage: {e}")
 

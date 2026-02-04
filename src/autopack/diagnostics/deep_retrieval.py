@@ -382,7 +382,7 @@ class DeepRetrieval:
                 self.logger.debug(f"[DeepRetrieval] Error searching memory code: {e}")
 
         self.logger.debug(
-            f"[DeepRetrieval] Retrieved {len(entries)} memory entries " f"({total_size} bytes)"
+            f"[DeepRetrieval] Retrieved {len(entries)} memory entries ({total_size} bytes)"
         )
         return entries
 

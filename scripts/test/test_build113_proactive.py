@@ -92,9 +92,7 @@ index 1234567..abcdefg 100644
 +
 +import logging
 +from typing import Dict, List, Optional
-+""" + "\n".join(
-        [f"+# Line {i}" for i in range(4, 250)]
-    )
++""" + "\n".join([f"+# Line {i}" for i in range(4, 250)])
 
     phase_spec = PhaseSpec(
         phase_id="research-build-history-integrator",
@@ -166,9 +164,9 @@ index 1234567..abcdefg 100644
     print(f"[RESULT] Rationale: {decision.rationale}")
 
     assert decision.type == DecisionType.RISKY, f"Expected RISKY, got {decision.type.value}"
-    assert (
-        decision.risk_level == "HIGH"
-    ), f"Expected HIGH risk (database file), got {decision.risk_level}"
+    assert decision.risk_level == "HIGH", (
+        f"Expected HIGH risk (database file), got {decision.risk_level}"
+    )
 
     print("\n✓ TEST 3 PASSED: Database file correctly detected as HIGH risk")
 
@@ -195,9 +193,7 @@ index 1234567..abcdefg 100644
 +\"\"\"Research hooks for autonomous mode\"\"\"
 +
 +import logging
-+""" + "\n".join(
-        [f"+# Line {i}" for i in range(4, 150)]
-    )
++""" + "\n".join([f"+# Line {i}" for i in range(4, 150)])
 
     phase_spec = PhaseSpec(
         phase_id="research-autonomous-hooks",

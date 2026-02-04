@@ -199,7 +199,7 @@ def benchmark_compression():
     print(f"  - Time to populate: {time_compress:.4f} seconds")
     print(f"  - Compressions performed: {stats_compress['compressions']}")
     print(
-        f"  - Total bytes saved: {stats_compress['total_bytes_saved_by_compression'] / (1024*1024):.2f} MB"
+        f"  - Total bytes saved: {stats_compress['total_bytes_saved_by_compression'] / (1024 * 1024):.2f} MB"
     )
 
     if stats_compress["compressions"] > 0:
@@ -265,7 +265,7 @@ def benchmark_memory_usage():
         print(f"  - Compressed entries: {compressed}/{cache_size}")
         print(f"  - Compression ratio: {result['compression_ratio']:.1f}%")
         print(f"  - Avg stored size: {avg_entry_size / 1024:.1f} KB")
-        print(f"  - Total cache size: {total_stored / (1024*1024):.2f} MB")
+        print(f"  - Total cache size: {total_stored / (1024 * 1024):.2f} MB")
 
     return results
 

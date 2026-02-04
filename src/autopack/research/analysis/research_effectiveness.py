@@ -331,9 +331,7 @@ class ResearchEffectivenessAnalyzer:
             feedback: The feedback to record.
         """
         self.feedback.append(feedback)
-        logger.info(
-            f"Recorded feedback for cycle {feedback.cycle_id}: " f"{feedback.category.value}"
-        )
+        logger.info(f"Recorded feedback for cycle {feedback.cycle_id}: {feedback.category.value}")
 
     def _update_metrics(self) -> None:
         """Update aggregated effectiveness metrics based on recorded outcomes."""

@@ -291,8 +291,7 @@ class EventBus:
                 )
 
         logger.info(
-            f"[EventBus] Event {event.type.value} delivered: "
-            f"{invoked} successful, {failed} failed"
+            f"[EventBus] Event {event.type.value} delivered: {invoked} successful, {failed} failed"
         )
 
         return invoked

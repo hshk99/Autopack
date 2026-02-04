@@ -21,9 +21,10 @@ logger = logging.getLogger(__name__)
 
 class RiskLevel(Enum):
     """Risk classification for prompt injection sanitization."""
-    LOW = "low"           # Minimal sanitization (citations, metadata)
-    MEDIUM = "medium"     # Moderate sanitization (user queries, descriptions)
-    HIGH = "high"         # Strict sanitization (safety-critical fields)
+
+    LOW = "low"  # Minimal sanitization (citations, metadata)
+    MEDIUM = "medium"  # Moderate sanitization (user queries, descriptions)
+    HIGH = "high"  # Strict sanitization (safety-critical fields)
 
 
 class PromptSanitizer:
@@ -49,24 +50,20 @@ class PromptSanitizer:
         r"ignore\s+(?:previous|all|my)\s+(?:instructions|guidelines|rules)",
         r"disregard\s+(?:previous|all|my)",
         r"forget\s+(?:previous|all|everything|my)",
-
         # Role switching attacks
         r"(?:act\s+as|pretend\s+to\s+be|you\s+are\s+now|switch\s+to)\s+(?:an?\s+)?(?:evil|hacker|admin|unrestricted)",
         r"(?:pretend|assume)\s+(?:the\s+)?(?:role|position)\s+of",
         r"you\s+are\s+now\s+in\s+(?:unrestricted|jailbreak|bypass|hack)",
-
         # Delimiter attacks (common in prompt injection)
-        r"^-{3,}",          # Three or more dashes
-        r"^#{3,}",          # Three or more hashes
-        r"^\[system\]",     # [system] tags
+        r"^-{3,}",  # Three or more dashes
+        r"^#{3,}",  # Three or more hashes
+        r"^\[system\]",  # [system] tags
         r"^\[assistant\]",  # [assistant] tags
-
         # End-of-text/context markers
         r"<\|endoftext\|>",
         r"<\|end\|>",
         r"<END>",
         r"<ENDPROMPT>",
-
         # Prompt structure injection
         r"(?:assistant|user|system)\s*:\s+",  # Role indicators
         r"^\n(?:human|ai|assistant|system|user):",
@@ -74,15 +71,15 @@ class PromptSanitizer:
 
     # Control characters that can break prompt structure
     CONTROL_CHARS = {
-        '{': r'\{',
-        '}': r'\}',
-        '[': r'\[',
-        ']': r'\]',
-        '<': r'\<',
-        '>': r'\>',
-        '"': r'\"',
+        "{": r"\{",
+        "}": r"\}",
+        "[": r"\[",
+        "]": r"\]",
+        "<": r"\<",
+        ">": r"\>",
+        '"': r"\"",
         "'": r"\'",
-        '\\': r'\\',
+        "\\": r"\\",
     }
 
     def __init__(self, log_suspicious: bool = True):
@@ -93,14 +90,15 @@ class PromptSanitizer:
             log_suspicious: Whether to log detected suspicious patterns
         """
         self.log_suspicious = log_suspicious
-        self._compiled_patterns = [re.compile(p, re.IGNORECASE | re.MULTILINE)
-                                  for p in self.INJECTION_PATTERNS]
+        self._compiled_patterns = [
+            re.compile(p, re.IGNORECASE | re.MULTILINE) for p in self.INJECTION_PATTERNS
+        ]
 
     def sanitize_for_prompt(
         self,
         text: Optional[str],
         risk_level: RiskLevel = RiskLevel.MEDIUM,
-        tag_name: str = "user_input"
+        tag_name: str = "user_input",
     ) -> str:
         """
         Sanitize text for safe inclusion in LLM prompts.
@@ -123,7 +121,7 @@ class PromptSanitizer:
             return ""
 
         # Validate tag name (prevent tag injection)
-        if not re.match(r'^[a-z_][a-z0-9_]*$', tag_name, re.IGNORECASE):
+        if not re.match(r"^[a-z_][a-z0-9_]*$", tag_name, re.IGNORECASE):
             tag_name = "user_input"
 
         # Truncate extremely long inputs (prevent token explosion)
@@ -146,7 +144,7 @@ class PromptSanitizer:
         # Apply escaping based on risk level
         if risk_level == RiskLevel.LOW:
             # Minimal processing - only escape backslashes to prevent unicode tricks
-            sanitized = text.replace('\\', r'\\')
+            sanitized = text.replace("\\", r"\\")
         else:
             # Escape control characters for MEDIUM and HIGH
             sanitized = self.escape_control_chars(text)
@@ -171,11 +169,11 @@ class PromptSanitizer:
             Text with control characters escaped
         """
         # First escape backslashes (must be first to avoid double-escaping)
-        result = text.replace('\\', r'\\')
+        result = text.replace("\\", r"\\")
 
         # Escape other control characters
         for char, escaped in self.CONTROL_CHARS.items():
-            if char != '\\':  # Already handled
+            if char != "\\":  # Already handled
                 result = result.replace(char, escaped)
 
         return result
@@ -195,7 +193,7 @@ class PromptSanitizer:
             Text wrapped in delimiters: <tag_name>...</tag_name>
         """
         # Ensure tag name is safe
-        if not re.match(r'^[a-z_][a-z0-9_]*$', tag_name, re.IGNORECASE):
+        if not re.match(r"^[a-z_][a-z0-9_]*$", tag_name, re.IGNORECASE):
             tag_name = "user_input"
 
         return f"<{tag_name}>{text}</{tag_name}>"

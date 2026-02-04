@@ -107,7 +107,7 @@ def format_stale_report(stale_phases: List[Tuple[Phase, int]]) -> str:
     if not stale_phases:
         return "No stale QUEUED phases detected."
 
-    lines = [f"{'='*70}", f"STALE QUEUED PHASES DETECTED: {len(stale_phases)}", f"{'='*70}", ""]
+    lines = [f"{'=' * 70}", f"STALE QUEUED PHASES DETECTED: {len(stale_phases)}", f"{'=' * 70}", ""]
 
     # Group by run_id
     by_run = {}
@@ -130,9 +130,9 @@ def format_stale_report(stale_phases: List[Tuple[Phase, int]]) -> str:
     lines.extend(
         [
             "",
-            f"{'='*70}",
+            f"{'=' * 70}",
             "RECOMMENDATIONS",
-            f"{'='*70}",
+            f"{'=' * 70}",
             "",
             "1. Check if there are any stuck executor processes:",
             "   - Look for hung API servers or drain_one_phase processes",
@@ -193,9 +193,9 @@ def main() -> int:
         # Take action if requested
         if args.mark_failed and stale_phases:
             print()
-            print(f"{'='*70}")
+            print(f"{'=' * 70}")
             print(f"MARKING {len(stale_phases)} STALE PHASES AS FAILED")
-            print(f"{'='*70}")
+            print(f"{'=' * 70}")
             print()
 
             for phase, age_minutes in stale_phases:

@@ -142,9 +142,9 @@ def create_build113_run():
         # Commit all changes
         db.commit()
 
-        print(f"\n{'='*80}")
+        print(f"\n{'=' * 80}")
         print(f"SUCCESS: Created run '{run_id}' with {len(phase_files)} phases")
-        print(f"{'='*80}")
+        print(f"{'=' * 80}")
         print("\nRun details:")
         print(f"  - Run ID: {run_id}")
         print("  - State: IN_PROGRESS")

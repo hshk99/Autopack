@@ -568,7 +568,9 @@ Analyze the phase now:
                     (
                         0
                         if phase_map[pid].feasibility == FeasibilityLevel.CAN_IMPLEMENT
-                        else 1 if phase_map[pid].feasibility == FeasibilityLevel.RISKY else 2
+                        else 1
+                        if phase_map[pid].feasibility == FeasibilityLevel.RISKY
+                        else 2
                     ),
                     phase_map[pid].complexity_score,
                 )

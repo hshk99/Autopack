@@ -152,7 +152,7 @@ class WebScraper:
                 return True
             except ValueError as e:
                 logger.error(
-                    f"Invalid robots.txt for {domain}: {e}. " "Denying request due to parse error."
+                    f"Invalid robots.txt for {domain}: {e}. Denying request due to parse error."
                 )
                 self._robots_cache[domain] = rp
                 return False
@@ -170,7 +170,7 @@ class WebScraper:
             return True
         except ValueError as e:
             logger.error(
-                f"Invalid robots.txt check for {url}: {e}. " "Denying request due to parse error."
+                f"Invalid robots.txt check for {url}: {e}. Denying request due to parse error."
             )
             return False
         except Exception as e:

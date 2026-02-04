@@ -531,8 +531,7 @@ class InsightCorrelationEngine:
         high_performers.sort(key=lambda s: s.success_rate, reverse=True)
 
         logger.debug(
-            "[IMP-LOOP-031] Found %d high-performing insights "
-            "(success_rate >= %.2f, tasks >= %d)",
+            "[IMP-LOOP-031] Found %d high-performing insights (success_rate >= %.2f, tasks >= %d)",
             len(high_performers),
             min_success_rate,
             min_tasks,
@@ -567,8 +566,7 @@ class InsightCorrelationEngine:
         low_performers.sort(key=lambda s: s.success_rate)
 
         logger.debug(
-            "[IMP-LOOP-031] Found %d low-performing insights "
-            "(success_rate <= %.2f, tasks >= %d)",
+            "[IMP-LOOP-031] Found %d low-performing insights (success_rate <= %.2f, tasks >= %d)",
             len(low_performers),
             max_success_rate,
             min_tasks,

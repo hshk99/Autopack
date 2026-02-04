@@ -1633,9 +1633,9 @@ def main():
             or r.rstrip("/").split("/")[-1] in PROTECTED_FROM_SCOPE
         ]
         if invalid_roots:
-            print(f"\n{'='*70}")
+            print(f"\n{'=' * 70}")
             print("[ERROR] Invalid --scope: Cannot include protected directories")
-            print(f"{'='*70}")
+            print(f"{'=' * 70}")
             print(f"\nProtected directories: {', '.join(sorted(PROTECTED_FROM_SCOPE))}")
             print(f"You specified: {', '.join(invalid_roots)}")
             print("\nThese directories have dedicated phases and should NEVER be in --scope:")
@@ -1646,7 +1646,7 @@ def main():
             print("  - .autonomous_runs")
             print("  - archive")
             print("  - .autonomous_runs/<project-name>")
-            print(f"{'='*70}\n")
+            print(f"{'=' * 70}\n")
             return 1
 
     # BUILD-161: Early exit for lock status/break commands (before lease acquisition)

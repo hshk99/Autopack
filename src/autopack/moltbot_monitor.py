@@ -411,9 +411,7 @@ class MoltbotMonitor:
         """
         with self._lock:
             self.metrics.record_executed_action()
-            logger.info(
-                f"[MOLTBOT] Action executed: action_type={action_type}, " f"context={context}"
-            )
+            logger.info(f"[MOLTBOT] Action executed: action_type={action_type}, context={context}")
 
     def record_kill_switch_block(
         self,

@@ -218,7 +218,7 @@ def test_approval_workflow():
                         status_data = status_response.json()
                         status = status_data.get("status")
 
-                        print(f"  [{i*5}s] Status: {status}")
+                        print(f"  [{i * 5}s] Status: {status}")
 
                         if status == "approved":
                             print("\n✅ APPROVED - Workflow would proceed")
@@ -287,7 +287,7 @@ def test_thresholds():
         blocked = "✅ YES" if checks.get("deletion_approval_required") else "❌ NO"
 
         print(
-            f"{removed:<10} {added:<10} {removed-added:<10} "
+            f"{removed:<10} {added:<10} {removed - added:<10} "
             f"{result['risk_level']:<10} {notify:<10} {blocked:<10} {desc}"
         )
 

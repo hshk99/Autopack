@@ -323,9 +323,9 @@ class TestPipelineIntegration:
         for idea_text, expected_type in ideas_and_expected_types:
             parsed = parser.parse_single(idea_text)
             assert parsed is not None, f"Failed to parse idea of type {expected_type}"
-            assert (
-                parsed.detected_project_type == expected_type
-            ), f"Expected {expected_type}, got {parsed.detected_project_type}"
+            assert parsed.detected_project_type == expected_type, (
+                f"Expected {expected_type}, got {parsed.detected_project_type}"
+            )
 
     def test_high_risk_project_identified_correctly(self, trading_idea):
         """Test that high-risk projects are correctly identified."""

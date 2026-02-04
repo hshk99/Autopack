@@ -271,9 +271,9 @@ class TestFlagMetadataQuality:
                 invalid_category.append(f"{flag_name} (has '{flag_data['category']}')")
 
         assert not missing_category, f"Flags missing category: {missing_category}"
-        assert (
-            not invalid_category
-        ), f"Flags with invalid category: {invalid_category}\nValid categories: {valid_categories}"
+        assert not invalid_category, (
+            f"Flags with invalid category: {invalid_category}\nValid categories: {valid_categories}"
+        )
 
     def test_security_flags_have_implications(self):
         """Security category flags should document implications."""
@@ -375,9 +375,9 @@ class TestBoundaryEnforcement:
         external_expected = {"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "DATABASE_URL", "NGROK_URL"}
         in_flags = external_expected & set(flags.keys())
 
-        assert (
-            not in_flags
-        ), f"External service vars should be in 'external_env_vars', not 'flags': {in_flags}"
+        assert not in_flags, (
+            f"External service vars should be in 'external_env_vars', not 'flags': {in_flags}"
+        )
 
     def test_aliases_documented_bidirectionally(self):
         """Flags with aliases should have them documented."""

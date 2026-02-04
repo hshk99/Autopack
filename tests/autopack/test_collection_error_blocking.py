@@ -70,7 +70,9 @@ class TestCollectionErrorBlocking:
             assert any(
                 "collection" in issue.lower() or "import" in issue.lower()
                 for issue in decision.blocking_issues
-            ), f"Expected collection/import error in blocking_issues, got: {decision.blocking_issues}"
+            ), (
+                f"Expected collection/import error in blocking_issues, got: {decision.blocking_issues}"
+            )
 
     def test_persistent_collection_error_blocks_after_retry(self):
         """Persistent collection errors (failed twice) should block completion."""
@@ -150,9 +152,9 @@ class TestCollectionErrorBlocking:
             # Should be blocked due to persistent collection error
             assert not decision.can_complete
             assert decision.status == "FAILED"
-            assert any(
-                "collection" in issue.lower() for issue in decision.blocking_issues
-            ), f"Expected collection error in blocking_issues, got: {decision.blocking_issues}"
+            assert any("collection" in issue.lower() for issue in decision.blocking_issues), (
+                f"Expected collection error in blocking_issues, got: {decision.blocking_issues}"
+            )
 
     def test_zero_tests_blocks_when_suspicious(self):
         """Zero tests detected with non-zero exitcode should block (collection failure)."""

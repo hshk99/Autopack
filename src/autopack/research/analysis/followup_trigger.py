@@ -181,9 +181,9 @@ class TriggerAnalysisResult:
             }
         }
         if self.execution_result:
-            result["followup_trigger_analysis"][
-                "execution_result"
-            ] = self.execution_result.to_dict()
+            result["followup_trigger_analysis"]["execution_result"] = (
+                self.execution_result.to_dict()
+            )
         return result
 
 
@@ -721,8 +721,7 @@ class FollowupResearchTrigger:
         if callback not in self._async_callbacks:
             self._async_callbacks.append(callback)
             logger.debug(
-                f"[IMP-HIGH-005] Registered async callback "
-                f"(total: {len(self._async_callbacks)})"
+                f"[IMP-HIGH-005] Registered async callback (total: {len(self._async_callbacks)})"
             )
 
     def unregister_callback(self, callback: TriggerCallback) -> bool:

@@ -1068,13 +1068,13 @@ class ProjectReadmeGenerator:
 
         package_manager = tech_stack.get("package_manager", "npm")
         if package_manager in ["npm", "yarn", "pnpm"]:
-            section += f"```bash\n" f"{package_manager} install\n" f"```\n\n"
+            section += f"```bash\n{package_manager} install\n```\n\n"
         elif package_manager == "pip":
-            section += "```bash\n" "pip install -e .\n" "```\n\n"
+            section += "```bash\npip install -e .\n```\n\n"
 
         # Running the Project
         section += "### Running the Project\n\n"
-        section += "```bash\n" f"{package_manager} start\n" "```\n\n"
+        section += f"```bash\n{package_manager} start\n```\n\n"
 
         return section
 
@@ -2905,11 +2905,11 @@ spec:
             - containerPort: {config.port}
           resources:
             limits:
-              cpu: {config.resource_limits.get('cpu', '500m')}
-              memory: {config.resource_limits.get('memory', '512Mi')}
+              cpu: {config.resource_limits.get("cpu", "500m")}
+              memory: {config.resource_limits.get("memory", "512Mi")}
             requests:
-              cpu: {config.resource_limits.get('cpu', '500m').replace('m', '')}m
-              memory: {config.resource_limits.get('memory', '512Mi').replace('Mi', '')}Mi
+              cpu: {config.resource_limits.get("cpu", "500m").replace("m", "")}m
+              memory: {config.resource_limits.get("memory", "512Mi").replace("Mi", "")}Mi
           livenessProbe:
             httpGet:
               path: {config.health_check_path}

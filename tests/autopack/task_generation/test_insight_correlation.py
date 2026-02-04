@@ -254,8 +254,8 @@ class TestUpdateInsightConfidence:
 
         # Record fewer than MIN_SAMPLE_SIZE_FOR_UPDATE outcomes
         for i in range(MIN_SAMPLE_SIZE_FOR_UPDATE - 1):
-            engine.record_task_creation("insight_001", f"TASK-{i+2}", confidence=0.8)
-            engine.record_task_outcome(f"TASK-{i+2}", "success", auto_update_confidence=False)
+            engine.record_task_creation("insight_001", f"TASK-{i + 2}", confidence=0.8)
+            engine.record_task_outcome(f"TASK-{i + 2}", "success", auto_update_confidence=False)
 
         confidence = engine.update_insight_confidence("insight_001")
 

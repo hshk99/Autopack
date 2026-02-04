@@ -110,7 +110,9 @@ def analyze_p10_effectiveness():
 
         # Clean SMAPE median (non-truncated, valid events only)
         non_truncated_valid = [
-            e for e in window if not e.truncated and e.actual_output_tokens >= 50  # Validity guard
+            e
+            for e in window
+            if not e.truncated and e.actual_output_tokens >= 50  # Validity guard
         ]
 
         if non_truncated_valid:

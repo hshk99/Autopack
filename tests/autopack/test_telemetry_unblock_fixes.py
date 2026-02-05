@@ -148,7 +148,10 @@ class TestT1PromptFixes:
 class TestT2EmptyFilesRetry:
     """Test T2: Targeted retry for empty files array errors"""
 
-    @pytest.mark.xfail(reason="T2 retry logic not yet implemented - aspirational test")
+    @pytest.mark.xfail(
+        reason="T2 retry logic not yet implemented - aspirational test (IMP-TEST-001)",
+        strict=False,
+    )
     @patch("autopack.autonomous_executor.time.sleep")  # Mock sleep to speed up tests
     def test_empty_files_retry_once(self, mock_sleep):
         """Test that empty files array error triggers exactly ONE retry."""

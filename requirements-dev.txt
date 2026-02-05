@@ -88,7 +88,7 @@ frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
-google-ai-generativelanguage==0.6.15
+google-ai-generativelanguage==0.10.0
     # via google-generativeai
 google-api-core[grpc]==2.28.1
     # via

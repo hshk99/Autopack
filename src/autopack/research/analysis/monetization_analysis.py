@@ -685,8 +685,8 @@ class MonetizationAnalyzer:
                 "Automation and SaaS tools benefit from value-based pricing",
             ),
             ProjectType.TRADING: (
-                PricingStrategy.SUBSCRIPTION,
-                "Trading tools typically use subscription models",
+                PricingStrategy.VALUE_BASED,
+                "Trading tools benefit from value-based pricing tied to trading volume",
             ),
         }
 

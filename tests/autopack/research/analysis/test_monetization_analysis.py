@@ -154,12 +154,12 @@ class TestMonetizationAnalysisResult:
     def test_result_creation(self):
         """Test MonetizationAnalysisResult creation."""
         result = MonetizationAnalysisResult(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             recommended_model=MonetizationModel.SUBSCRIPTION,
             pricing_strategy=PricingStrategy.VALUE_BASED,
         )
 
-        assert result.project_type == ProjectType.SAAS
+        assert result.project_type == ProjectType.AUTOMATION
         assert result.recommended_model == MonetizationModel.SUBSCRIPTION
         assert result.pricing_strategy == PricingStrategy.VALUE_BASED
 
@@ -220,9 +220,9 @@ class TestMonetizationAnalyzer:
     def test_analyze_saas_project(self):
         """Test analysis for SaaS project type."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
-        assert result.project_type == ProjectType.SAAS
+        assert result.project_type == ProjectType.AUTOMATION
         # SaaS should recommend subscription
         assert result.recommended_model == MonetizationModel.SUBSCRIPTION
         assert len(result.pricing_tiers) > 0
@@ -252,17 +252,17 @@ class TestMonetizationAnalyzer:
     def test_analyze_api_service_project(self):
         """Test analysis for API service project type."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.API_SERVICE)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
-        assert result.project_type == ProjectType.API_SERVICE
-        # API should recommend usage-based
-        assert result.recommended_model == MonetizationModel.USAGE_BASED
+        assert result.project_type == ProjectType.AUTOMATION
+        # Automation/API services recommend subscription as primary model
+        assert result.recommended_model == MonetizationModel.SUBSCRIPTION
 
     def test_analyze_with_project_characteristics(self):
         """Test analysis with project characteristics."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             project_characteristics={
                 "has_api": True,
                 "is_b2b": True,
@@ -270,7 +270,7 @@ class TestMonetizationAnalyzer:
             },
         )
 
-        assert result.project_type == ProjectType.SAAS
+        assert result.project_type == ProjectType.AUTOMATION
         # Should have analyzed model fits
         assert len(result.model_fits) > 0
 
@@ -278,7 +278,7 @@ class TestMonetizationAnalyzer:
         """Test analysis with competitive data."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             competitive_data={
                 "competitors": [
                     {
@@ -306,7 +306,7 @@ class TestMonetizationAnalyzer:
     def test_analyze_pricing_tiers_generated(self):
         """Test that pricing tiers are generated."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should generate at least 2 tiers
         assert len(result.pricing_tiers) >= 2
@@ -318,7 +318,7 @@ class TestMonetizationAnalyzer:
     def test_analyze_revenue_projections(self):
         """Test that revenue projections are generated."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should have projections for multiple timeframes
         assert len(result.revenue_projections) >= 2
@@ -332,7 +332,7 @@ class TestMonetizationAnalyzer:
         budget_enforcer = BudgetEnforcer(total_budget=1000.0)
         analyzer = MonetizationAnalyzer(budget_enforcer=budget_enforcer)
 
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should have recorded the analysis cost
         assert result.analysis_cost > 0
@@ -344,7 +344,7 @@ class TestMonetizationAnalyzer:
         budget_enforcer.record_cost("previous", 50.0)  # Exhaust budget
 
         analyzer = MonetizationAnalyzer(budget_enforcer=budget_enforcer)
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should return minimal result
         assert result.confidence == RevenueConfidence.SPECULATIVE
@@ -362,7 +362,7 @@ class TestMonetizationAnalyzer:
             }
         )
 
-        assert project_type == ProjectType.SAAS
+        assert project_type == ProjectType.AUTOMATION
 
     def test_detect_project_type_ecommerce(self):
         """Test project type detection for e-commerce keywords."""
@@ -388,12 +388,12 @@ class TestMonetizationAnalyzer:
             }
         )
 
-        assert project_type == ProjectType.API_SERVICE
+        assert project_type == ProjectType.AUTOMATION
 
     def test_get_analysis_summary(self):
         """Test getting analysis summary."""
         analyzer = MonetizationAnalyzer()
-        analyzer.analyze(project_type=ProjectType.SAAS)
+        analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         summary = analyzer.get_analysis_summary()
 
@@ -412,7 +412,7 @@ class TestMonetizationAnalyzer:
     def test_generate_research_findings(self):
         """Test generating research findings for artifact generator."""
         analyzer = MonetizationAnalyzer()
-        analyzer.analyze(project_type=ProjectType.SAAS)
+        analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         findings = analyzer.generate_research_findings()
 
@@ -426,7 +426,7 @@ class TestMonetizationAnalyzer:
         """Test value-based pricing strategy determination."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             market_data={},
             competitive_data={"competitors": []},  # No competitors
         )
@@ -438,7 +438,7 @@ class TestMonetizationAnalyzer:
         """Test competitive pricing strategy determination."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             competitive_data={"competitors": [{"name": f"Competitor {i}"} for i in range(6)]},
         )
 
@@ -449,7 +449,7 @@ class TestMonetizationAnalyzer:
         """Test high confidence with all data available."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             market_data={"tam": "1B"},
             competitive_data={"competitors": [{"name": "Comp"}]},
             target_audience={"segment": "SMB"},
@@ -461,7 +461,7 @@ class TestMonetizationAnalyzer:
         """Test low confidence with minimal data."""
         analyzer = MonetizationAnalyzer()
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             market_data={"tam": "1B"},  # Only one data point
         )
 
@@ -470,7 +470,7 @@ class TestMonetizationAnalyzer:
     def test_target_arpu_calculation(self):
         """Test target ARPU calculation."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should have calculated ARPU
         assert result.target_arpu > 0
@@ -478,7 +478,7 @@ class TestMonetizationAnalyzer:
     def test_target_ltv_calculation(self):
         """Test target LTV calculation."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # LTV should be greater than ARPU
         assert result.target_ltv > result.target_arpu
@@ -486,7 +486,7 @@ class TestMonetizationAnalyzer:
     def test_risks_identified(self):
         """Test that risks are identified."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should identify at least some risks
         assert len(result.risks) > 0
@@ -494,7 +494,7 @@ class TestMonetizationAnalyzer:
     def test_assumptions_identified(self):
         """Test that assumptions are identified."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Should identify assumptions
         assert len(result.key_assumptions) > 0
@@ -511,7 +511,7 @@ class TestMonetizationIntegration:
         analyzer = MonetizationAnalyzer(budget_enforcer=budget_enforcer)
 
         result = analyzer.analyze(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             project_characteristics={
                 "has_api": True,
                 "is_b2b": True,
@@ -552,7 +552,7 @@ class TestMonetizationIntegration:
         )
 
         # Verify comprehensive result
-        assert result.project_type == ProjectType.SAAS
+        assert result.project_type == ProjectType.AUTOMATION
         assert result.recommended_model in [
             MonetizationModel.SUBSCRIPTION,
             MonetizationModel.TIERED_PRICING,
@@ -570,7 +570,7 @@ class TestMonetizationIntegration:
     def test_serialization_roundtrip(self):
         """Test that analysis result can be serialized and used."""
         analyzer = MonetizationAnalyzer()
-        result = analyzer.analyze(project_type=ProjectType.SAAS)
+        result = analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         # Convert to dict
         data = result.to_dict()
@@ -596,7 +596,7 @@ class TestMonetizationIntegration:
     def test_generate_findings_for_generator(self):
         """Test that generated findings work with MonetizationStrategyGenerator."""
         analyzer = MonetizationAnalyzer()
-        analyzer.analyze(project_type=ProjectType.SAAS)
+        analyzer.analyze(project_type=ProjectType.AUTOMATION)
 
         findings = analyzer.generate_research_findings()
 

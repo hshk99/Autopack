@@ -146,6 +146,18 @@ class ExecutorLockManager:
         except Exception as e:
             logger.warning(f"[LOCK] Error releasing lock: {e}")
 
+    def try_acquire_lock(self) -> bool:
+        """Try to acquire the lock (alias for acquire for API consistency).
+
+        Returns:
+            True if lock acquired successfully, False if another executor holds it
+        """
+        return self.acquire()
+
+    def release_lock(self):
+        """Release the lock (alias for release for API consistency)."""
+        return self.release()
+
     def __enter__(self):
         """Context manager entry - acquire lock or raise."""
         if not self.acquire():

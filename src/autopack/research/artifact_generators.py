@@ -898,8 +898,53 @@ class MonetizationStrategyGenerator:
 class ProjectReadmeGenerator:
     """Generates comprehensive README.md from research artifacts.
 
-    Produces a README that includes project overview, setup instructions,
-    architecture overview, deployment guide, and monetization notes.
+    This generator creates a professional README.md file suitable for GitHub/GitLab
+    project repositories. It synthesizes research findings and tech stack information
+    into a well-structured, developer-friendly documentation artifact.
+
+    ## Capabilities
+
+    **Generates the following README sections:**
+
+    1. **Project Overview** - Executive summary with market opportunity context
+    2. **Table of Contents** - Navigation links to all major sections
+    3. **Project Details** - Problem statement, solution, and key features
+    4. **Quick Start** - Prerequisites, installation instructions, running the project
+    5. **Architecture** - Architecture pattern, core components, technology stack
+    6. **Deployment** - Hosting requirements, environment setup, deployment steps
+    7. **Monetization Strategy** (optional) - Pricing and revenue model information
+    8. **Support** - Getting help, contributing guidelines, and license info
+
+    ## Input Requirements
+
+    - **research_findings** (dict): Project context including problem statement,
+      solution, features, components, and market opportunity
+    - **tech_stack** (dict): Technologies used with languages, frameworks, tools,
+      databases, architecture pattern, hosting requirements
+    - **project_brief** (str): 1-3 sentence description of the project
+    - **monetization_strategy** (str, optional): Pre-generated monetization strategy
+      markdown content (from MonetizationStrategyGenerator)
+
+    ## Output
+
+    - Returns: Single Markdown string (approx 2000-3000 words) ready to write to README.md
+
+    ## Features
+
+    - **Safe data handling**: Uses safe type conversion for missing/invalid data
+    - **Flexible structure**: Automatically omits sections if data is unavailable
+    - **Markdown formatted**: Generates GitHub/GitLab compatible markdown
+    - **Language-aware**: Customizes setup instructions based on package manager
+    - **Production-ready**: Includes license, contribution, and support guidance
+
+    ## Related Artifacts
+
+    This generator is typically used in conjunction with:
+
+    - **ProjectBriefGenerator**: Full project brief with monetization and market analysis
+    - **MonetizationStrategyGenerator**: Detailed pricing and revenue model analysis
+    - **DeploymentGuidanceGenerator**: Deployment architecture and infrastructure guide
+    - **CodeGenerator**: Project scaffolding and starter code templates
     """
 
     def generate(

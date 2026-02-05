@@ -7,19 +7,36 @@ from autopack.research.models.enums import EvidenceType
 
 class Evidence:
     def __init__(
-        self, source: str, evidence_type: EvidenceType, relevance: float, publication_date: datetime
+        self,
+        source: str = None,
+        evidence_type: EvidenceType = None,
+        relevance: float = None,
+        publication_date: datetime = None,
+        content: str = None,
+        citation: "Citation" = None,
+        metadata: Dict[str, Any] = None,
+        tags: List[str] = None,
     ):
+        # Support both old and new API
         self.source = source
+        self.content = content
         self.evidence_type = evidence_type
         self.relevance = relevance
         self.publication_date = publication_date
+        self.citation = citation
+        self.metadata = metadata or {}
+        self.tags = tags or []
 
     def is_recent(self) -> bool:
         """Check if the evidence is recent (within the last 5 years)."""
+        if self.publication_date is None:
+            return True
         return (datetime.now() - self.publication_date).days <= 5 * 365
 
     def is_valid(self) -> bool:
         """Validate the evidence based on type and relevance."""
+        if self.relevance is None:
+            return True
         return self.evidence_type in EvidenceType and self.relevance > 0.5
 
     def __repr__(self):
@@ -48,9 +65,11 @@ class Evidence:
 class Citation:
     """Citation model for research sources."""
 
-    source: str
+    source: str = ""
     title: str = ""
     authors: List[str] = field(default_factory=list)
     publication_date: Optional[datetime] = None
     url: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    publication: Optional[str] = None  # For social media/web sources
+    year: Optional[int] = None  # For year-based citations

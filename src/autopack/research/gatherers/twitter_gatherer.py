@@ -159,6 +159,7 @@ class TwitterGatherer:
 
             # Create citation
             citation = Citation(
+                source="Twitter/X",
                 authors=["Twitter User"],  # Would need user lookup for real author
                 title=f"Tweet {tweet_id}",
                 publication="Twitter/X",

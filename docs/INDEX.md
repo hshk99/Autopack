@@ -37,6 +37,7 @@ These are the canonical references that should stay current and are designed to 
 
 - **Project status & latest updates**: `README.md` (quickstart + current status), `docs/CHANGELOG.md` (full historical ledger)
 - **Running Autopack / using the API**: `docs/QUICKSTART.md`, `docs/API_BASICS.md`, `docs/CANONICAL_API_CONTRACT.md`
+- **TechStackProposer for technology recommendations**: `docs/guides/TECHSTACK_PROPOSER_GUIDE.md` (advisory tech stack proposals, cost analysis, risk assessment)
 - **Comprehensive improvement scan (single consolidated backlog + PR stack)**: `docs/reports/COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md`
 - **True Autonomy implementation details**: `docs/IMPLEMENTATION_PLAN_TRUE_AUTONOMY.md`, `archive/superseded/reports/unsorted/TRUE_AUTONOMY_COMPLETE_IMPLEMENTATION_REPORT.md`
 - **Intention-first autonomy loop (remaining improvements: executor wiring + catalog refresh + contracts)**: `docs/IMPLEMENTATION_PLAN_INTENTION_FIRST_AUTONOMY_LOOP_REMAINING_IMPROVEMENTS.md`

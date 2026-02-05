@@ -22,8 +22,8 @@ Autopack's ultimate goal is to take a rough project description (e.g., "Automate
 |------------|---------|--------|
 | **Research Infrastructure** | ✅ Exists (agents, frameworks, discovery) | Wire to project bootstrap |
 | **Intent Clarification** | ✅ `validate_pivot_completeness()` exists | Interactive Q&A loop |
-| **Research → Anchor Pipeline** | ❌ Missing | Auto-generate anchors from research |
-| **Tech Stack Proposal** | ❌ Missing | Propose APIs, MCPs, frameworks with pros/cons |
+| **Research → Anchor Pipeline** | ⏳ Partial (tech proposals complete) | Auto-generate anchors from research |
+| **Tech Stack Proposal** | ✅ Complete (5 types, 14 stacks) | Propose APIs, MCPs, frameworks with pros/cons |
 | **Gap Scanner** | ✅ Complete | Continue improving |
 | **Plan Proposer** | ✅ Complete | Integrate research insights |
 | **Autonomous Execution** | ✅ Core loop works | Expand to full project lifecycle |

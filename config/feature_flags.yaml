@@ -313,6 +313,113 @@ flags:
     notes: "IMP-ARCH-012: When enabled, generated tasks are automatically picked up and executed in subsequent runs"
 
   # ============================================================================
+  # Advanced Feature Toggles (IMP-WAVE-001)
+  # ============================================================================
+  AUTOPACK_ENABLE_BUILD_HISTORY_FEEDBACK:
+    description: "Enable build history feedback for improving future builds"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["executor/", "build_history.py"]
+    notes: "IMP-WAVE-001: Enables learning from previous build outcomes"
+
+  AUTOPACK_ENABLE_CICD_GENERATOR:
+    description: "Enable CI/CD pipeline generation capabilities"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["generator/", "cicd/"]
+    notes: "IMP-WAVE-001: Auto-generates CI/CD workflows based on project type"
+
+  AUTOPACK_ENABLE_CROSS_PROJECT_LEARNING:
+    description: "Enable learning patterns across different projects"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["memory/", "learning/"]
+    notes: "IMP-WAVE-001: Shares insights between projects for improved recommendations"
+
+  AUTOPACK_ENABLE_DEPLOYMENT_GUIDANCE:
+    description: "Enable deployment guidance and recommendations"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["guidance/", "deployment/"]
+    notes: "IMP-WAVE-001: Provides deployment best practices and recommendations"
+
+  AUTOPACK_ENABLE_EVENT_DRIVEN_TRIGGERS:
+    description: "Enable event-driven trigger system for automated actions"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["triggers/", "events/"]
+    notes: "IMP-WAVE-001: Allows automated responses to repository events"
+
+  AUTOPACK_ENABLE_MCP_SCANNER:
+    description: "Enable MCP (Model Context Protocol) scanner capabilities"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["scanner/", "mcp/"]
+    notes: "IMP-WAVE-001: Scans for MCP integration opportunities"
+
+  AUTOPACK_ENABLE_MONETIZATION_GUIDANCE:
+    description: "Enable monetization guidance for projects"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["guidance/", "monetization/"]
+    notes: "IMP-WAVE-001: Provides recommendations for project monetization strategies"
+
+  AUTOPACK_ENABLE_POST_BUILD_ARTIFACTS:
+    description: "Enable post-build artifact generation and management"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["artifacts/", "build/"]
+    notes: "IMP-WAVE-001: Generates additional artifacts after build completion"
+
+  AUTOPACK_ENABLE_RESEARCH_API_FULLMODE:
+    description: "Enable full research API mode with all endpoints"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["research/api/"]
+    notes: "IMP-WAVE-001: Enables comprehensive research API access"
+
+  AUTOPACK_ENABLE_RESEARCH_BUDGET_ENFORCEMENT:
+    description: "Enable budget enforcement for research operations"
+    category: feature_toggle
+    default: "true"
+    values: ["true", "false"]
+    affects: ["research/", "budget/"]
+    notes: "IMP-WAVE-001: Enforces token/cost budgets during research phases"
+
+  AUTOPACK_ENABLE_RESEARCH_CYCLE_TRIGGERING:
+    description: "Enable automatic research cycle triggering"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["research/", "cycles/"]
+    notes: "IMP-WAVE-001: Automatically triggers research cycles based on conditions"
+
+  AUTOPACK_ENABLE_SOT_ARTIFACT_SUBSTITUTION:
+    description: "Enable SOT artifact substitution in contexts"
+    category: feature_toggle
+    default: "false"
+    values: ["true", "false"]
+    affects: ["sot/", "artifacts/"]
+    notes: "IMP-WAVE-001: Substitutes large SOT artifacts with summaries"
+
+  AUTOPACK_PROJECTS_ROOT:
+    description: "Root directory for Autopack projects"
+    category: service_config
+    default: "."
+    values: "Valid directory path"
+    affects: ["config.py", "workspace_manager.py"]
+    notes: "IMP-WAVE-001: Base directory for project discovery and management"
+
+  # ============================================================================
   # Developer/Debug Overrides
   # ============================================================================
   AUTOPACK_PUBLIC_READ:

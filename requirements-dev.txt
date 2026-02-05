@@ -4,6 +4,12 @@
 #
 #    pip-compile --extra=dev --output-file=requirements-dev.txt pyproject.toml
 #
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.13.3
+    # via autopack (pyproject.toml)
+aiosignal==1.4.0
+    # via aiohttp
 alembic==1.17.2
     # via autopack (pyproject.toml)
 annotated-doc==0.0.4
@@ -21,6 +27,7 @@ anyio==4.12.0
     #   watchfiles
 attrs==25.4.0
     # via
+    #   aiohttp
     #   jsonschema
     #   referencing
 bcrypt==5.0.0
@@ -77,6 +84,10 @@ fakeredis==2.33.0
     # via autopack (pyproject.toml)
 fastapi==0.128.0
     # via autopack (pyproject.toml)
+frozenlist==1.8.0
+    # via
+    #   aiohttp
+    #   aiosignal
 google-ai-generativelanguage==0.6.15
     # via google-generativeai
 google-api-core[grpc]==2.28.1
@@ -141,6 +152,7 @@ idna==3.11
     #   email-validator
     #   httpx
     #   requests
+    #   yarl
 iniconfig==2.3.0
     # via pytest
 jiter==0.12.0
@@ -163,6 +175,10 @@ markupsafe==3.0.3
     # via mako
 mdurl==0.1.2
     # via markdown-it-py
+multidict==6.7.1
+    # via
+    #   aiohttp
+    #   yarl
 mypy==1.19.1
     # via autopack (pyproject.toml)
 mypy-extensions==1.1.0
@@ -199,6 +215,10 @@ prawcore==2.4.0
     # via praw
 prometheus-client==0.24.1
     # via autopack (pyproject.toml)
+propcache==0.4.1
+    # via
+    #   aiohttp
+    #   yarl
 proto-plus==1.27.0
     # via
     #   google-ai-generativelanguage
@@ -273,8 +293,6 @@ python-dotenv==1.2.1
     #   pydantic-settings
     #   uvicorn
 python-jose[cryptography]==3.5.0
-    # via autopack (pyproject.toml)
-python-magic==0.4.27 ; sys_platform != "win32"
     # via autopack (pyproject.toml)
 python-magic-bin==0.4.14 ; sys_platform == "win32"
     # via autopack (pyproject.toml)
@@ -351,6 +369,7 @@ tqdm==4.67.1
     #   openai
 typing-extensions==4.15.0
     # via
+    #   aiosignal
     #   alembic
     #   anthropic
     #   anyio
@@ -392,3 +411,5 @@ websockets==15.0.1
     # via uvicorn
 wrapt==2.0.1
     # via deprecated
+yarl==1.22.0
+    # via aiohttp

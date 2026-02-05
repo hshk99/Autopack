@@ -2504,6 +2504,14 @@ Configuration options (feature_flags.yaml):
 
         # IMP-SEG-001: Record research cycle metrics
         if self._research_cycle_integration and self._research_cycle_integration._metrics:
+            # Extract execution metrics from trigger result
+            triggers_executed = 0
+            if (
+                outcome.trigger_result
+                and outcome.trigger_result.execution_result
+            ):
+                triggers_executed = outcome.trigger_result.execution_result.triggers_executed
+
             self._health_collector.record_research_cycle(
                 outcome=(
                     "success"
@@ -2513,9 +2521,7 @@ Configuration options (feature_flags.yaml):
                 triggers_detected=(
                     outcome.trigger_result.triggers_detected if outcome.trigger_result else 0
                 ),
-                triggers_executed=(
-                    outcome.trigger_result.triggers_executed if outcome.trigger_result else 0
-                ),
+                triggers_executed=triggers_executed,
                 decision=outcome.decision.value,
                 gaps_addressed=outcome.gaps_addressed if outcome.gaps_addressed else 0,
                 gaps_remaining=outcome.gaps_remaining if outcome.gaps_remaining else 0,

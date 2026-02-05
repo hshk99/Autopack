@@ -754,11 +754,11 @@ class AnthropicBuilderClient:
             AuditorResult with issues found
         """
         try:
-            # Build system prompt
-            system_prompt = self._build_system_prompt()
+            # Build system prompt for auditor (use explicit auditor version)
+            system_prompt = self._build_auditor_system_prompt()
 
-            # Build user prompt
-            user_prompt = self._build_user_prompt(
+            # Build user prompt for auditor
+            user_prompt = self._build_auditor_user_prompt(
                 patch_content, phase_spec, file_context, project_rules, run_hints
             )
 
@@ -816,7 +816,38 @@ class AnthropicBuilderClient:
                 error=str(e),
             )
 
-    def _build_system_prompt(self) -> str:
+    def _build_system_prompt(
+        self,
+        use_full_file_mode: bool = True,
+        use_structured_edit: bool = False,
+        use_ndjson_format: bool = False,
+        phase_spec: Optional[Dict] = None,
+    ) -> str:
+        """Build system prompt for Claude Builder.
+
+        Delegates to anthropic_builder_prompts for centralized prompt management.
+        Also maintains backward compatibility with auditor prompts when called
+        with minimal arguments (from review_patch).
+
+        Args:
+            use_full_file_mode: If True, use new full-file replacement format
+            use_structured_edit: If True, use structured edit mode for large files
+            use_ndjson_format: If True, use NDJSON format for truncation tolerance
+            phase_spec: Phase specification for context-aware prompt optimization
+
+        Returns:
+            System prompt string for Claude Builder
+        """
+        from .llm.prompts.anthropic_builder_prompts import build_system_prompt
+
+        return build_system_prompt(
+            use_full_file_mode=use_full_file_mode,
+            use_structured_edit=use_structured_edit,
+            use_ndjson_format=use_ndjson_format,
+            phase_spec=phase_spec,
+        )
+
+    def _build_auditor_system_prompt(self) -> str:
         """Build system prompt for Claude Auditor"""
         base_prompt = """You are an expert code reviewer for an autonomous build system.
 
@@ -865,13 +896,65 @@ Approval Criteria:
 
     def _build_user_prompt(
         self,
+        phase_spec: Dict,
+        file_context: Optional[Dict] = None,
+        project_rules: Optional[List] = None,
+        run_hints: Optional[List] = None,
+        use_full_file_mode: bool = True,
+        config=None,
+        retrieved_context: Optional[str] = None,
+        context_budget_tokens: Optional[int] = None,
+        patch_content: Optional[str] = None,
+    ) -> str:
+        """Build user prompt for Claude Builder.
+
+        Delegates to anthropic_builder_prompts for centralized prompt management.
+        Also maintains backward compatibility with auditor prompts when called
+        with patch_content (from review_patch).
+
+        Args:
+            phase_spec: Phase specification
+            file_context: Repository file context
+            project_rules: Persistent learned rules
+            run_hints: Within-run hints
+            use_full_file_mode: If True, include FULL file content for accurate editing
+            config: BuilderOutputConfig instance
+            retrieved_context: Retrieved context from vector memory
+            context_budget_tokens: Hard cap for file_context inclusion
+            patch_content: If provided, uses auditor prompt mode (backward compatibility)
+
+        Returns:
+            User prompt string for Claude Builder
+        """
+        # Backward compatibility: if patch_content is provided, use auditor prompt
+        if patch_content is not None:
+            return self._build_auditor_user_prompt(
+                patch_content, phase_spec, file_context, project_rules, run_hints
+            )
+
+        # New builder prompt mode
+        from .llm.prompts.anthropic_builder_prompts import build_user_prompt
+
+        return build_user_prompt(
+            phase_spec=phase_spec,
+            file_context=file_context,
+            project_rules=project_rules,
+            run_hints=run_hints,
+            use_full_file_mode=use_full_file_mode,
+            config=config,
+            retrieved_context=retrieved_context,
+            context_budget_tokens=context_budget_tokens,
+        )
+
+    def _build_auditor_user_prompt(
+        self,
         patch_content: str,
         phase_spec: Dict,
         file_context: Optional[Dict],
         project_rules: Optional[List],
         run_hints: Optional[List] = None,
     ) -> str:
-        """Build user prompt with patch to review"""
+        """Build user prompt for auditor (review_patch mode)"""
         prompt_parts = [
             "# Patch to Review",
             f"```diff\n{patch_content}\n```",

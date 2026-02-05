@@ -37,6 +37,7 @@ from autopack.research.idea_parser import IdeaParser, ParsedIdea
 from autopack.research.models.bootstrap_session import BootstrapSession
 from autopack.research.orchestrator import ResearchOrchestrator
 from autopack.research.qa_controller import AnswerSource, QAController
+from autopack.schema_validation import SchemaValidationError, validate_plan_proposal_v1
 
 logger = logging.getLogger(__name__)
 
@@ -252,6 +253,31 @@ class BootstrapRunner:
             workspace_root=project_dir,
             is_first_build=True,  # First build always requires approval
         )
+
+        # Step 9.5: IMP-BOOTSTRAP-004 - Validate plan proposal (Phase 1 validation gate)
+        logger.info("[Bootstrap] Validating plan proposal (Phase 1)...")
+        try:
+            plan_dict = plan.model_dump(mode="json") if hasattr(plan, "model_dump") else plan.dict()
+            validate_plan_proposal_v1(plan_dict)
+            logger.info("[Bootstrap] Plan proposal validation passed")
+        except SchemaValidationError as e:
+            logger.error(
+                f"[Bootstrap] Plan proposal validation failed with {len(e.errors)} error(s)"
+            )
+            return BootstrapResult(
+                success=False,
+                project_dir=project_dir,
+                anchor=anchor,
+                parsed_idea=parsed_idea,
+                bootstrap_session=bootstrap_session,
+                gap_report=gap_report,
+                plan=plan,
+                errors=[
+                    "Plan proposal validation failed. The plan structure is invalid and cannot be written.",
+                    *e.errors[:10],  # Include first 10 validation errors
+                ],
+                warnings=warnings,
+            )
 
         # Write plan proposal
         plan_path = project_dir / "plan_proposal_v1.json"

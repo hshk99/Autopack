@@ -53,6 +53,9 @@ class ResearchCycleMetrics:
 
     IMP-AUT-001: Provides comprehensive tracking of research cycle activity
     for monitoring and debugging purposes.
+
+    IMP-TRIGGER-001: Includes callback execution metrics for research
+    complete callback observability.
     """
 
     total_cycles_triggered: int = 0
@@ -63,6 +66,11 @@ class ResearchCycleMetrics:
     total_triggers_detected: int = 0
     total_triggers_executed: int = 0
     total_execution_time_ms: int = 0
+    # IMP-TRIGGER-001: Callback execution tracking
+    total_callbacks_invoked: int = 0
+    total_callbacks_succeeded: int = 0
+    total_callbacks_failed: int = 0
+    total_callback_time_ms: int = 0
     decisions: Dict[str, int] = field(
         default_factory=lambda: {d.value: 0 for d in ResearchCycleDecision}
     )
@@ -81,6 +89,10 @@ class ResearchCycleMetrics:
                 "total_triggers_detected": self.total_triggers_detected,
                 "total_triggers_executed": self.total_triggers_executed,
                 "total_execution_time_ms": self.total_execution_time_ms,
+                "total_callbacks_invoked": self.total_callbacks_invoked,
+                "total_callbacks_succeeded": self.total_callbacks_succeeded,
+                "total_callbacks_failed": self.total_callbacks_failed,
+                "total_callback_time_ms": self.total_callback_time_ms,
                 "decisions": self.decisions,
                 "last_cycle_at": self.last_cycle_at.isoformat() if self.last_cycle_at else None,
                 "budget_at_last_cycle": self.budget_at_last_cycle,
@@ -367,6 +379,19 @@ class ResearchCycleIntegration:
 
             trigger_result.execution_result = execution_result
             self._metrics.total_triggers_executed += execution_result.triggers_executed
+
+            # IMP-TRIGGER-001: Record callback execution metrics
+            self._metrics.total_callbacks_invoked += execution_result.callbacks_invoked
+            self._metrics.total_callbacks_succeeded += execution_result.successful_executions
+            self._metrics.total_callbacks_failed += execution_result.failed_executions
+            self._metrics.total_callback_time_ms += execution_result.total_execution_time_ms
+
+            logger.debug(
+                f"[IMP-TRIGGER-001] Callback execution complete: "
+                f"{execution_result.successful_executions} succeeded, "
+                f"{execution_result.failed_executions} failed, "
+                f"{execution_result.total_execution_time_ms}ms total time"
+            )
 
             # Determine decision based on results
             outcome = self._determine_decision(

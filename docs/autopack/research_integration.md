@@ -301,6 +301,148 @@ pytest tests/autopack/workflow/
 pytest tests/autopack/integration/
 ```
 
+## Research Complete Callback (IMP-TRIGGER-001)
+
+The research complete callback system enables mid-execution research triggering through a flexible callback mechanism. When research gaps are detected, the system can automatically trigger follow-up research without pausing execution.
+
+### Overview
+
+**Location**: `src/autopack/research/analysis/followup_trigger.py`
+
+**Purpose**: Detect research gaps and automatically invoke registered callbacks for mid-execution research closure.
+
+### Trigger Types
+
+The system detects five types of research triggers:
+
+| Type | Detection | Priority |
+|------|-----------|----------|
+| **UNCERTAINTY** | Low confidence findings (< 70%) | Dynamic based on confidence |
+| **GAP** | Identified missing information | High |
+| **DEPTH** | Critical topics with shallow coverage | High |
+| **VALIDATION** | Failed validation claims | Medium |
+| **EMERGING** | New unresearched entities mentioned | Medium |
+
+### Callback Registration
+
+Register callbacks with the autopilot controller to handle research triggers:
+
+```python
+from autopack.autonomy.autopilot import AutopilotController
+from autopack.research.analysis.followup_trigger import FollowupTrigger
+
+async def handle_research_trigger(trigger: FollowupTrigger):
+    """Handle a research trigger by executing the planned research."""
+    # Access trigger information
+    print(f"Trigger: {trigger.trigger_type.value}")
+    print(f"Reason: {trigger.reason}")
+    print(f"Research Plan: {trigger.research_plan.queries}")
+
+    # Execute research based on the plan
+    findings = await execute_research(trigger.research_plan)
+
+    # Return research results
+    return {"findings": findings, "confidence": 0.85}
+
+# Register the callback
+controller = AutopilotController()
+controller.register_followup_callback(handle_research_trigger)
+```
+
+### Async Callback Registration
+
+For concurrent callback execution, use async callbacks:
+
+```python
+async def handle_research_async(trigger: FollowupTrigger):
+    """Handle research trigger asynchronously."""
+    research_result = await research_orchestrator.execute(
+        trigger.research_plan
+    )
+    return {"findings": research_result.findings}
+
+# Register async callback
+controller.register_followup_async_callback(handle_research_async)
+```
+
+### Execution Flow
+
+When triggers are detected, callbacks are executed in order:
+
+1. **Analysis Phase**: Detect research gaps
+   - Low confidence findings
+   - Missing information
+   - Shallow coverage on critical topics
+   - Failed validations
+   - New entities
+
+2. **Selection Phase**: Prioritize triggers
+   - Select up to 5 high-priority triggers
+   - Skip already-addressed triggers
+   - Consider budget constraints
+
+3. **Callback Execution**: Invoke registered callbacks
+   - Synchronous callbacks invoked sequentially
+   - Async callbacks invoked concurrently (up to 3 at a time)
+   - Results aggregated and stored
+
+4. **Decision Phase**: Determine next action
+   - PROCEED: Continue execution
+   - PAUSE_FOR_RESEARCH: Pause for additional research
+   - ADJUST_PLAN: Modify execution plan based on findings
+   - BLOCK: Block execution due to critical gaps
+
+### Telemetry and Observability
+
+The system tracks comprehensive callback execution metrics:
+
+```python
+# Access metrics from research cycle integration
+metrics = autopilot.research_cycle_integration.get_metrics()
+
+print(f"Total callbacks invoked: {metrics.total_callbacks_invoked}")
+print(f"Callbacks succeeded: {metrics.total_callbacks_succeeded}")
+print(f"Callbacks failed: {metrics.total_callbacks_failed}")
+print(f"Total callback time: {metrics.total_callback_time_ms}ms")
+print(f"Total triggers detected: {metrics.total_triggers_detected}")
+print(f"Total triggers executed: {metrics.total_triggers_executed}")
+```
+
+### Loop Prevention
+
+The system prevents infinite research loops with:
+
+- **Max Iterations**: Limited to 3 followup research iterations
+- **Minimum New Information**: Requires 20% new information to continue
+- **Addressed Tracking**: Prevents re-researching same gaps
+- **Previous Triggers**: Deduplication across iterations
+
+### Example: Complete Flow
+
+```python
+# 1. Register callback
+async def my_research_handler(trigger):
+    # Perform research based on trigger.research_plan
+    return {"insights": [...]}
+
+controller.register_followup_async_callback(my_research_handler)
+
+# 2. Execute research cycle (happens automatically in autopilot)
+# Research analysis detects triggers
+# Callbacks are invoked
+# Results are integrated
+
+# 3. Access results
+outcome = autopilot._last_research_outcome
+if outcome and outcome.trigger_result:
+    print(f"Detected: {outcome.trigger_result.triggers_detected} triggers")
+    print(f"Selected: {outcome.trigger_result.triggers_selected} for research")
+    if outcome.trigger_result.execution_result:
+        result = outcome.trigger_result.execution_result
+        print(f"Executed: {result.triggers_executed} callbacks")
+        print(f"Success rate: {result.successful_executions}/{result.callbacks_invoked}")
+```
+
 ## Future Enhancements
 
 1. **Machine Learning Integration**:

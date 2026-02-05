@@ -191,6 +191,14 @@ def validate_object(data: Dict[str, Any], schema: Dict[str, Any], path: str = "$
                 errors.append(f"{field_path}: Unknown field (not in schema)")
             continue
 
+        # Skip validation for None values on optional fields
+        if value is None:
+            if field not in required:
+                continue
+            else:
+                errors.append(f"{field_path}: Required field cannot be null")
+                continue
+
         # Validate type
         if "type" in field_schema:
             field_type = field_schema["type"]

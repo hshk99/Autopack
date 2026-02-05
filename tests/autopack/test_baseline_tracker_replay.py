@@ -92,15 +92,15 @@ class TestBaselineReplayDeterminism:
             delta = tracker.diff(baseline, report_path)
 
             # Verify lists are sorted
-            assert delta.newly_failing == sorted(delta.newly_failing), (
-                f"newly_failing should be sorted, got: {delta.newly_failing}"
-            )
-            assert delta.newly_passing == sorted(delta.newly_passing), (
-                f"newly_passing should be sorted, got: {delta.newly_passing}"
-            )
-            assert delta.new_collection_errors == sorted(delta.new_collection_errors), (
-                f"new_collection_errors should be sorted, got: {delta.new_collection_errors}"
-            )
+            assert delta.newly_failing == sorted(
+                delta.newly_failing
+            ), f"newly_failing should be sorted, got: {delta.newly_failing}"
+            assert delta.newly_passing == sorted(
+                delta.newly_passing
+            ), f"newly_passing should be sorted, got: {delta.newly_passing}"
+            assert delta.new_collection_errors == sorted(
+                delta.new_collection_errors
+            ), f"new_collection_errors should be sorted, got: {delta.new_collection_errors}"
 
             # Verify exact expected values (sorted)
             assert delta.newly_failing == ["test_c.py::test_3", "test_z.py::test_9"]

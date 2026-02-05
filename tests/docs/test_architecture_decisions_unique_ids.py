@@ -45,12 +45,12 @@ def test_architecture_decision_ids_are_unique_and_index_matches_sections():
             index_titles[dec_id] = title
             continue
 
-    assert section_titles, (
-        "No DEC section headings found; expected at least one '### DEC-### | ...'."
-    )
-    assert index_titles, (
-        "No INDEX table rows found; expected at least one '| YYYY-MM-DD | DEC-### | ... |'."
-    )
+    assert (
+        section_titles
+    ), "No DEC section headings found; expected at least one '### DEC-### | ...'."
+    assert (
+        index_titles
+    ), "No INDEX table rows found; expected at least one '| YYYY-MM-DD | DEC-### | ... |'."
 
     # INDEX should not reference unknown decisions.
     unknown = sorted(set(index_titles) - set(section_titles))

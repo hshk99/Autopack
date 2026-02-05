@@ -109,9 +109,9 @@ class TestDirectInsightConsumerConfidence:
 
         assert len(result.insights) == 3
         for insight in result.insights:
-            assert insight.confidence == 1.0, (
-                f"Expected confidence 1.0 for {insight.issue_type}, got {insight.confidence}"
-            )
+            assert (
+                insight.confidence == 1.0
+            ), f"Expected confidence 1.0 for {insight.issue_type}, got {insight.confidence}"
 
     def test_direct_consumer_source_is_direct(self, sample_telemetry_data):
         """DirectInsightConsumer should set source=InsightSource.DIRECT."""

@@ -140,9 +140,9 @@ class TestProductionAuthCoverage:
         }
 
         actual_allowlist = set(PRODUCTION_UNAUTHENTICATED_ALLOWLIST.keys())
-        assert actual_allowlist == expected_public, (
-            f"Allowlist has unexpected entries: {actual_allowlist - expected_public}"
-        )
+        assert (
+            actual_allowlist == expected_public
+        ), f"Allowlist has unexpected entries: {actual_allowlist - expected_public}"
 
     def test_special_security_endpoints_documented(self):
         """Special security endpoints must have documented mechanism."""
@@ -280,9 +280,9 @@ class TestAuthAllowlistDocumentation:
             pytest.skip("Gap analysis doc not found")
 
         content = gap_analysis.read_text(encoding="utf-8")
-        assert "production auth" in content.lower() or "auth posture" in content.lower(), (
-            "Gap analysis should document production auth requirements"
-        )
+        assert (
+            "production auth" in content.lower() or "auth posture" in content.lower()
+        ), "Gap analysis should document production auth requirements"
 
     def test_allowlist_has_rationale_for_each_entry(self):
         """Every allowlist entry must have a documented rationale."""
@@ -302,17 +302,17 @@ class TestQuarantinedEndpointWarnings:
         if research_routes:
             # Verify they're in the quarantine list
             for path, methods, has_auth in research_routes:
-                assert not has_auth, (
-                    f"Research endpoint {path} should not have auth (it's quarantined)"
-                )
+                assert (
+                    not has_auth
+                ), f"Research endpoint {path} should not have auth (it's quarantined)"
 
                 # Check it's documented as quarantined
                 is_quarantined = any(
                     path.startswith(q.split("{")[0]) for q in QUARANTINED_ENDPOINTS
                 )
-                assert is_quarantined, (
-                    f"Research endpoint {path} should be in QUARANTINED_ENDPOINTS list"
-                )
+                assert (
+                    is_quarantined
+                ), f"Research endpoint {path} should be in QUARANTINED_ENDPOINTS list"
 
     def test_telegram_webhook_special_security(self):
         """Telegram webhook should be in special security list."""
@@ -321,6 +321,6 @@ class TestQuarantinedEndpointWarnings:
 
         for path, methods, has_auth in telegram_routes:
             if path == "/telegram/webhook":
-                assert path in SPECIAL_SECURITY_ENDPOINTS, (
-                    "Telegram webhook should be in SPECIAL_SECURITY_ENDPOINTS"
-                )
+                assert (
+                    path in SPECIAL_SECURITY_ENDPOINTS
+                ), "Telegram webhook should be in SPECIAL_SECURITY_ENDPOINTS"

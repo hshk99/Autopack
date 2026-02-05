@@ -83,17 +83,17 @@ class TestGovernanceDocsContract:
         allowed_paths = ["examples/", "scripts/"]
 
         for path in allowed_paths:
-            assert path not in never_auto_approve_patterns, (
-                f"{path} should be an allowed path, not in NEVER_AUTO_APPROVE_PATTERNS"
-            )
+            assert (
+                path not in never_auto_approve_patterns
+            ), f"{path} should be an allowed path, not in NEVER_AUTO_APPROVE_PATTERNS"
 
         # And GOVERNANCE.md should show them as allowed
-        assert "examples/" in governance_content, (
-            "GOVERNANCE.md should document examples/ as an allowed path"
-        )
-        assert "scripts/" in governance_content, (
-            "GOVERNANCE.md should document scripts/ as an allowed path"
-        )
+        assert (
+            "examples/" in governance_content
+        ), "GOVERNANCE.md should document examples/ as an allowed path"
+        assert (
+            "scripts/" in governance_content
+        ), "GOVERNANCE.md should document scripts/ as an allowed path"
 
     def test_protected_paths_section_exists(self, governance_content):
         """GOVERNANCE.md must have a Protected Paths section."""
@@ -160,6 +160,6 @@ class TestGovernanceCodeContract:
         from autopack.planning.plan_proposer import PlanProposer
 
         # Check that _apply_governance method exists and sets default-deny
-        assert hasattr(PlanProposer, "_apply_governance"), (
-            "PlanProposer must have _apply_governance method for default-deny"
-        )
+        assert hasattr(
+            PlanProposer, "_apply_governance"
+        ), "PlanProposer must have _apply_governance method for default-deny"

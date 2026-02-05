@@ -66,9 +66,9 @@ class TestIMPSEC006WebhookSecretRequired:
         ):
             result = await verify_telegram_webhook(mock_request)
 
-            assert result is False, (
-                "IMP-SEC-006: Production mode must reject webhooks with invalid secret token"
-            )
+            assert (
+                result is False
+            ), "IMP-SEC-006: Production mode must reject webhooks with invalid secret token"
 
     @pytest.mark.asyncio
     async def test_production_accepts_valid_secret_token(self):
@@ -87,9 +87,9 @@ class TestIMPSEC006WebhookSecretRequired:
         ):
             result = await verify_telegram_webhook(mock_request)
 
-            assert result is True, (
-                "IMP-SEC-006: Production mode must accept webhooks with valid secret token"
-            )
+            assert (
+                result is True
+            ), "IMP-SEC-006: Production mode must accept webhooks with valid secret token"
 
     @pytest.mark.asyncio
     async def test_development_allows_without_secret_configured(self):
@@ -125,9 +125,9 @@ class TestIMPSEC006WebhookSecretRequired:
                 asyncio.get_event_loop().run_until_complete(verify_telegram_webhook(mock_request))
 
             # Should log error about missing secret
-            assert any("TELEGRAM_WEBHOOK_SECRET" in record.message for record in caplog.records), (
-                "IMP-SEC-006: Must log error when production secret is missing"
-            )
+            assert any(
+                "TELEGRAM_WEBHOOK_SECRET" in record.message for record in caplog.records
+            ), "IMP-SEC-006: Must log error when production secret is missing"
 
 
 class TestWebhookSecretConfiguration:
@@ -153,9 +153,9 @@ class TestWebhookSecretConfiguration:
             os.environ,
             {"AUTOPACK_ENV": "development", "TELEGRAM_WEBHOOK_SECRET": "secret"},
         ):
-            assert is_verification_required() is True, (
-                "Verification should be required when secret is configured"
-            )
+            assert (
+                is_verification_required() is True
+            ), "Verification should be required when secret is configured"
 
     def test_verification_not_required_dev_no_secret(self):
         """Development without secret does not require verification."""
@@ -164,6 +164,6 @@ class TestWebhookSecretConfiguration:
         with patch.dict(os.environ, {"AUTOPACK_ENV": "development"}, clear=False):
             os.environ.pop("TELEGRAM_WEBHOOK_SECRET", None)
 
-            assert is_verification_required() is False, (
-                "Development mode without secret should not require verification"
-            )
+            assert (
+                is_verification_required() is False
+            ), "Development mode without secret should not require verification"

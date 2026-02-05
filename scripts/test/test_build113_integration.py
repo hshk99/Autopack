@@ -48,14 +48,14 @@ def test_proactive_decision_method():
         )
 
         # Check method exists
-        assert hasattr(decision_maker, "make_proactive_decision"), (
-            "make_proactive_decision method not found"
-        )
+        assert hasattr(
+            decision_maker, "make_proactive_decision"
+        ), "make_proactive_decision method not found"
 
         # Check method is callable
-        assert callable(decision_maker.make_proactive_decision), (
-            "make_proactive_decision is not callable"
-        )
+        assert callable(
+            decision_maker.make_proactive_decision
+        ), "make_proactive_decision is not callable"
 
         print("✓ make_proactive_decision method exists and is callable")
         return True
@@ -74,13 +74,13 @@ def test_autonomous_executor_integration():
         from autopack.autonomous_executor import AutonomousExecutor
 
         # Check helper methods exist
-        assert hasattr(AutonomousExecutor, "_request_build113_approval"), (
-            "_request_build113_approval method not found"
-        )
+        assert hasattr(
+            AutonomousExecutor, "_request_build113_approval"
+        ), "_request_build113_approval method not found"
 
-        assert hasattr(AutonomousExecutor, "_request_build113_clarification"), (
-            "_request_build113_clarification method not found"
-        )
+        assert hasattr(
+            AutonomousExecutor, "_request_build113_clarification"
+        ), "_request_build113_clarification method not found"
 
         print("✓ autonomous_executor has BUILD-113 helper methods")
         return True

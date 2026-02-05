@@ -102,9 +102,9 @@ class TestAtomicWrites:
 
         # Check that all improvements were recorded
         improvements = data.get("improvements", {})
-        assert len(improvements) >= num_threads, (
-            f"Expected at least {num_threads} improvements, got {len(improvements)}"
-        )
+        assert (
+            len(improvements) >= num_threads
+        ), f"Expected at least {num_threads} improvements, got {len(improvements)}"
 
         # Verify each improvement is valid
         for imp_id, imp_data in improvements.items():

@@ -92,7 +92,7 @@ def _get_research_api_mode() -> ResearchAPIMode:
     2. RESEARCH_API_ENABLED env var (legacy boolean, maps to FULL/DISABLED)
     3. Environment-based defaults:
        - production: DISABLED
-       - development: FULL
+       - development: BOOTSTRAP_ONLY
 
     Returns:
         ResearchAPIMode enum value
@@ -120,7 +120,7 @@ def _get_research_api_mode() -> ResearchAPIMode:
     env = os.getenv("AUTOPACK_ENV", "development").lower()
     if env == "production":
         return ResearchAPIMode.DISABLED
-    return ResearchAPIMode.FULL
+    return ResearchAPIMode.BOOTSTRAP_ONLY
 
 
 def _is_research_api_enabled() -> bool:

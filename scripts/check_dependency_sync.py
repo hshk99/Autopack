@@ -85,6 +85,7 @@ def main() -> int:
         """
         # Packages that vary by Python version (backports for < 3.11)
         PYTHON_VERSION_PACKAGES = {
+            "async-timeout",  # asyncio.timeout() backport for Python < 3.11
             "exceptiongroup",
             "tomli",
             "backports-asyncio-runner",

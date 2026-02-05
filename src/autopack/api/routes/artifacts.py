@@ -6,6 +6,7 @@ Endpoints:
 - GET /runs/{run_id}/artifacts/index - Get artifact file index for a run
 - GET /runs/{run_id}/artifacts/file - Get artifact file content
 - GET /runs/{run_id}/browser/artifacts - Get browser-specific artifacts
+- GET /runs/{run_id}/artifacts/code-generation - Get code generation artifacts (IMP-ARTIFACT-001)
 """
 
 import logging
@@ -26,6 +27,76 @@ from autopack.file_layout import RunFileLayout
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["artifacts"])
+
+# IMP-ARTIFACT-001: Code generation artifact file extensions
+CODE_GENERATION_EXTENSIONS = {
+    ".py",  # Python
+    ".ts",  # TypeScript
+    ".tsx",  # TypeScript React
+    ".js",  # JavaScript
+    ".jsx",  # JavaScript React
+    ".java",  # Java
+    ".cs",  # C#
+    ".cpp",  # C++
+    ".c",  # C
+    ".go",  # Go
+    ".rs",  # Rust
+    ".rb",  # Ruby
+    ".php",  # PHP
+    ".swift",  # Swift
+    ".kt",  # Kotlin
+    ".scala",  # Scala
+    ".sh",  # Shell script
+    ".bash",  # Bash script
+    ".ps1",  # PowerShell
+    ".yaml",  # YAML (configuration)
+    ".yml",  # YAML (configuration)
+    ".json",  # JSON (configuration/data)
+    ".toml",  # TOML (configuration)
+    ".sql",  # SQL
+    ".html",  # HTML
+    ".css",  # CSS
+    ".scss",  # SCSS
+    ".less",  # LESS
+    ".xml",  # XML
+}
+
+# Code generation patterns to exclude
+CODE_GENERATION_EXCLUSIONS = {
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    ".env",
+    "dist",
+    "build",
+    "coverage",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".tox",
+}
+
+
+def is_code_generation_file(file_path) -> bool:
+    """Check if a file is a code generation artifact.
+
+    IMP-ARTIFACT-001: Determines if a file should be included in code generation artifacts.
+
+    Args:
+        file_path: Path object to check
+
+    Returns:
+        True if the file is a code generation artifact, False otherwise
+    """
+    # Check if in exclusion paths
+    parts = file_path.parts
+    for part in parts:
+        if part in CODE_GENERATION_EXCLUSIONS:
+            return False
+
+    # Check file extension
+    return file_path.suffix.lower() in CODE_GENERATION_EXTENSIONS
 
 
 @router.get("/runs/{run_id}/artifacts/index")
@@ -237,4 +308,98 @@ async def get_browser_artifacts(
         "run_id": run_id,
         "artifacts": browser_artifacts,
         "total_count": len(browser_artifacts),
+    }
+
+
+@router.get("/runs/{run_id}/artifacts/code-generation")
+async def get_code_generation_artifacts(
+    run_id: str,
+    db: Session = Depends(get_db),
+    _auth: str = Depends(verify_read_access),
+) -> Dict[str, Any]:
+    """Get code generation artifacts for a run (IMP-ARTIFACT-001).
+
+    Returns list of generated code files with metadata.
+    Filters for code files (.py, .ts, .tsx, .js, .jsx, etc.)
+    and excludes common non-generated directories.
+
+    Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
+
+    Response:
+        run_id: Run identifier
+        artifacts: List of code generation artifacts with path, size, type, and modified timestamp
+        total_size_bytes: Total size of all code generation artifacts
+        total_count: Total number of code generation artifacts
+    """
+    from pathlib import Path
+
+    run = db.query(models.Run).filter(models.Run.id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+    file_layout = RunFileLayout(run_id)
+    code_artifacts = []
+    total_size = 0
+
+    if file_layout.base_dir.exists():
+        for file_path in file_layout.base_dir.rglob("*"):
+            if file_path.is_file() and is_code_generation_file(file_path):
+                rel_path = file_path.relative_to(file_layout.base_dir)
+                file_size = file_path.stat().st_size
+                total_size += file_size
+
+                # Determine code file type from extension
+                ext = file_path.suffix.lower()
+                code_type = "unknown"
+                if ext == ".py":
+                    code_type = "python"
+                elif ext in {".ts", ".tsx"}:
+                    code_type = "typescript"
+                elif ext in {".js", ".jsx"}:
+                    code_type = "javascript"
+                elif ext in {".java"}:
+                    code_type = "java"
+                elif ext in {".cs"}:
+                    code_type = "csharp"
+                elif ext in {".cpp", ".c"}:
+                    code_type = "c"
+                elif ext == ".go":
+                    code_type = "go"
+                elif ext == ".rs":
+                    code_type = "rust"
+                elif ext == ".rb":
+                    code_type = "ruby"
+                elif ext == ".php":
+                    code_type = "php"
+                elif ext == ".swift":
+                    code_type = "swift"
+                elif ext == ".kt":
+                    code_type = "kotlin"
+                elif ext == ".scala":
+                    code_type = "scala"
+                elif ext in {".sh", ".bash", ".ps1"}:
+                    code_type = "shell"
+                elif ext in {".yaml", ".yml", ".json", ".toml", ".xml"}:
+                    code_type = "config"
+                elif ext == ".sql":
+                    code_type = "sql"
+                elif ext in {".html", ".css", ".scss", ".less"}:
+                    code_type = "markup"
+
+                code_artifacts.append(
+                    {
+                        "path": str(rel_path),
+                        "type": code_type,
+                        "size_bytes": file_size,
+                        "modified_at": datetime.fromtimestamp(
+                            file_path.stat().st_mtime, tz=timezone.utc
+                        ).isoformat(),
+                    }
+                )
+
+    return {
+        "run_id": run_id,
+        "artifacts": code_artifacts,
+        "total_size_bytes": total_size,
+        "total_count": len(code_artifacts),
     }

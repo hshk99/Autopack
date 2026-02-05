@@ -16,19 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-
-class ProjectType(Enum):
-    """Types of projects for monetization analysis."""
-
-    SAAS = "saas"
-    ECOMMERCE = "ecommerce"
-    CONTENT = "content"
-    SUBSCRIPTION = "subscription"
-    MARKETPLACE = "marketplace"
-    API_SERVICE = "api_service"
-    MOBILE_APP = "mobile_app"
-    CONSULTING = "consulting"
-    UNKNOWN = "unknown"
+from autopack.research.idea_parser import ProjectType
 
 
 class MonetizationModel(Enum):
@@ -257,12 +245,6 @@ class MonetizationAnalyzer:
 
     # Model recommendations by project type
     PROJECT_MODEL_RECOMMENDATIONS: Dict[ProjectType, List[Tuple[MonetizationModel, float]]] = {
-        ProjectType.SAAS: [
-            (MonetizationModel.SUBSCRIPTION, 9.0),
-            (MonetizationModel.FREEMIUM, 8.0),
-            (MonetizationModel.USAGE_BASED, 7.0),
-            (MonetizationModel.TIERED_PRICING, 8.5),
-        ],
         ProjectType.ECOMMERCE: [
             (MonetizationModel.MARKETPLACE_COMMISSION, 8.0),
             (MonetizationModel.ONE_TIME_PURCHASE, 7.5),
@@ -275,31 +257,21 @@ class MonetizationAnalyzer:
             (MonetizationModel.FREEMIUM, 7.5),
             (MonetizationModel.ONE_TIME_PURCHASE, 5.0),
         ],
-        ProjectType.SUBSCRIPTION: [
-            (MonetizationModel.SUBSCRIPTION, 9.5),
-            (MonetizationModel.TIERED_PRICING, 9.0),
-            (MonetizationModel.FREEMIUM, 7.0),
+        ProjectType.TRADING: [
+            (MonetizationModel.SUBSCRIPTION, 9.0),
+            (MonetizationModel.USAGE_BASED, 8.0),
+            (MonetizationModel.TIERED_PRICING, 7.5),
         ],
-        ProjectType.MARKETPLACE: [
-            (MonetizationModel.MARKETPLACE_COMMISSION, 9.0),
-            (MonetizationModel.SUBSCRIPTION, 6.0),
-            (MonetizationModel.ADVERTISING, 5.0),
-        ],
-        ProjectType.API_SERVICE: [
-            (MonetizationModel.USAGE_BASED, 9.0),
-            (MonetizationModel.TIERED_PRICING, 8.0),
-            (MonetizationModel.SUBSCRIPTION, 7.0),
-        ],
-        ProjectType.MOBILE_APP: [
-            (MonetizationModel.FREEMIUM, 8.5),
+        ProjectType.AUTOMATION: [
             (MonetizationModel.SUBSCRIPTION, 8.0),
+            (MonetizationModel.USAGE_BASED, 7.0),
             (MonetizationModel.ONE_TIME_PURCHASE, 6.0),
-            (MonetizationModel.ADVERTISING, 7.0),
+            (MonetizationModel.LICENSING, 6.5),
         ],
-        ProjectType.CONSULTING: [
-            (MonetizationModel.ONE_TIME_PURCHASE, 8.0),
-            (MonetizationModel.SUBSCRIPTION, 7.0),
-            (MonetizationModel.LICENSING, 6.0),
+        ProjectType.OTHER: [
+            (MonetizationModel.SUBSCRIPTION, 8.0),
+            (MonetizationModel.ONE_TIME_PURCHASE, 7.0),
+            (MonetizationModel.FREEMIUM, 6.0),
         ],
     }
 
@@ -453,7 +425,7 @@ class MonetizationAnalyzer:
     ) -> MonetizationAnalysisResult:
         """Create minimal result when budget is insufficient."""
         return MonetizationAnalysisResult(
-            project_type=project_type or ProjectType.UNKNOWN,
+            project_type=project_type or ProjectType.OTHER,
             confidence=RevenueConfidence.SPECULATIVE,
             key_assumptions=["Analysis limited due to budget constraints"],
             risks=["Full monetization analysis not performed"],
@@ -467,25 +439,17 @@ class MonetizationAnalyzer:
 
         all_text = " ".join(keywords + features) + " " + description
 
-        # Detection rules
-        if any(term in all_text for term in ["api", "sdk", "developer", "integration"]):
-            return ProjectType.API_SERVICE
-        elif any(term in all_text for term in ["marketplace", "platform", "seller", "buyer"]):
-            return ProjectType.MARKETPLACE
-        elif any(term in all_text for term in ["shop", "store", "cart", "checkout", "product"]):
+        # Detection rules - map to bootstrap phase ProjectType values
+        if any(term in all_text for term in ["shop", "store", "cart", "checkout", "product", "marketplace"]):
             return ProjectType.ECOMMERCE
-        elif any(term in all_text for term in ["content", "blog", "article", "media", "news"]):
+        elif any(term in all_text for term in ["content", "blog", "article", "media", "news", "video", "creator"]):
             return ProjectType.CONTENT
-        elif any(term in all_text for term in ["mobile", "ios", "android", "app"]):
-            return ProjectType.MOBILE_APP
-        elif any(term in all_text for term in ["consulting", "service", "agency"]):
-            return ProjectType.CONSULTING
-        elif any(term in all_text for term in ["saas", "software", "cloud", "tool"]):
-            return ProjectType.SAAS
-        elif any(term in all_text for term in ["subscription", "membership", "recurring"]):
-            return ProjectType.SUBSCRIPTION
-
-        return ProjectType.SAAS  # Default to SaaS
+        elif any(term in all_text for term in ["trade", "trading", "crypto", "stock", "forex", "investment"]):
+            return ProjectType.TRADING
+        elif any(term in all_text for term in ["api", "sdk", "automation", "workflow", "bot", "tool", "saas"]):
+            return ProjectType.AUTOMATION
+        else:
+            return ProjectType.OTHER
 
     def _analyze_model_fits(
         self,
@@ -496,7 +460,7 @@ class MonetizationAnalyzer:
         model_fits = []
 
         recommendations = self.PROJECT_MODEL_RECOMMENDATIONS.get(
-            project_type, self.PROJECT_MODEL_RECOMMENDATIONS[ProjectType.SAAS]
+            project_type, self.PROJECT_MODEL_RECOMMENDATIONS[ProjectType.ECOMMERCE]
         )
 
         for model, base_score in recommendations:
@@ -708,10 +672,6 @@ class MonetizationAnalyzer:
         """Determine pricing strategy and rationale."""
         # Default strategies by project type
         default_strategies = {
-            ProjectType.SAAS: (
-                PricingStrategy.VALUE_BASED,
-                "SaaS products benefit from value-based pricing that aligns cost with customer outcomes",
-            ),
             ProjectType.ECOMMERCE: (
                 PricingStrategy.COMPETITIVE,
                 "E-commerce requires competitive pricing to win in comparison shopping",
@@ -720,13 +680,13 @@ class MonetizationAnalyzer:
                 PricingStrategy.FREEMIUM_UPSELL,
                 "Content platforms succeed with freemium models that convert engaged users",
             ),
-            ProjectType.API_SERVICE: (
-                PricingStrategy.COST_PLUS,
-                "API services should price based on infrastructure costs plus margin",
+            ProjectType.AUTOMATION: (
+                PricingStrategy.VALUE_BASED,
+                "Automation and SaaS tools benefit from value-based pricing",
             ),
-            ProjectType.MARKETPLACE: (
-                PricingStrategy.COMPETITIVE,
-                "Marketplaces need competitive commission rates to attract sellers",
+            ProjectType.TRADING: (
+                PricingStrategy.SUBSCRIPTION,
+                "Trading tools typically use subscription models",
             ),
         }
 

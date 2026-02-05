@@ -7,5 +7,6 @@ deployment guides, configuration files, and other project artifacts.
 from __future__ import annotations
 
 from .deployment_guide import DeploymentGuide
+from .documentation_generator import DocumentationGenerator
 
-__all__ = ["DeploymentGuide"]
+__all__ = ["DeploymentGuide", "DocumentationGenerator"]

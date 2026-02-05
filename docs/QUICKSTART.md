@@ -21,8 +21,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/yourorg/autopack.git
-cd autopack
+git clone https://github.com/hshk99/Autopack.git
+cd Autopack
 
 # Create virtual environment
 python -m venv venv
@@ -128,7 +128,7 @@ PYTHONPATH=src pytest tests/test_api.py -v
 curl http://localhost:8000/health
 
 # View API documentation
-# Open browser to: http://localhost:8000/docs
+# Open browser to: http://127.0.0.1:8000/docs
 ```
 
 ---

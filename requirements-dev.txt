@@ -193,7 +193,7 @@ numpy==2.2.6
     # via
     #   qdrant-client
     #   scipy
-openai==2.14.0
+openai==2.16.0
     # via autopack (pyproject.toml)
 packaging==25.0
     # via

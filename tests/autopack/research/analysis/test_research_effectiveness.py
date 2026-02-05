@@ -299,18 +299,22 @@ class TestResearchEffectivenessAnalyzer:
 
     def test_get_recent_outcomes(self, analyzer):
         """Test getting recent outcomes."""
+        from datetime import timezone, timedelta, datetime
+
         for i in range(15):
-            analyzer.record_outcome(
-                ResearchCycleOutcome(
-                    cycle_id=f"cycle_{i:03d}",
-                    research_session_id="session_001",
-                    outcome_type=ResearchOutcomeType.DECISION_MADE,
-                )
+            # Create outcome
+            outcome = ResearchCycleOutcome(
+                cycle_id=f"cycle_{i:03d}",
+                research_session_id="session_001",
+                outcome_type=ResearchOutcomeType.DECISION_MADE,
             )
+            # Override created_at to ensure proper ordering (add seconds to distinguish)
+            outcome.created_at = datetime.now(timezone.utc) + timedelta(seconds=i)
+            analyzer.record_outcome(outcome)
 
         recent = analyzer.get_recent_outcomes(limit=5)
         assert len(recent) == 5
-        # Most recent should be last recorded
+        # Most recent should be last recorded (cycle_014)
         assert recent[0].cycle_id == "cycle_014"
 
     def test_record_feedback(self, analyzer):

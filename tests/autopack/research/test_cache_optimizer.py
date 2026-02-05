@@ -4,7 +4,7 @@ Tests LRU eviction, compression, and cache metrics functionality.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 
@@ -66,9 +66,9 @@ class TestCacheMetrics:
         metrics.record_miss()
         assert metrics.get_hit_rate() == 50.0
 
-        # 100% hit rate
+        # 100% hit rate (2 hits out of 3)
         metrics.record_hit()
-        assert metrics.get_hit_rate() == 66.67
+        assert abs(metrics.get_hit_rate() - 66.66666666666666) < 0.01
 
     def test_get_stats(self):
         """Test getting metrics stats."""
@@ -91,11 +91,12 @@ class TestOptimizedResearchCache:
 
     def create_test_session(self, session_id: str = "test") -> BootstrapSession:
         """Create a test bootstrap session."""
-        session = MagicMock(spec=BootstrapSession)
-        session.id = session_id
-        session.expires_at = datetime.now() + timedelta(hours=24)
-        session.is_cached_valid = MagicMock(return_value=True)
-        return session
+        return BootstrapSession(
+            session_id=session_id,
+            idea_hash=f"hash_{session_id}",
+            parsed_idea_title=f"Title for {session_id}",
+            expires_at=datetime.now() + timedelta(hours=24),
+        )
 
     def test_cache_initialization(self):
         """Test cache initializes with correct defaults."""
@@ -254,9 +255,12 @@ class TestCacheEntry:
 
     def create_test_session(self) -> BootstrapSession:
         """Create a test bootstrap session."""
-        session = MagicMock(spec=BootstrapSession)
-        session.id = "test"
-        return session
+        return BootstrapSession(
+            session_id="test_session",
+            idea_hash="test_hash",
+            parsed_idea_title="Test Title",
+            expires_at=datetime.now() + timedelta(hours=24),
+        )
 
     def test_cache_entry_creation(self):
         """Test cache entry creation."""
@@ -359,9 +363,13 @@ class TestCacheOptimizer:
     def create_test_cache_with_data(self) -> OptimizedResearchCache:
         """Create a test cache with sample data."""
         cache = OptimizedResearchCache()
-        session = MagicMock(spec=BootstrapSession)
 
         for i in range(5):
+            session = BootstrapSession(
+                session_id=f"session_{i}",
+                idea_hash=f"hash_{i}",
+                parsed_idea_title=f"Title {i}",
+            )
             cache.set(f"hash_{i}", session)
 
         # Add some hits and misses
@@ -405,7 +413,11 @@ class TestCacheCompressionPerformance:
         cache = OptimizedResearchCache(
             enable_compression=False,
         )
-        session = MagicMock(spec=BootstrapSession)
+        session = BootstrapSession(
+            session_id="test_session",
+            idea_hash="test_hash",
+            parsed_idea_title="Test Title",
+        )
 
         cache.set("test_hash", session)
 
@@ -421,7 +433,11 @@ class TestCacheCompressionPerformance:
             enable_compression=True,
             compression_threshold=100,  # Low threshold for testing
         )
-        session = MagicMock(spec=BootstrapSession)
+        session = BootstrapSession(
+            session_id="test_session",
+            idea_hash="test_hash",
+            parsed_idea_title="Test Title",
+        )
 
         cache.set("test_hash", session)
 
@@ -435,7 +451,11 @@ class TestCacheCompressionPerformance:
             enable_compression=True,
             compression_threshold=10 * 1024 * 1024,  # 10MB threshold
         )
-        session = MagicMock(spec=BootstrapSession)
+        session = BootstrapSession(
+            session_id="test_session",
+            idea_hash="test_hash",
+            parsed_idea_title="Test Title",
+        )
 
         cache.set("test_hash", session)
 
@@ -450,11 +470,15 @@ class TestCacheIntegration:
     def test_multiple_operations_sequence(self):
         """Test a sequence of cache operations."""
         cache = OptimizedResearchCache(max_size=5)
-        session_template = MagicMock(spec=BootstrapSession)
 
         # Set 5 entries
         for i in range(5):
-            cache.set(f"hash_{i}", session_template)
+            session = BootstrapSession(
+                session_id=f"session_{i}",
+                idea_hash=f"hash_{i}",
+                parsed_idea_title=f"Title {i}",
+            )
+            cache.set(f"hash_{i}", session)
 
         # Verify all exist
         assert cache.get_size() == 5
@@ -464,7 +488,12 @@ class TestCacheIntegration:
         cache.get("hash_3")
 
         # Add one more (should evict LRU)
-        cache.set("hash_5", session_template)
+        session_5 = BootstrapSession(
+            session_id="session_5",
+            idea_hash="hash_5",
+            parsed_idea_title="Title 5",
+        )
+        cache.set("hash_5", session_5)
 
         # hash_0 should be evicted (wasn't accessed)
         assert cache.get("hash_0") is None
@@ -479,7 +508,11 @@ class TestCacheIntegration:
     def test_cache_with_varying_ttl(self):
         """Test cache with different TTL values."""
         cache = OptimizedResearchCache(ttl_hours=1)
-        session = MagicMock(spec=BootstrapSession)
+        session = BootstrapSession(
+            session_id="test_session",
+            idea_hash="test_hash",
+            parsed_idea_title="Test Title",
+        )
 
         cache.set("test_hash", session)
 

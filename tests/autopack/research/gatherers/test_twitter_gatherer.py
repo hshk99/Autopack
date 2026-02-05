@@ -83,6 +83,7 @@ def test_search_tweets_rate_limit(mock_get, gatherer):
     """Test rate limit handling."""
     mock_response = Mock()
     mock_response.status_code = 429
+    mock_response.headers = {}
     mock_get.return_value = mock_response
 
     with pytest.raises(RuntimeError, match="rate limit exceeded"):

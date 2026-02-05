@@ -417,6 +417,7 @@ flags:
     default: "."
     values: "Valid directory path"
     affects: ["config.py", "workspace_manager.py"]
+    aliases: ["PROJECTS_ROOT"]
     notes: "IMP-WAVE-001: Base directory for project discovery and management"
 
   # ============================================================================

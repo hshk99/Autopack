@@ -299,7 +299,7 @@ class TestMonetizationStrategyGenerator:
 
         # Create a mock analysis result
         result = MonetizationAnalysisResult(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             recommended_model=MonetizationModel.SUBSCRIPTION,
             pricing_strategy=PricingStrategy.VALUE_BASED,
             pricing_rationale="Value-based pricing aligns cost with outcomes",
@@ -363,7 +363,7 @@ class TestMonetizationStrategyGenerator:
         generator = MonetizationStrategyGenerator()
 
         content = generator.analyze_and_generate(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             project_characteristics={
                 "has_api": True,
                 "is_b2b": True,
@@ -379,14 +379,14 @@ class TestMonetizationStrategyGenerator:
         # Should be able to get the analysis result
         result = generator.get_analysis_result()
         assert result is not None
-        assert result.project_type == ProjectType.SAAS
+        assert result.project_type == ProjectType.AUTOMATION
 
     def test_analyze_and_generate_with_budget_enforcer(self) -> None:
         """Test analyze_and_generate with budget enforcement."""
         budget_enforcer = BudgetEnforcer(total_budget=5000.0)
         generator = MonetizationStrategyGenerator(budget_enforcer=budget_enforcer)
 
-        content = generator.analyze_and_generate(project_type=ProjectType.SAAS)
+        content = generator.analyze_and_generate(project_type=ProjectType.AUTOMATION)
 
         # Should complete successfully
         assert "# Monetization Strategy" in content
@@ -401,7 +401,7 @@ class TestMonetizationStrategyGenerator:
 
         generator = MonetizationStrategyGenerator(budget_enforcer=budget_enforcer)
 
-        content = generator.analyze_and_generate(project_type=ProjectType.SAAS)
+        content = generator.analyze_and_generate(project_type=ProjectType.AUTOMATION)
 
         # Should return limited guidance
         assert "# Monetization Strategy" in content
@@ -420,7 +420,7 @@ class TestMonetizationStrategyGenerator:
         generator = MonetizationStrategyGenerator()
 
         content = generator.analyze_and_generate(
-            project_type=ProjectType.SAAS,
+            project_type=ProjectType.AUTOMATION,
             competitive_data={
                 "competitors": [
                     {

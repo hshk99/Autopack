@@ -8,6 +8,7 @@ Usage:
     autopack bootstrap --idea "Build an e-commerce platform"
     autopack bootstrap --idea-file ./project_idea.md
     autopack bootstrap --idea "..." --autonomous --skip-research
+    autopack bootstrap --idea "..." --preset ecommerce
 """
 
 from __future__ import annotations
@@ -38,6 +39,8 @@ from autopack.research.models.bootstrap_session import BootstrapSession
 from autopack.research.orchestrator import ResearchOrchestrator
 from autopack.research.qa_controller import AnswerSource, QAController
 
+from .bootstrap_presets import get_preset, list_presets, format_preset_help
+
 logger = logging.getLogger(__name__)
 
 # Marker file name indicating project is ready for build phase
@@ -56,6 +59,7 @@ class BootstrapOptions:
     autonomous: bool = False
     risk_tolerance: str = "medium"
     output_dir: Optional[Path] = None
+    preset: Optional[str] = None
 
 
 @dataclass
@@ -116,6 +120,15 @@ class BootstrapRunner:
         logger.info("[Bootstrap] Starting bootstrap pipeline")
 
         warnings: list[str] = []
+
+        # Step 0: Apply preset if specified
+        if options.preset:
+            preset = get_preset(options.preset)
+            if preset:
+                logger.info(f"[Bootstrap] Applying preset: {preset.name.value}")
+                preset.apply_to_options(options)
+            else:
+                warnings.append(f"Unknown preset: {options.preset}")
 
         # Step 1: Get idea text
         idea_text = self._get_idea_text(options)
@@ -533,6 +546,15 @@ def bootstrap_group() -> None:
     help="Risk tolerance level (default: medium)",
 )
 @click.option(
+    "--preset",
+    type=str,
+    default=None,
+    help=(
+        "Use a project-type preset (ecommerce, trading, content, automation, minimal). "
+        "Presets configure risk tolerance, research depth, and autonomy settings."
+    ),
+)
+@click.option(
     "--output-dir",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
     default=None,
@@ -552,6 +574,7 @@ def run_command(
     research_file: Optional[Path],
     autonomous: bool,
     risk_tolerance: str,
+    preset: Optional[str],
     output_dir: Optional[Path],
     verbose: bool,
 ) -> None:
@@ -572,6 +595,12 @@ def run_command(
 
         # Start from idea file:
         autopack bootstrap run --idea-file ./my_project_idea.md
+
+        # Use a preset for rapid setup:
+        autopack bootstrap run --idea "..." --preset ecommerce
+
+        # List available presets:
+        autopack bootstrap run --help
 
         # Fully autonomous (no interactive Q&A):
         autopack bootstrap run --idea "..." --autonomous
@@ -607,6 +636,7 @@ def run_command(
         research_file=research_file,
         autonomous=autonomous,
         risk_tolerance=risk_tolerance,
+        preset=preset,
         output_dir=output_dir,
     )
 
@@ -686,6 +716,28 @@ def run_command(
         for error in result.errors:
             click.secho(f"[Bootstrap] ERROR: {error}", fg="red", err=True)
         sys.exit(1)
+
+
+@bootstrap_group.command("presets")
+def list_presets_command() -> None:
+    """List available bootstrap presets and their descriptions.
+
+    Each preset provides sensible defaults for a specific project type,
+    including risk tolerance, research depth, and autonomous mode settings.
+    You can override any preset value with explicit command-line options.
+
+    Examples:
+
+        # List all presets:
+        autopack bootstrap presets
+
+        # Use a preset:
+        autopack bootstrap run --idea "..." --preset ecommerce
+
+        # Override preset settings:
+        autopack bootstrap run --idea "..." --preset trading --autonomous
+    """
+    click.echo(format_preset_help())
 
 
 def register_command(cli_group) -> None:

@@ -22,15 +22,19 @@ from autopack.approvals.service import ApprovalRequest, ApprovalTriggerReason
 def isolated_env(monkeypatch):
     """Provide isolated test environment.
 
-    Clears all AUTOPACK_* and CI environment variables to prevent
+    Clears all AUTOPACK_*, TELEGRAM_*, and CI environment variables to prevent
     test pollution and ensure each test starts with clean state.
 
     Yields:
         monkeypatch fixture for test use
     """
-    # Clear all AUTOPACK_* variables
+    # Clear all AUTOPACK_*, TELEGRAM_*, and CI variables
     for key in list(os.environ.keys()):
-        if key.startswith("AUTOPACK_") or key in ["CI", "GITHUB_ACTIONS", "GITLAB_CI"]:
+        if (
+            key.startswith("AUTOPACK_")
+            or key.startswith("TELEGRAM_")
+            or key in ["CI", "GITHUB_ACTIONS", "GITLAB_CI"]
+        ):
             monkeypatch.delenv(key, raising=False)
 
     yield monkeypatch

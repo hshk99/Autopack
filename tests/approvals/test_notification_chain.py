@@ -214,11 +214,12 @@ class TestTelegramChannel:
 
     def test_send_returns_error_when_not_configured(self, sample_request):
         """Send should return error when not configured."""
-        channel = TelegramChannel(bot_token=None, chat_id=None)
-        result = channel.send(sample_request)
+        with patch.dict("os.environ", {}, clear=True):
+            channel = TelegramChannel(bot_token=None, chat_id=None)
+            result = channel.send(sample_request)
 
-        assert result.success is False
-        assert result.error_reason == "telegram_not_configured"
+            assert result.success is False
+            assert result.error_reason == "telegram_not_configured"
 
 
 class TestEmailChannel:

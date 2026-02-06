@@ -191,10 +191,13 @@ class TelegramChannel(NotificationChannel):
     Uses existing Telegram bot configuration.
     """
 
+    # Sentinel value to distinguish between not provided and explicitly None
+    _UNSET = object()
+
     def __init__(
         self,
-        bot_token: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        bot_token: Optional[str] = _UNSET,
+        chat_id: Optional[str] = _UNSET,
     ) -> None:
         """Initialize Telegram channel.
 
@@ -202,8 +205,16 @@ class TelegramChannel(NotificationChannel):
             bot_token: Telegram bot token (or from TELEGRAM_BOT_TOKEN env)
             chat_id: Telegram chat ID (or from TELEGRAM_CHAT_ID env)
         """
-        self._bot_token = bot_token or os.environ.get("TELEGRAM_BOT_TOKEN")
-        self._chat_id = chat_id or os.environ.get("TELEGRAM_CHAT_ID")
+        # Only use env if parameter was not explicitly provided
+        if bot_token is self._UNSET:
+            self._bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        else:
+            self._bot_token = bot_token
+
+        if chat_id is self._UNSET:
+            self._chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        else:
+            self._chat_id = chat_id
 
     @property
     def name(self) -> str:

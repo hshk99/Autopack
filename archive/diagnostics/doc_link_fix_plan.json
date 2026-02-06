@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-01-14T23:05:53.858998",
+  "generated_at": "2026-02-07T10:19:19.962168",
   "broken_links": [
     {
-      "source_file": "docs\\INDEX.md",
-      "line_number": 207,
-      "link_text": "consolidate_docs.py",
-      "source_link": "`consolidate_docs.py`",
-      "broken_target": "consolidate_docs.py",
-      "normalized_target": "consolidate_docs.py",
+      "source_file": "README.md",
+      "line_number": 134,
+      "link_text": "intention_anchor.yaml",
+      "source_link": "`intention_anchor.yaml`",
+      "broken_target": "intention_anchor.yaml",
+      "normalized_target": "intention_anchor.yaml",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -16,7 +16,20 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1419,
+      "line_number": 247,
+      "link_text": "src/autopack/telemetry/self_healing.py",
+      "source_link": "[src/autopack/telemetry/self_healing.py](../src/autopack/telemetry/self_healing.py)",
+      "broken_target": "../src/autopack/telemetry/self_healing.py",
+      "normalized_target": "../src/autopack/telemetry/self_healing.py",
+      "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 1574,
       "link_text": "anthropic_clients.py",
       "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1556-1584)",
       "broken_target": "src/autopack/anthropic_clients.py:1556-1584",
@@ -29,7 +42,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1424,
+      "line_number": 1579,
       "link_text": "anthropic_clients.py",
       "source_link": "[anthropic_clients.py](src/autopack/anthropic_clients.py:1576-1610)",
       "broken_target": "src/autopack/anthropic_clients.py:1576-1610",
@@ -42,7 +55,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1517,
+      "line_number": 1672,
       "link_text": "autonomous_executor.py",
       "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2822-2830)",
       "broken_target": "src/autopack/autonomous_executor.py:2822-2830",
@@ -55,7 +68,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1521,
+      "line_number": 1676,
       "link_text": "autonomous_executor.py",
       "source_link": "[autonomous_executor.py](src/autopack/autonomous_executor.py:2820-2840)",
       "broken_target": "src/autopack/autonomous_executor.py:2820-2840",
@@ -68,7 +81,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1843,
+      "line_number": 1998,
       "link_text": "PROPOSED_CLEANUP_STRUCTURE_V2.md",
       "source_link": "[PROPOSED_CLEANUP_STRUCTURE_V2.md](../archive/tidy_v7/PROPOSED_CLEANUP_STRUCTURE_V2.md)",
       "broken_target": "../archive/tidy_v7/PROPOSED_CLEANUP_STRUCTURE_V2.md",
@@ -81,7 +94,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 33,
+      "line_number": 37,
       "link_text": "/openapi.json",
       "source_link": "`/openapi.json`",
       "broken_target": "/openapi.json",
@@ -94,7 +107,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 38,
+      "line_number": 42,
       "link_text": "workflow_dispatch.inputs.artifacts_run_id",
       "source_link": "`workflow_dispatch.inputs.artifacts_run_id`",
       "broken_target": "workflow_dispatch.inputs.artifacts_run_id",
@@ -107,7 +120,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 49,
+      "line_number": 53,
       "link_text": "docs/README_FULL.md",
       "source_link": "`docs/README_FULL.md`",
       "broken_target": "docs/README_FULL.md",
@@ -120,7 +133,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4146,
+      "line_number": 4325,
       "link_text": "docs/README_FULL.md",
       "source_link": "`docs/README_FULL.md`",
       "broken_target": "docs/README_FULL.md",
@@ -133,7 +146,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4154,
+      "line_number": 4333,
       "link_text": "docs/README_FULL.md",
       "source_link": "`docs/README_FULL.md`",
       "broken_target": "docs/README_FULL.md",
@@ -146,7 +159,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 55,
+      "line_number": 59,
       "link_text": ".github/workflows/doc-link-check.yml",
       "source_link": "`.github/workflows/doc-link-check.yml`",
       "broken_target": ".github/workflows/doc-link-check.yml",
@@ -159,7 +172,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4299,
+      "line_number": 4478,
       "link_text": ".github/workflows/doc-link-check.yml",
       "source_link": "`.github/workflows/doc-link-check.yml`",
       "broken_target": ".github/workflows/doc-link-check.yml",
@@ -172,7 +185,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4308,
+      "line_number": 4487,
       "link_text": ".github/workflows/doc-link-check.yml",
       "source_link": "`.github/workflows/doc-link-check.yml`",
       "broken_target": ".github/workflows/doc-link-check.yml",
@@ -185,7 +198,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4367,
+      "line_number": 4546,
       "link_text": ".github/workflows/doc-link-check.yml",
       "source_link": "`.github/workflows/doc-link-check.yml`",
       "broken_target": ".github/workflows/doc-link-check.yml",
@@ -198,7 +211,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4410,
+      "line_number": 4589,
       "link_text": ".github/workflows/doc-link-check.yml",
       "source_link": "`.github/workflows/doc-link-check.yml`",
       "broken_target": ".github/workflows/doc-link-check.yml",
@@ -211,7 +224,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 55,
+      "line_number": 59,
       "link_text": "doc-link-deep-scan.yml",
       "source_link": "`doc-link-deep-scan.yml`",
       "broken_target": "doc-link-deep-scan.yml",
@@ -224,7 +237,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 55,
+      "line_number": 59,
       "link_text": "ci.yml",
       "source_link": "`ci.yml`",
       "broken_target": "ci.yml",
@@ -237,7 +250,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 92,
+      "line_number": 96,
       "link_text": "path/",
       "source_link": "`path/`",
       "broken_target": "path/",
@@ -250,7 +263,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 131,
+      "line_number": 135,
       "link_text": "autopack.diagnostics.diagnostics_agent",
       "source_link": "`autopack.diagnostics.diagnostics_agent`",
       "broken_target": "autopack.diagnostics.diagnostics_agent",
@@ -263,7 +276,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 246,
+      "line_number": 401,
       "link_text": ".backup/.bak/.broken",
       "source_link": "`.backup/.bak/.broken`",
       "broken_target": ".backup/.bak/.broken",
@@ -276,7 +289,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 348,
+      "line_number": 503,
       "link_text": "batch_drain_controller.py",
       "source_link": "`batch_drain_controller.py`",
       "broken_target": "batch_drain_controller.py",
@@ -289,7 +302,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3661,
+      "line_number": 3816,
       "link_text": "batch_drain_controller.py",
       "source_link": "`batch_drain_controller.py`",
       "broken_target": "batch_drain_controller.py",
@@ -302,7 +315,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 349,
+      "line_number": 504,
       "link_text": "anthropic_clients.py",
       "source_link": "`anthropic_clients.py`",
       "broken_target": "anthropic_clients.py",
@@ -315,7 +328,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 506,
+      "line_number": 661,
       "link_text": "autopack.research.gatherers.web_scraper",
       "source_link": "`autopack.research.gatherers.web_scraper`",
       "broken_target": "autopack.research.gatherers.web_scraper",
@@ -328,7 +341,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 507,
+      "line_number": 662,
       "link_text": "autopack.research.gatherers.content_extractor",
       "source_link": "`autopack.research.gatherers.content_extractor`",
       "broken_target": "autopack.research.gatherers.content_extractor",
@@ -341,7 +354,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 508,
+      "line_number": 663,
       "link_text": "autopack.research.agents.compilation_agent",
       "source_link": "`autopack.research.agents.compilation_agent`",
       "broken_target": "autopack.research.agents.compilation_agent",
@@ -354,7 +367,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 509,
+      "line_number": 664,
       "link_text": "autopack.research.agents.analysis_agent",
       "source_link": "`autopack.research.agents.analysis_agent`",
       "broken_target": "autopack.research.agents.analysis_agent",
@@ -367,7 +380,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1001,
+      "line_number": 1156,
       "link_text": "src/autopack/tracer_bullet.py",
       "source_link": "`src/autopack/tracer_bullet.py`",
       "broken_target": "src/autopack/tracer_bullet.py",
@@ -380,7 +393,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1107,
+      "line_number": 1262,
       "link_text": "src/tracer_bullet/",
       "source_link": "`src/tracer_bullet/`",
       "broken_target": "src/tracer_bullet/",
@@ -393,7 +406,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1151,
+      "line_number": 1306,
       "link_text": "src/tracer_bullet/",
       "source_link": "`src/tracer_bullet/`",
       "broken_target": "src/tracer_bullet/",
@@ -406,7 +419,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1107,
+      "line_number": 1262,
       "link_text": "tests/tracer_bullet/",
       "source_link": "`tests/tracer_bullet/`",
       "broken_target": "tests/tracer_bullet/",
@@ -419,7 +432,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1151,
+      "line_number": 1306,
       "link_text": "tests/tracer_bullet/",
       "source_link": "`tests/tracer_bullet/`",
       "broken_target": "tests/tracer_bullet/",
@@ -432,7 +445,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1256,
+      "line_number": 1411,
       "link_text": "chunk3-meta-analysis.yaml",
       "source_link": "`chunk3-meta-analysis.yaml`",
       "broken_target": "chunk3-meta-analysis.yaml",
@@ -445,7 +458,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1277,
+      "line_number": 1432,
       "link_text": "autopack.debug_journal.log_error",
       "source_link": "`autopack.debug_journal.log_error`",
       "broken_target": "autopack.debug_journal.log_error",
@@ -458,7 +471,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1494,
+      "line_number": 1649,
       "link_text": "autopack.repair_helpers.JsonRepairHelper",
       "source_link": "`autopack.repair_helpers.JsonRepairHelper`",
       "broken_target": "autopack.repair_helpers.JsonRepairHelper",
@@ -471,7 +484,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1495,
+      "line_number": 1650,
       "link_text": "autopack.repair_helpers.save_repair_debug",
       "source_link": "`autopack.repair_helpers.save_repair_debug`",
       "broken_target": "autopack.repair_helpers.save_repair_debug",
@@ -484,7 +497,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1766,
+      "line_number": 1921,
       "link_text": "archive/plans/",
       "source_link": "`archive/plans/`",
       "broken_target": "archive/plans/",
@@ -497,7 +510,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1822,
+      "line_number": 1977,
       "link_text": "archive/plans/",
       "source_link": "`archive/plans/`",
       "broken_target": "archive/plans/",
@@ -510,7 +523,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1815,
+      "line_number": 1970,
       "link_text": "QUICK_START_NEW_PROJECT.md",
       "source_link": "`QUICK_START_NEW_PROJECT.md`",
       "broken_target": "QUICK_START_NEW_PROJECT.md",
@@ -523,7 +536,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1815,
+      "line_number": 1970,
       "link_text": "DOC_ORGANIZATION_README.md",
       "source_link": "`DOC_ORGANIZATION_README.md`",
       "broken_target": "DOC_ORGANIZATION_README.md",
@@ -536,7 +549,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1836,
+      "line_number": 1991,
       "link_text": "consolidate_docs_v2.py",
       "source_link": "`consolidate_docs_v2.py`",
       "broken_target": "consolidate_docs_v2.py",
@@ -549,7 +562,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4587,
+      "line_number": 4766,
       "link_text": "consolidate_docs_v2.py",
       "source_link": "`consolidate_docs_v2.py`",
       "broken_target": "consolidate_docs_v2.py",
@@ -562,20 +575,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1864,
-      "link_text": ".pytest_cache/README.md",
-      "source_link": "`.pytest_cache/README.md`",
-      "broken_target": ".pytest_cache/README.md",
-      "normalized_target": ".pytest_cache/README.md",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1864,
+      "line_number": 2019,
       "link_text": "WHATS_LEFT_TO_BUILD.md",
       "source_link": "`WHATS_LEFT_TO_BUILD.md`",
       "broken_target": "WHATS_LEFT_TO_BUILD.md",
@@ -588,7 +588,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1871,
+      "line_number": 2026,
       "link_text": "archive/src/",
       "source_link": "`archive/src/`",
       "broken_target": "archive/src/",
@@ -601,7 +601,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1871,
+      "line_number": 2026,
       "link_text": "archive/diagnostics/runs/PROJECT/",
       "source_link": "`archive/diagnostics/runs/PROJECT/`",
       "broken_target": "archive/diagnostics/runs/PROJECT/",
@@ -614,7 +614,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 1871,
+      "line_number": 2026,
       "link_text": "runs/archive/.autonomous_runs/archive/runs/",
       "source_link": "`runs/archive/.autonomous_runs/archive/runs/`",
       "broken_target": "runs/archive/.autonomous_runs/archive/runs/",
@@ -627,7 +627,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 2002,
+      "line_number": 2157,
       "link_text": "workspace_root/docs",
       "source_link": "`workspace_root/docs`",
       "broken_target": "workspace_root/docs",
@@ -640,7 +640,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 2579,
+      "line_number": 2734,
       "link_text": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
       "source_link": "`archive/diagnostics/validate_tidy_p0_p1_fixes.ps1`",
       "broken_target": "archive/diagnostics/validate_tidy_p0_p1_fixes.ps1",
@@ -653,7 +653,275 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3324,
+      "line_number": 2960,
+      "link_text": ".github/workflows/security-artifacts.yml",
+      "source_link": "`.github/workflows/security-artifacts.yml`",
+      "broken_target": ".github/workflows/security-artifacts.yml",
+      "normalized_target": ".github/workflows/security-artifacts.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3017,
+      "link_text": ".github/workflows/security-artifacts.yml",
+      "source_link": "`.github/workflows/security-artifacts.yml`",
+      "broken_target": ".github/workflows/security-artifacts.yml",
+      "normalized_target": ".github/workflows/security-artifacts.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2965,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2983,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3019,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3086,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3087,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2970,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 2995,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3020,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3085,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD_HISTORY.md",
+      "line_number": 3479,
       "link_text": "sot_summary_refresh.py",
       "source_link": "`sot_summary_refresh.py`",
       "broken_target": "sot_summary_refresh.py",
@@ -666,7 +934,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4177,
+      "line_number": 4356,
       "link_text": "sot_summary_refresh.py",
       "source_link": "`sot_summary_refresh.py`",
       "broken_target": "sot_summary_refresh.py",
@@ -679,7 +947,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4219,
+      "line_number": 4398,
       "link_text": "sot_summary_refresh.py",
       "source_link": "`sot_summary_refresh.py`",
       "broken_target": "sot_summary_refresh.py",
@@ -692,7 +960,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4224,
+      "line_number": 4403,
       "link_text": "sot_summary_refresh.py",
       "source_link": "`sot_summary_refresh.py`",
       "broken_target": "sot_summary_refresh.py",
@@ -705,7 +973,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4277,
+      "line_number": 4456,
       "link_text": "sot_summary_refresh.py",
       "source_link": "`sot_summary_refresh.py`",
       "broken_target": "sot_summary_refresh.py",
@@ -718,7 +986,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3662,
+      "line_number": 3817,
       "link_text": "drain_all_telemetry.sh",
       "source_link": "`drain_all_telemetry.sh`",
       "broken_target": "drain_all_telemetry.sh",
@@ -731,7 +999,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3663,
+      "line_number": 3818,
       "link_text": "database.py",
       "source_link": "`database.py`",
       "broken_target": "database.py",
@@ -744,7 +1012,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3669,
+      "line_number": 3824,
       "link_text": "verify_workspace_structure.py",
       "source_link": "`verify_workspace_structure.py`",
       "broken_target": "verify_workspace_structure.py",
@@ -757,7 +1025,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3695,
+      "line_number": 3850,
       "link_text": "github/",
       "source_link": "`github/`",
       "broken_target": "github/",
@@ -770,7 +1038,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 3965,
+      "line_number": 4144,
       "link_text": "security/baseline-refresh-YYYYMMDD",
       "source_link": "`security/baseline-refresh-YYYYMMDD`",
       "broken_target": "security/baseline-refresh-YYYYMMDD",
@@ -783,7 +1051,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4029,
+      "line_number": 4208,
       "link_text": "check_github_actions_pinning.py",
       "source_link": "`check_github_actions_pinning.py`",
       "broken_target": "check_github_actions_pinning.py",
@@ -796,7 +1064,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4152,
+      "line_number": 4331,
       "link_text": "tests/autopack/test_api_boundary_auditor_result.py",
       "source_link": "`tests/autopack/test_api_boundary_auditor_result.py`",
       "broken_target": "tests/autopack/test_api_boundary_auditor_result.py",
@@ -809,7 +1077,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4189,
+      "line_number": 4368,
       "link_text": "test_readme_sot_summary_matches_docs.py",
       "source_link": "`test_readme_sot_summary_matches_docs.py`",
       "broken_target": "test_readme_sot_summary_matches_docs.py",
@@ -822,7 +1090,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4236,
+      "line_number": 4415,
       "link_text": "test_readme_sot_summary_matches_docs.py",
       "source_link": "`test_readme_sot_summary_matches_docs.py`",
       "broken_target": "test_readme_sot_summary_matches_docs.py",
@@ -835,7 +1103,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4358,
+      "line_number": 4537,
       "link_text": "test_readme_sot_summary_matches_docs.py",
       "source_link": "`test_readme_sot_summary_matches_docs.py`",
       "broken_target": "test_readme_sot_summary_matches_docs.py",
@@ -848,7 +1116,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4193,
+      "line_number": 4372,
       "link_text": "test_build_history_index_matches_sections.py",
       "source_link": "`test_build_history_index_matches_sections.py`",
       "broken_target": "test_build_history_index_matches_sections.py",
@@ -861,7 +1129,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4237,
+      "line_number": 4416,
       "link_text": "test_build_history_index_matches_sections.py",
       "source_link": "`test_build_history_index_matches_sections.py`",
       "broken_target": "test_build_history_index_matches_sections.py",
@@ -874,7 +1142,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4359,
+      "line_number": 4538,
       "link_text": "test_build_history_index_matches_sections.py",
       "source_link": "`test_build_history_index_matches_sections.py`",
       "broken_target": "test_build_history_index_matches_sections.py",
@@ -887,7 +1155,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4321,
+      "line_number": 4500,
       "link_text": "check_doc_links.py",
       "source_link": "`check_doc_links.py`",
       "broken_target": "check_doc_links.py",
@@ -900,7 +1168,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4360,
+      "line_number": 4539,
       "link_text": "test_architecture_decisions_unique_ids.py",
       "source_link": "`test_architecture_decisions_unique_ids.py`",
       "broken_target": "test_architecture_decisions_unique_ids.py",
@@ -913,7 +1181,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4361,
+      "line_number": 4540,
       "link_text": "test_debug_log_index_matches_sections.py",
       "source_link": "`test_debug_log_index_matches_sections.py`",
       "broken_target": "test_debug_log_index_matches_sections.py",
@@ -926,7 +1194,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4435,
+      "line_number": 4614,
       "link_text": "anchor_summary.md",
       "source_link": "`anchor_summary.md`",
       "broken_target": "anchor_summary.md",
@@ -939,7 +1207,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4536,
+      "line_number": 4715,
       "link_text": "phase_proof_writer.py",
       "source_link": "`phase_proof_writer.py`",
       "broken_target": "phase_proof_writer.py",
@@ -952,7 +1220,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4547,
+      "line_number": 4726,
       "link_text": "test_phase_proof_writer.py",
       "source_link": "`test_phase_proof_writer.py`",
       "broken_target": "test_phase_proof_writer.py",
@@ -965,7 +1233,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4548,
+      "line_number": 4727,
       "link_text": "test_executor_phase_proof_integration.py",
       "source_link": "`test_executor_phase_proof_integration.py`",
       "broken_target": "test_executor_phase_proof_integration.py",
@@ -978,7 +1246,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4592,
+      "line_number": 4771,
       "link_text": "db_sync.py",
       "source_link": "`db_sync.py`",
       "broken_target": "db_sync.py",
@@ -991,7 +1259,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4596,
+      "line_number": 4775,
       "link_text": "config.py",
       "source_link": "`config.py`",
       "broken_target": "config.py",
@@ -1004,7 +1272,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4598,
+      "line_number": 4777,
       "link_text": "memory/sot_indexing.py",
       "source_link": "`memory/sot_indexing.py`",
       "broken_target": "memory/sot_indexing.py",
@@ -1017,7 +1285,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4603,
+      "line_number": 4782,
       "link_text": "memory/memory_service.py",
       "source_link": "`memory/memory_service.py`",
       "broken_target": "memory/memory_service.py",
@@ -1030,7 +1298,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4613,
+      "line_number": 4792,
       "link_text": "test_tidy_entry_id_stability.py",
       "source_link": "`test_tidy_entry_id_stability.py`",
       "broken_target": "test_tidy_entry_id_stability.py",
@@ -1043,7 +1311,7 @@
     },
     {
       "source_file": "docs\\BUILD_HISTORY.md",
-      "line_number": 4614,
+      "line_number": 4793,
       "link_text": "test_sot_memory_indexing.py",
       "source_link": "`test_sot_memory_indexing.py`",
       "broken_target": "test_sot_memory_indexing.py",
@@ -1160,7 +1428,196 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 1589,
+      "line_number": 364,
+      "link_text": "scripts/security/normalize_sarif.py",
+      "source_link": "[scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py)",
+      "broken_target": "../scripts/security/normalize_sarif.py",
+      "normalized_target": "../scripts/security/normalize_sarif.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 416,
+      "link_text": "scripts/security/normalize_sarif.py",
+      "source_link": "[scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py)",
+      "broken_target": "../scripts/security/normalize_sarif.py",
+      "normalized_target": "../scripts/security/normalize_sarif.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 452,
+      "link_text": "scripts/security/normalize_sarif.py",
+      "source_link": "[scripts/security/normalize_sarif.py](../scripts/security/normalize_sarif.py)",
+      "broken_target": "../scripts/security/normalize_sarif.py",
+      "normalized_target": "../scripts/security/normalize_sarif.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 370,
+      "link_text": "scripts/security/update_baseline.py",
+      "source_link": "[scripts/security/update_baseline.py](../scripts/security/update_baseline.py)",
+      "broken_target": "../scripts/security/update_baseline.py",
+      "normalized_target": "../scripts/security/update_baseline.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 418,
+      "link_text": "scripts/security/update_baseline.py",
+      "source_link": "[scripts/security/update_baseline.py](../scripts/security/update_baseline.py)",
+      "broken_target": "../scripts/security/update_baseline.py",
+      "normalized_target": "../scripts/security/update_baseline.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 454,
+      "link_text": "scripts/security/update_baseline.py",
+      "source_link": "[scripts/security/update_baseline.py](../scripts/security/update_baseline.py)",
+      "broken_target": "../scripts/security/update_baseline.py",
+      "normalized_target": "../scripts/security/update_baseline.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 373,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "[docs/SECURITY_LOG.md](SECURITY_LOG.md)",
+      "broken_target": "SECURITY_LOG.md",
+      "normalized_target": "SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 420,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "[docs/SECURITY_LOG.md](SECURITY_LOG.md)",
+      "broken_target": "SECURITY_LOG.md",
+      "normalized_target": "SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 440,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "[docs/SECURITY_LOG.md](SECURITY_LOG.md)",
+      "broken_target": "SECURITY_LOG.md",
+      "normalized_target": "SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 451,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "[docs/SECURITY_LOG.md](SECURITY_LOG.md)",
+      "broken_target": "SECURITY_LOG.md",
+      "normalized_target": "SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 376,
+      "link_text": "scripts/security/diff_gate.py",
+      "source_link": "[scripts/security/diff_gate.py](../scripts/security/diff_gate.py)",
+      "broken_target": "../scripts/security/diff_gate.py",
+      "normalized_target": "../scripts/security/diff_gate.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 417,
+      "link_text": "scripts/security/diff_gate.py",
+      "source_link": "[scripts/security/diff_gate.py](../scripts/security/diff_gate.py)",
+      "broken_target": "../scripts/security/diff_gate.py",
+      "normalized_target": "../scripts/security/diff_gate.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 453,
+      "link_text": "scripts/security/diff_gate.py",
+      "source_link": "[scripts/security/diff_gate.py](../scripts/security/diff_gate.py)",
+      "broken_target": "../scripts/security/diff_gate.py",
+      "normalized_target": "../scripts/security/diff_gate.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 1638,
       "link_text": "STATUS_AUDITOR_IMPLEMENTATION.md",
       "source_link": "[STATUS_AUDITOR_IMPLEMENTATION.md](STATUS_AUDITOR_IMPLEMENTATION.md)",
       "broken_target": "STATUS_AUDITOR_IMPLEMENTATION.md",
@@ -1173,7 +1630,20 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 107,
+      "line_number": 112,
+      "link_text": "/project-bootstrap",
+      "source_link": "`/project-bootstrap`",
+      "broken_target": "/project-bootstrap",
+      "normalized_target": "project-bootstrap",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 156,
       "link_text": "src/autopack/auth/jwt.py",
       "source_link": "`src/autopack/auth/jwt.py`",
       "broken_target": "src/autopack/auth/jwt.py",
@@ -1186,7 +1656,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 110,
+      "line_number": 159,
       "link_text": "src/backend/",
       "source_link": "`src/backend/`",
       "broken_target": "src/backend/",
@@ -1199,7 +1669,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 111,
+      "line_number": 160,
       "link_text": "src/backend/",
       "source_link": "`src/backend/`",
       "broken_target": "src/backend/",
@@ -1212,7 +1682,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 153,
+      "line_number": 202,
       "link_text": "src/autopack/alembic/",
       "source_link": "`src/autopack/alembic/`",
       "broken_target": "src/autopack/alembic/",
@@ -1225,7 +1695,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 174,
+      "line_number": 223,
       "link_text": "src/autopack/alembic/",
       "source_link": "`src/autopack/alembic/`",
       "broken_target": "src/autopack/alembic/",
@@ -1238,7 +1708,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 312,
+      "line_number": 361,
       "link_text": "py/commented-out-code",
       "source_link": "`py/commented-out-code`",
       "broken_target": "py/commented-out-code",
@@ -1251,7 +1721,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 312,
+      "line_number": 361,
       "link_text": "py/repeated-import",
       "source_link": "`py/repeated-import`",
       "broken_target": "py/repeated-import",
@@ -1264,7 +1734,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 312,
+      "line_number": 361,
       "link_text": "py/unused-local-variable",
       "source_link": "`py/unused-local-variable`",
       "broken_target": "py/unused-local-variable",
@@ -1277,7 +1747,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 330,
+      "line_number": 379,
       "link_text": "codeql.python.json",
       "source_link": "`codeql.python.json`",
       "broken_target": "codeql.python.json",
@@ -1290,7 +1760,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 330,
+      "line_number": 379,
       "link_text": "trivy-fs.high.json",
       "source_link": "`trivy-fs.high.json`",
       "broken_target": "trivy-fs.high.json",
@@ -1303,7 +1773,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 448,
+      "line_number": 497,
       "link_text": "docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md",
       "source_link": "`docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md`",
       "broken_target": "docs/IMPLEMENTATION_PLAN_INTENTION_ANCHOR_LIFECYCLE.md",
@@ -1316,7 +1786,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 683,
+      "line_number": 732,
       "link_text": "doc_link_check_ignore.yaml",
       "source_link": "`doc_link_check_ignore.yaml`",
       "broken_target": "doc_link_check_ignore.yaml",
@@ -1329,7 +1799,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 696,
+      "line_number": 745,
       "link_text": "doc_link_check_ignore.yaml",
       "source_link": "`doc_link_check_ignore.yaml`",
       "broken_target": "doc_link_check_ignore.yaml",
@@ -1342,7 +1812,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 686,
+      "line_number": 735,
       "link_text": "/tmp",
       "source_link": "`/tmp`",
       "broken_target": "/tmp",
@@ -1355,7 +1825,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 700,
+      "line_number": 749,
       "link_text": "/tmp",
       "source_link": "`/tmp`",
       "broken_target": "/tmp",
@@ -1368,7 +1838,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 730,
+      "line_number": 779,
       "link_text": "/tmp",
       "source_link": "`/tmp`",
       "broken_target": "/tmp",
@@ -1381,7 +1851,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 686,
+      "line_number": 735,
       "link_text": "/update_status",
       "source_link": "`/update_status`",
       "broken_target": "/update_status",
@@ -1394,7 +1864,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 686,
+      "line_number": 735,
       "link_text": "/dashboard",
       "source_link": "`/dashboard`",
       "broken_target": "/dashboard",
@@ -1407,7 +1877,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 687,
+      "line_number": 736,
       "link_text": "models.yaml",
       "source_link": "`models.yaml`",
       "broken_target": "models.yaml",
@@ -1420,7 +1890,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 691,
+      "line_number": 740,
       "link_text": "apply_triage.py",
       "source_link": "`apply_triage.py`",
       "broken_target": "apply_triage.py",
@@ -1433,7 +1903,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 695,
+      "line_number": 744,
       "link_text": "apply_triage.py",
       "source_link": "`apply_triage.py`",
       "broken_target": "apply_triage.py",
@@ -1446,7 +1916,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 721,
+      "line_number": 770,
       "link_text": "apply_triage.py",
       "source_link": "`apply_triage.py`",
       "broken_target": "apply_triage.py",
@@ -1459,7 +1929,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 691,
+      "line_number": 740,
       "link_text": "doc_link_triage_overrides.yaml",
       "source_link": "`doc_link_triage_overrides.yaml`",
       "broken_target": "doc_link_triage_overrides.yaml",
@@ -1472,7 +1942,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 697,
+      "line_number": 746,
       "link_text": "check_doc_links.py",
       "source_link": "`check_doc_links.py`",
       "broken_target": "check_doc_links.py",
@@ -1485,7 +1955,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 721,
+      "line_number": 770,
       "link_text": "check_doc_links.py",
       "source_link": "`check_doc_links.py`",
       "broken_target": "check_doc_links.py",
@@ -1498,7 +1968,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 712,
+      "line_number": 761,
       "link_text": "scripts/apply_triage.py",
       "source_link": "`scripts/apply_triage.py`",
       "broken_target": "scripts/apply_triage.py",
@@ -1511,7 +1981,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 868,
+      "line_number": 917,
       "link_text": "sync_to_db.py",
       "source_link": "`sync_to_db.py`",
       "broken_target": "sync_to_db.py",
@@ -1524,7 +1994,7 @@
     },
     {
       "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
-      "line_number": 868,
+      "line_number": 917,
       "link_text": "sync_to_qdrant.py",
       "source_link": "`sync_to_qdrant.py`",
       "broken_target": "sync_to_qdrant.py",
@@ -1534,6 +2004,183 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 1632,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2813,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2847,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2865,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2846,
+      "link_text": ".github/workflows/security-artifacts.yml",
+      "source_link": "`.github/workflows/security-artifacts.yml`",
+      "broken_target": ".github/workflows/security-artifacts.yml",
+      "normalized_target": ".github/workflows/security-artifacts.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2861,
+      "link_text": ".github/workflows/security-artifacts.yml",
+      "source_link": "`.github/workflows/security-artifacts.yml`",
+      "broken_target": ".github/workflows/security-artifacts.yml",
+      "normalized_target": ".github/workflows/security-artifacts.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2850,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\ARCHITECTURE_DECISIONS.md",
+      "line_number": 2868,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\AUTH_POSTURE.md",
@@ -1686,19 +2333,6 @@
       "broken_target": "/api/auth/refresh",
       "normalized_target": "api/auth/refresh",
       "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\AUTH_POSTURE.md",
-      "line_number": 113,
-      "link_text": "vitest.config.ts",
-      "source_link": "`vitest.config.ts`",
-      "broken_target": "vitest.config.ts",
-      "normalized_target": "vitest.config.ts",
-      "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -2140,45 +2774,6 @@
       "source_link": "`.autonomous_runs/examples/`",
       "broken_target": ".autonomous_runs/examples/",
       "normalized_target": ".autonomous_runs/examples/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md",
-      "line_number": 71,
-      "link_text": ".autonomous_runs/autopack/",
-      "source_link": "`.autonomous_runs/autopack/`",
-      "broken_target": ".autonomous_runs/autopack/",
-      "normalized_target": ".autonomous_runs/autopack/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md",
-      "line_number": 86,
-      "link_text": ".autonomous_runs/autopack/",
-      "source_link": "`.autonomous_runs/autopack/`",
-      "broken_target": ".autonomous_runs/autopack/",
-      "normalized_target": ".autonomous_runs/autopack/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\BUILD-145-TIDY-SYSTEM-REVISION-COMPLETE.md",
-      "line_number": 132,
-      "link_text": ".autonomous_runs/autopack/",
-      "source_link": "`.autonomous_runs/autopack/`",
-      "broken_target": ".autonomous_runs/autopack/",
-      "normalized_target": ".autonomous_runs/autopack/",
       "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
@@ -2681,6 +3276,78 @@
     },
     {
       "source_file": "docs\\BUILD-180_MECHANICAL_ENFORCEMENT_CONVERGENCE.md",
+      "line_number": 332,
+      "link_text": "SECURITY_BURNDOWN.md",
+      "source_link": "[SECURITY_BURNDOWN.md](SECURITY_BURNDOWN.md)",
+      "broken_target": "SECURITY_BURNDOWN.md",
+      "normalized_target": "SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD-180_MECHANICAL_ENFORCEMENT_CONVERGENCE.md",
+      "line_number": 161,
+      "link_text": "SECURITY_BURNDOWN.md",
+      "source_link": "`SECURITY_BURNDOWN.md`",
+      "broken_target": "SECURITY_BURNDOWN.md",
+      "normalized_target": "SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD-180_MECHANICAL_ENFORCEMENT_CONVERGENCE.md",
+      "line_number": 5,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD-180_MECHANICAL_ENFORCEMENT_CONVERGENCE.md",
+      "line_number": 20,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\BUILD-180_MECHANICAL_ENFORCEMENT_CONVERGENCE.md",
       "line_number": 21,
       "link_text": "model_routing_refresh.py",
       "source_link": "`model_routing_refresh.py`",
@@ -3175,6 +3842,58 @@
     },
     {
       "source_file": "docs\\BUILD-183_WORKSPACE_STRUCTURE_WARNINGS_REDUCTION.md",
+      "line_number": 11,
+      "link_text": "security/",
+      "source_link": "`security/`",
+      "broken_target": "security/",
+      "normalized_target": "security/",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-183_WORKSPACE_STRUCTURE_WARNINGS_REDUCTION.md",
+      "line_number": 17,
+      "link_text": "security/",
+      "source_link": "`security/`",
+      "broken_target": "security/",
+      "normalized_target": "security/",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-183_WORKSPACE_STRUCTURE_WARNINGS_REDUCTION.md",
+      "line_number": 21,
+      "link_text": "security/",
+      "source_link": "`security/`",
+      "broken_target": "security/",
+      "normalized_target": "security/",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-183_WORKSPACE_STRUCTURE_WARNINGS_REDUCTION.md",
+      "line_number": 71,
+      "link_text": "security/",
+      "source_link": "`security/`",
+      "broken_target": "security/",
+      "normalized_target": "security/",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-183_WORKSPACE_STRUCTURE_WARNINGS_REDUCTION.md",
       "line_number": 58,
       "link_text": "plans/",
       "source_link": "`plans/`",
@@ -3304,6 +4023,45 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\BUILD-186_DETERMINISTIC_CONSOLE_GLYPH_NORMALIZATION.md",
+      "line_number": 77,
+      "link_text": "scripts/security/diff_gate.py",
+      "source_link": "`scripts/security/diff_gate.py`",
+      "broken_target": "scripts/security/diff_gate.py",
+      "normalized_target": "scripts/security/diff_gate.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-186_DETERMINISTIC_CONSOLE_GLYPH_NORMALIZATION.md",
+      "line_number": 78,
+      "link_text": "scripts/security/normalize_sarif.py",
+      "source_link": "`scripts/security/normalize_sarif.py`",
+      "broken_target": "scripts/security/normalize_sarif.py",
+      "normalized_target": "scripts/security/normalize_sarif.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-186_DETERMINISTIC_CONSOLE_GLYPH_NORMALIZATION.md",
+      "line_number": 79,
+      "link_text": "scripts/security/update_baseline.py",
+      "source_link": "`scripts/security/update_baseline.py`",
+      "broken_target": "scripts/security/update_baseline.py",
+      "normalized_target": "scripts/security/update_baseline.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
       "source_file": "docs\\BUILD-187_EXECUTOR_CONVERGENCE_RUNTIME_WIRING_MITIGATIONS_STORAGE_SAFETY_SOT_HYGIENE.md",
       "line_number": 26,
       "link_text": "autonomous_executor.py",
@@ -3328,6 +4086,24 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-187_EXECUTOR_CONVERGENCE_RUNTIME_WIRING_MITIGATIONS_STORAGE_SAFETY_SOT_HYGIENE.md",
+      "line_number": 280,
+      "link_text": "SECURITY_BURNDOWN.md",
+      "source_link": "`SECURITY_BURNDOWN.md`",
+      "broken_target": "SECURITY_BURNDOWN.md",
+      "normalized_target": "SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\BUILD-187_EXECUTOR_CONVERGENCE_RUNTIME_WIRING_MITIGATIONS_STORAGE_SAFETY_SOT_HYGIENE.md",
@@ -3375,6 +4151,45 @@
       "source_link": "`on.workflow_dispatch.inputs.artifacts_run_id`",
       "broken_target": "on.workflow_dispatch.inputs.artifacts_run_id",
       "normalized_target": "on.workflow_dispatch.inputs.artifacts_run_id",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-188_SECURITY_BASELINE_REFRESH_WORKFLOW_HARDENING.md",
+      "line_number": 42,
+      "link_text": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "source_link": "`tests/ci/test_security_baseline_refresh_workflow_contract.py`",
+      "broken_target": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "normalized_target": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-188_SECURITY_BASELINE_REFRESH_WORKFLOW_HARDENING.md",
+      "line_number": 73,
+      "link_text": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "source_link": "`tests/ci/test_security_baseline_refresh_workflow_contract.py`",
+      "broken_target": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "normalized_target": "tests/ci/test_security_baseline_refresh_workflow_contract.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\BUILD-188_SECURITY_BASELINE_REFRESH_WORKFLOW_HARDENING.md",
+      "line_number": 72,
+      "link_text": ".github/workflows/security-baseline-refresh.yml",
+      "source_link": "`.github/workflows/security-baseline-refresh.yml`",
+      "broken_target": ".github/workflows/security-baseline-refresh.yml",
+      "normalized_target": ".github/workflows/security-baseline-refresh.yml",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -3539,7 +4354,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 1241,
+      "line_number": 1242,
       "link_text": "test_token_telemetry_parity.py",
       "source_link": "[test_token_telemetry_parity.py](tests/autopack/test_token_telemetry_parity.py)",
       "broken_target": "tests/autopack/test_token_telemetry_parity.py",
@@ -3552,7 +4367,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 33,
+      "line_number": 34,
       "link_text": "/openapi.json",
       "source_link": "`/openapi.json`",
       "broken_target": "/openapi.json",
@@ -3565,7 +4380,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 1707,
+      "line_number": 1708,
       "link_text": "tests/backend/api/",
       "source_link": "`tests/backend/api/`",
       "broken_target": "tests/backend/api/",
@@ -3578,7 +4393,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 2006,
+      "line_number": 2007,
       "link_text": ".autonomous_runs/break_glass_repairs.jsonl",
       "source_link": "`.autonomous_runs/break_glass_repairs.jsonl`",
       "broken_target": ".autonomous_runs/break_glass_repairs.jsonl",
@@ -3591,7 +4406,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 2135,
+      "line_number": 2136,
       "link_text": "src/autopack/lovable/",
       "source_link": "`src/autopack/lovable/`",
       "broken_target": "src/autopack/lovable/",
@@ -3604,7 +4419,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 2255,
+      "line_number": 2256,
       "link_text": "/api/diagnostics/latest",
       "source_link": "`/api/diagnostics/latest`",
       "broken_target": "/api/diagnostics/latest",
@@ -3617,7 +4432,7 @@
     },
     {
       "source_file": "docs\\CHANGELOG.md",
-      "line_number": 2261,
+      "line_number": 2262,
       "link_text": "consolidated_debug.md",
       "source_link": "`consolidated_debug.md`",
       "broken_target": "consolidated_debug.md",
@@ -3627,6 +4442,24 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CHAT_HISTORY_EXTRACT_PIVOT_INTENTIONS.md",
+      "line_number": 47,
+      "link_text": "docs/SECURITY_LOG.md",
+      "source_link": "`docs/SECURITY_LOG.md`",
+      "broken_target": "docs/SECURITY_LOG.md",
+      "normalized_target": "docs/SECURITY_LOG.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_LOG.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\CI_EFFICIENT_DEVELOPMENT.md",
@@ -3648,6 +4481,71 @@
       "source_link": "`autonomous_executor.py`",
       "broken_target": "autonomous_executor.py",
       "normalized_target": "autonomous_executor.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\COMPLETION_REPORT_2026-01-03.md",
+      "line_number": 107,
+      "link_text": "archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "source_link": "[archive/diagnostics/doc_link_fix_backup_20260103_155608.zip](../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip)",
+      "broken_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "normalized_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "reason": "historical_ref",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\COMPLETION_REPORT_2026-01-03.md",
+      "line_number": 108,
+      "link_text": "archive/diagnostics/doc_link_fix_backup_20260103_160009.zip",
+      "source_link": "[archive/diagnostics/doc_link_fix_backup_20260103_160009.zip](../archive/diagnostics/doc_link_fix_backup_20260103_160009.zip)",
+      "broken_target": "../archive/diagnostics/doc_link_fix_backup_20260103_160009.zip",
+      "normalized_target": "../archive/diagnostics/doc_link_fix_backup_20260103_160009.zip",
+      "reason": "historical_ref",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\COMPREHENSIVE_SCAN_WORKFLOW.md",
+      "line_number": 18,
+      "link_text": "config.py",
+      "source_link": "`config.py`",
+      "broken_target": "config.py",
+      "normalized_target": "config.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CONFIDENCE_DECAY_LIFECYCLE.md",
+      "line_number": 753,
+      "link_text": "tests/memory/test_confidence_manager.py",
+      "source_link": "`tests/memory/test_confidence_manager.py`",
+      "broken_target": "tests/memory/test_confidence_manager.py",
+      "normalized_target": "tests/memory/test_confidence_manager.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CONFIDENCE_DECAY_LIFECYCLE.md",
+      "line_number": 754,
+      "link_text": "tests/research/test_task_generator_confidence.py",
+      "source_link": "`tests/research/test_task_generator_confidence.py`",
+      "broken_target": "tests/research/test_task_generator_confidence.py",
+      "normalized_target": "tests/research/test_task_generator_confidence.py",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -3908,6 +4806,19 @@
       "source_link": "`tools.yaml`",
       "broken_target": "tools.yaml",
       "normalized_target": "tools.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CONTAINER_BEST_PRACTICES.md",
+      "line_number": 30,
+      "link_text": "distroless/python3.11",
+      "source_link": "`distroless/python3.11`",
+      "broken_target": "distroless/python3.11",
+      "normalized_target": "distroless/python3.11",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -4371,6 +5282,53 @@
     },
     {
       "source_file": "docs\\cursor\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 169,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\cursor\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 273,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\cursor\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
       "line_number": 325,
       "link_text": "feat/",
       "source_link": "`feat/`",
@@ -4533,19 +5491,6 @@
       "broken_target": "/health",
       "normalized_target": "health",
       "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\cursor\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENT_OPPORTUNITIES_2026-01-11.md",
-      "line_number": 262,
-      "link_text": ".pytest_cache/",
-      "source_link": "`.pytest_cache/`",
-      "broken_target": ".pytest_cache/",
-      "normalized_target": ".pytest_cache/",
-      "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -5057,6 +6002,66 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 239,
+      "link_text": "security/",
+      "source_link": "`security/`",
+      "broken_target": "security/",
+      "normalized_target": "security/",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 268,
+      "link_text": "SECURITY.md",
+      "source_link": "`SECURITY.md`",
+      "broken_target": "SECURITY.md",
+      "normalized_target": "SECURITY.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 268,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\CURSOR_PROMPT_IMPLEMENT_IMPROVEMENTS_GAP_ANALYSIS.md",
@@ -6139,19 +7144,6 @@
     },
     {
       "source_file": "docs\\DOCKER_DEPLOYMENT_GUIDE.md",
-      "line_number": 325,
-      "link_text": ".pytest_cache/",
-      "source_link": "`.pytest_cache/`",
-      "broken_target": ".pytest_cache/",
-      "normalized_target": ".pytest_cache/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\DOCKER_DEPLOYMENT_GUIDE.md",
       "line_number": 354,
       "link_text": "dist/",
       "source_link": "`dist/`",
@@ -6581,6 +7573,24 @@
     },
     {
       "source_file": "docs\\FUTURE_PLAN.md",
+      "line_number": 941,
+      "link_text": "docs/SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "source_link": "[docs/SECURITY_BASELINE_AUTOMATION_STATUS.md](SECURITY_BASELINE_AUTOMATION_STATUS.md)",
+      "broken_target": "SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "normalized_target": "SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\FUTURE_PLAN.md",
       "line_number": 400,
       "link_text": "consolidated_debug.md",
       "source_link": "`consolidated_debug.md`",
@@ -6828,6 +7838,32 @@
     },
     {
       "source_file": "docs\\FUTURE_PLAN.md",
+      "line_number": 1009,
+      "link_text": "scripts/security/exemption_classifier.py",
+      "source_link": "`scripts/security/exemption_classifier.py`",
+      "broken_target": "scripts/security/exemption_classifier.py",
+      "normalized_target": "scripts/security/exemption_classifier.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\FUTURE_PLAN.md",
+      "line_number": 1014,
+      "link_text": ".github/workflows/security-baseline-refresh.yml",
+      "source_link": "`.github/workflows/security-baseline-refresh.yml`",
+      "broken_target": ".github/workflows/security-baseline-refresh.yml",
+      "normalized_target": ".github/workflows/security-baseline-refresh.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\FUTURE_PLAN.md",
       "line_number": 1015,
       "link_text": "exemption_classifier.py",
       "source_link": "`exemption_classifier.py`",
@@ -6903,6 +7939,40 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\GOVERNANCE.md",
+      "line_number": 676,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\guides\\BATCH_DRAIN_ACCEPTANCE_REPORT.md",
@@ -7119,6 +8189,136 @@
       "source_link": "`workflow/research_review.py`",
       "broken_target": "workflow/research_review.py",
       "normalized_target": "workflow/research_review.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 29,
+      "link_text": "scripts/create_telemetry_collection_run.py",
+      "source_link": "[scripts/create_telemetry_collection_run.py](../scripts/create_telemetry_collection_run.py)",
+      "broken_target": "../scripts/create_telemetry_collection_run.py",
+      "normalized_target": "../scripts/create_telemetry_collection_run.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 33,
+      "link_text": "scripts/collect_telemetry_data.py",
+      "source_link": "[scripts/collect_telemetry_data.py](../scripts/collect_telemetry_data.py)",
+      "broken_target": "../scripts/collect_telemetry_data.py",
+      "normalized_target": "../scripts/collect_telemetry_data.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 35,
+      "link_text": "tests/scripts/test_create_telemetry_run.py",
+      "source_link": "[tests/scripts/test_create_telemetry_run.py](../tests/scripts/test_create_telemetry_run.py)",
+      "broken_target": "../tests/scripts/test_create_telemetry_run.py",
+      "normalized_target": "../tests/scripts/test_create_telemetry_run.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 233,
+      "link_text": "tests/scripts/test_create_telemetry_run.py",
+      "source_link": "[tests/scripts/test_create_telemetry_run.py](../tests/scripts/test_create_telemetry_run.py)",
+      "broken_target": "../tests/scripts/test_create_telemetry_run.py",
+      "normalized_target": "../tests/scripts/test_create_telemetry_run.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 54,
+      "link_text": "src/autopack/db_identity.py",
+      "source_link": "[src/autopack/db_identity.py](../src/autopack/db_identity.py)",
+      "broken_target": "../src/autopack/db_identity.py",
+      "normalized_target": "../src/autopack/db_identity.py",
+      "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 58,
+      "link_text": "scripts/batch_drain_controller.py",
+      "source_link": "[scripts/batch_drain_controller.py](../scripts/batch_drain_controller.py)",
+      "broken_target": "../scripts/batch_drain_controller.py",
+      "normalized_target": "../scripts/batch_drain_controller.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 77,
+      "link_text": "scripts/batch_drain_controller.py",
+      "source_link": "[scripts/batch_drain_controller.py](../scripts/batch_drain_controller.py)",
+      "broken_target": "../scripts/batch_drain_controller.py",
+      "normalized_target": "../scripts/batch_drain_controller.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 113,
+      "link_text": "scripts/batch_drain_controller.py",
+      "source_link": "[scripts/batch_drain_controller.py](../scripts/batch_drain_controller.py)",
+      "broken_target": "../scripts/batch_drain_controller.py",
+      "normalized_target": "../scripts/batch_drain_controller.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 60,
+      "link_text": "scripts/drain_one_phase.py",
+      "source_link": "[scripts/drain_one_phase.py](../scripts/drain_one_phase.py)",
+      "broken_target": "../scripts/drain_one_phase.py",
+      "normalized_target": "../scripts/drain_one_phase.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\BUILD-139_T1-T5_HANDOFF.md",
+      "line_number": 151,
+      "link_text": "scripts/calibrate_token_estimator.py",
+      "source_link": "[scripts/calibrate_token_estimator.py](../scripts/calibrate_token_estimator.py)",
+      "broken_target": "../scripts/calibrate_token_estimator.py",
+      "normalized_target": "../scripts/calibrate_token_estimator.py",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -7445,6 +8645,162 @@
       "broken_target": ".autonomous_runs/batch_drain_sessions/batch-drain-YYYYMMDD-HHMMSS.json",
       "normalized_target": ".autonomous_runs/batch_drain_sessions/batch-drain-YYYYMMDD-HHMMSS.json",
       "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 174,
+      "link_text": "Research System Architecture",
+      "source_link": "[Research System Architecture](../architecture/RESEARCH_SYSTEM.md)",
+      "broken_target": "../architecture/RESEARCH_SYSTEM.md",
+      "normalized_target": "../architecture/RESEARCH_SYSTEM.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 175,
+      "link_text": "API Reference",
+      "source_link": "[API Reference](../api/RESEARCH_API.md)",
+      "broken_target": "../api/RESEARCH_API.md",
+      "normalized_target": "../api/RESEARCH_API.md",
+      "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 176,
+      "link_text": "Security Guidelines",
+      "source_link": "[Security Guidelines](../security/API_SECURITY.md)",
+      "broken_target": "../security/API_SECURITY.md",
+      "normalized_target": "../security/API_SECURITY.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 41,
+      "link_text": "/research/bootstrap",
+      "source_link": "`/research/bootstrap`",
+      "broken_target": "/research/bootstrap",
+      "normalized_target": "research/bootstrap",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 51,
+      "link_text": "/research/full/session",
+      "source_link": "`/research/full/session`",
+      "broken_target": "/research/full/session",
+      "normalized_target": "research/full/session",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 54,
+      "link_text": "/research/full/cache/status",
+      "source_link": "`/research/full/cache/status`",
+      "broken_target": "/research/full/cache/status",
+      "normalized_target": "research/full/cache/status",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 55,
+      "link_text": "/research/full/cache",
+      "source_link": "`/research/full/cache`",
+      "broken_target": "/research/full/cache",
+      "normalized_target": "research/full/cache",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 56,
+      "link_text": "/research/full/invalidate",
+      "source_link": "`/research/full/invalidate`",
+      "broken_target": "/research/full/invalidate",
+      "normalized_target": "research/full/invalidate",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 64,
+      "link_text": "/research/sessions",
+      "source_link": "`/research/sessions`",
+      "broken_target": "/research/sessions",
+      "normalized_target": "research/sessions",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 65,
+      "link_text": "/research/sessions",
+      "source_link": "`/research/sessions`",
+      "broken_target": "/research/sessions",
+      "normalized_target": "research/sessions",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 72,
+      "link_text": "/research/mode",
+      "source_link": "`/research/mode`",
+      "broken_target": "/research/mode",
+      "normalized_target": "research/mode",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\guides\\RESEARCH_QUARANTINE.md",
+      "line_number": 136,
+      "link_text": "/research/mode",
+      "source_link": "`/research/mode`",
+      "broken_target": "/research/mode",
+      "normalized_target": "research/mode",
+      "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -7789,6 +9145,286 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 600,
+      "link_text": ".claude/agents/research-sub/market-size-estimator.md",
+      "source_link": "`.claude/agents/research-sub/market-size-estimator.md`",
+      "broken_target": ".claude/agents/research-sub/market-size-estimator.md",
+      "normalized_target": ".claude/agents/research-sub/market-size-estimator.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 717,
+      "link_text": ".claude/agents/research-sub/demand-signals-detector.md",
+      "source_link": "`.claude/agents/research-sub/demand-signals-detector.md`",
+      "broken_target": ".claude/agents/research-sub/demand-signals-detector.md",
+      "normalized_target": ".claude/agents/research-sub/demand-signals-detector.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1051,
+      "link_text": ".claude/agents/research-sub/api-researcher.md",
+      "source_link": "`.claude/agents/research-sub/api-researcher.md`",
+      "broken_target": ".claude/agents/research-sub/api-researcher.md",
+      "normalized_target": ".claude/agents/research-sub/api-researcher.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1191,
+      "link_text": ".claude/agents/frameworks/market-attractiveness-agent.md",
+      "source_link": "`.claude/agents/frameworks/market-attractiveness-agent.md`",
+      "broken_target": ".claude/agents/frameworks/market-attractiveness-agent.md",
+      "normalized_target": ".claude/agents/frameworks/market-attractiveness-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\framework\\market-attractiveness-agent.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\framework\\market-attractiveness-agent.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1243,
+      "link_text": ".claude/agents/frameworks/competitive-intensity-agent.md",
+      "source_link": "`.claude/agents/frameworks/competitive-intensity-agent.md`",
+      "broken_target": ".claude/agents/frameworks/competitive-intensity-agent.md",
+      "normalized_target": ".claude/agents/frameworks/competitive-intensity-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\framework\\competitive-intensity-agent.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\framework\\competitive-intensity-agent.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1295,
+      "link_text": ".claude/agents/frameworks/product-feasibility-agent.md",
+      "source_link": "`.claude/agents/frameworks/product-feasibility-agent.md`",
+      "broken_target": ".claude/agents/frameworks/product-feasibility-agent.md",
+      "normalized_target": ".claude/agents/frameworks/product-feasibility-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\framework\\product-feasibility-agent.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\framework\\product-feasibility-agent.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1347,
+      "link_text": ".claude/agents/frameworks/adoption-readiness-agent.md",
+      "source_link": "`.claude/agents/frameworks/adoption-readiness-agent.md`",
+      "broken_target": ".claude/agents/frameworks/adoption-readiness-agent.md",
+      "normalized_target": ".claude/agents/frameworks/adoption-readiness-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\framework\\adoption-readiness-agent.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\framework\\adoption-readiness-agent.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1403,
+      "link_text": ".claude/agents/analysis/source-evaluator-agent.md",
+      "source_link": "`.claude/agents/analysis/source-evaluator-agent.md`",
+      "broken_target": ".claude/agents/analysis/source-evaluator-agent.md",
+      "normalized_target": ".claude/agents/analysis/source-evaluator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\analysis\\source-evaluator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\analysis\\source-evaluator.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1464,
+      "link_text": ".claude/agents/analysis/analysis-agent.md",
+      "source_link": "`.claude/agents/analysis/analysis-agent.md`",
+      "broken_target": ".claude/agents/analysis/analysis-agent.md",
+      "normalized_target": ".claude/agents/analysis/analysis-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1607,
+      "link_text": ".claude/agents/validation/citation-validator-agent.md",
+      "source_link": "`.claude/agents/validation/citation-validator-agent.md`",
+      "broken_target": ".claude/agents/validation/citation-validator-agent.md",
+      "normalized_target": ".claude/agents/validation/citation-validator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\validation\\citation-validator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\validation\\citation-validator.md",
+          "score": 0.88
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1678,
+      "link_text": ".claude/agents/validation/evidence-validator-agent.md",
+      "source_link": "`.claude/agents/validation/evidence-validator-agent.md`",
+      "broken_target": ".claude/agents/validation/evidence-validator-agent.md",
+      "normalized_target": ".claude/agents/validation/evidence-validator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\validation\\evidence-validator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\validation\\evidence-validator.md",
+          "score": 0.88
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1730,
+      "link_text": ".claude/agents/validation/quality-validator-agent.md",
+      "source_link": "`.claude/agents/validation/quality-validator-agent.md`",
+      "broken_target": ".claude/agents/validation/quality-validator-agent.md",
+      "normalized_target": ".claude/agents/validation/quality-validator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\validation\\quality-validator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\validation\\quality-validator.md",
+          "score": 0.878
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1787,
+      "link_text": ".claude/agents/validation/recency-validator-agent.md",
+      "source_link": "`.claude/agents/validation/recency-validator-agent.md`",
+      "broken_target": ".claude/agents/validation/recency-validator-agent.md",
+      "normalized_target": ".claude/agents/validation/recency-validator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\validation\\recency-validator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\validation\\recency-validator.md",
+          "score": 0.878
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1842,
+      "link_text": ".claude/agents/synthesis/meta-auditor-agent.md",
+      "source_link": "`.claude/agents/synthesis/meta-auditor-agent.md`",
+      "broken_target": ".claude/agents/synthesis/meta-auditor-agent.md",
+      "normalized_target": ".claude/agents/synthesis/meta-auditor-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\synthesis\\meta-auditor.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\synthesis\\meta-auditor.md",
+          "score": 0.86
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 1929,
+      "link_text": ".claude/agents/synthesis/anchor-generator-agent.md",
+      "source_link": "`.claude/agents/synthesis/anchor-generator-agent.md`",
+      "broken_target": ".claude/agents/synthesis/anchor-generator-agent.md",
+      "normalized_target": ".claude/agents/synthesis/anchor-generator-agent.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\agents\\synthesis\\anchor-generator.md",
+      "suggestions": [
+        {
+          "path": ".claude\\agents\\synthesis\\anchor-generator.md",
+          "score": 0.872
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_CLAUDE_AGENTS_RESEARCH_BRIDGE.md",
+      "line_number": 2100,
+      "link_text": ".claude/skills/project-bootstrap/SKILL.md",
+      "source_link": "`.claude/skills/project-bootstrap/SKILL.md`",
+      "broken_target": ".claude/skills/project-bootstrap/SKILL.md",
+      "normalized_target": ".claude/skills/project-bootstrap/SKILL.md",
+      "reason": "missing_file",
+      "suggested_fix": ".claude\\skills\\phase1\\SKILL.md",
+      "suggestions": [
+        {
+          "path": ".claude\\skills\\phase1\\SKILL.md",
+          "score": 0.87
+        },
+        {
+          "path": ".claude\\skills\\phase2\\SKILL.md",
+          "score": 0.87
+        },
+        {
+          "path": ".claude\\skills\\phase3\\SKILL.md",
+          "score": 0.87
+        },
+        {
+          "path": ".claude\\skills\\project-bootstrap.md",
+          "score": 0.868
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
       "source_file": "docs\\IMPLEMENTATION_PLAN_DIAGNOSTICS_PARITY_WITH_CURSOR.md",
       "line_number": 51,
       "link_text": "index.json",
@@ -7925,6 +9561,19 @@
       "source_link": "`handoff/cursor_prompt.md`",
       "broken_target": "handoff/cursor_prompt.md",
       "normalized_target": "handoff/cursor_prompt.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_INTENTION_ANCHOR_CONSOLIDATION.md",
+      "line_number": 303,
+      "link_text": "test_consolidate_intention_anchors_apply.py",
+      "source_link": "[test_consolidate_intention_anchors_apply.py](../../tests/tidy/test_consolidate_intention_anchors_apply.py)",
+      "broken_target": "../../tests/tidy/test_consolidate_intention_anchors_apply.py",
+      "normalized_target": "../../tests/tidy/test_consolidate_intention_anchors_apply.py",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -8361,6 +10010,32 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_RESEARCH_TO_ANCHOR_PIPELINE.md",
+      "line_number": 13,
+      "link_text": "rough_idea.md",
+      "source_link": "`rough_idea.md`",
+      "broken_target": "rough_idea.md",
+      "normalized_target": "rough_idea.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_PLAN_RESEARCH_TO_ANCHOR_PIPELINE.md",
+      "line_number": 390,
+      "link_text": "lucrative_project_ideas.md",
+      "source_link": "`lucrative_project_ideas.md`",
+      "broken_target": "lucrative_project_ideas.md",
+      "normalized_target": "lucrative_project_ideas.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
       "source_file": "docs\\IMPLEMENTATION_PLAN_STORAGE_OPTIMIZER.md",
       "line_number": 1803,
       "link_text": "docs/guides/STORAGE_OPTIMIZER_USER_GUIDE.md",
@@ -8504,123 +10179,6 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_GAP_CLOSURE.md",
-      "line_number": 233,
-      "link_text": "archive/unsorted/",
-      "source_link": "`archive/unsorted/`",
-      "broken_target": "archive/unsorted/",
-      "normalized_target": "archive/unsorted/",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 34,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 44,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 93,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 96,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 100,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 101,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 104,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
-      "line_number": 198,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
       "source_file": "docs\\IMPLEMENTATION_PLAN_TIDY_IDEAL_STATE_PHASE_E.md",
       "line_number": 48,
       "link_text": "src/autopack/logging_utils.py",
@@ -8732,6 +10290,32 @@
       "broken_target": "scripts/parallel_run_orchestrator.py",
       "normalized_target": "scripts/parallel_run_orchestrator.py",
       "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_STATUS_2026-01-03.md",
+      "line_number": 51,
+      "link_text": "archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "source_link": "[archive/diagnostics/doc_link_fix_backup_20260103_155608.zip](../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip)",
+      "broken_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "normalized_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "reason": "historical_ref",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPLEMENTATION_STATUS_2026-01-03.md",
+      "line_number": 238,
+      "link_text": "archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "source_link": "[archive/diagnostics/doc_link_fix_backup_20260103_155608.zip](../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip)",
+      "broken_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "normalized_target": "../archive/diagnostics/doc_link_fix_backup_20260103_155608.zip",
+      "reason": "historical_ref",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -8883,6 +10467,84 @@
     {
       "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
       "line_number": 26,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 41,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 149,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 160,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 363,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 1307,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 26,
       "link_text": ".env",
       "source_link": "`.env`",
       "broken_target": ".env",
@@ -8913,6 +10575,32 @@
       "source_link": "`.env`",
       "broken_target": ".env",
       "normalized_target": ".env",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 28,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 656,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -9030,32 +10718,6 @@
       "source_link": "`.autonomous_runs/autopack/runs/telemetry-collection-v4/phases/`",
       "broken_target": ".autonomous_runs/autopack/runs/telemetry-collection-v4/phases/",
       "normalized_target": ".autonomous_runs/autopack/runs/telemetry-collection-v4/phases/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
-      "line_number": 268,
-      "link_text": ".autonomous_runs/autopack/runs/",
-      "source_link": "`.autonomous_runs/autopack/runs/`",
-      "broken_target": ".autonomous_runs/autopack/runs/",
-      "normalized_target": ".autonomous_runs/autopack/runs/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
-      "line_number": 278,
-      "link_text": ".autonomous_runs/autopack/runs/",
-      "source_link": "`.autonomous_runs/autopack/runs/`",
-      "broken_target": ".autonomous_runs/autopack/runs/",
-      "normalized_target": ".autonomous_runs/autopack/runs/",
       "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
@@ -9519,6 +11181,108 @@
     },
     {
       "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 665,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 1384,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 1390,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": ".pytest_cache\\README.md",
+      "suggestions": [
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.95
+        },
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
       "line_number": 713,
       "link_text": "security.yml",
       "source_link": "`security.yml`",
@@ -9797,6 +11561,32 @@
       "source_link": "`preflight.py`",
       "broken_target": "preflight.py",
       "normalized_target": "preflight.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 1032,
+      "link_text": "scripts/security/exemption_classifier.py",
+      "source_link": "`scripts/security/exemption_classifier.py`",
+      "broken_target": "scripts/security/exemption_classifier.py",
+      "normalized_target": "scripts/security/exemption_classifier.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\IMPROVEMENTS_GAP_ANALYSIS.md",
+      "line_number": 1049,
+      "link_text": "tests/security/test_exemption_classifier.py",
+      "source_link": "`tests/security/test_exemption_classifier.py`",
+      "broken_target": "tests/security/test_exemption_classifier.py",
+      "normalized_target": "tests/security/test_exemption_classifier.py",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -10168,6 +11958,71 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\INTENTION_MIGRATION_GUIDE.md",
+      "line_number": 6,
+      "link_text": "project_intention.py",
+      "source_link": "`project_intention.py`",
+      "broken_target": "project_intention.py",
+      "normalized_target": "project_intention.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\INTENTION_MIGRATION_GUIDE.md",
+      "line_number": 7,
+      "link_text": "intention_anchor/v2.py",
+      "source_link": "`intention_anchor/v2.py`",
+      "broken_target": "intention_anchor/v2.py",
+      "normalized_target": "intention_anchor/v2.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\INTENTION_MIGRATION_GUIDE.md",
+      "line_number": 22,
+      "link_text": "docs/schemas/intention_anchor_v2.schema.json",
+      "source_link": "`docs/schemas/intention_anchor_v2.schema.json`",
+      "broken_target": "docs/schemas/intention_anchor_v2.schema.json",
+      "normalized_target": "docs/schemas/intention_anchor_v2.schema.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\INTENTION_MIGRATION_GUIDE.md",
+      "line_number": 435,
+      "link_text": "docs/schemas/intention_anchor_v2.schema.json",
+      "source_link": "`docs/schemas/intention_anchor_v2.schema.json`",
+      "broken_target": "docs/schemas/intention_anchor_v2.schema.json",
+      "normalized_target": "docs/schemas/intention_anchor_v2.schema.json",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\INTENTION_MIGRATION_GUIDE.md",
+      "line_number": 436,
+      "link_text": "tests/intention_anchor/test_v2.py",
+      "source_link": "`tests/intention_anchor/test_v2.py`",
+      "broken_target": "tests/intention_anchor/test_v2.py",
+      "normalized_target": "tests/intention_anchor/test_v2.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
       "source_file": "docs\\MEMORY_SERVICE_OPERATOR_GUIDE.md",
       "line_number": 445,
       "link_text": "qdrant_storage/",
@@ -10194,6 +12049,32 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\MIGRATION_PLAN_PROJECT_ISOLATION.md",
+      "line_number": 163,
+      "link_text": "/project-bootstrap",
+      "source_link": "`/project-bootstrap`",
+      "broken_target": "/project-bootstrap",
+      "normalized_target": "project-bootstrap",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\MIGRATION_PLAN_PROJECT_ISOLATION.md",
+      "line_number": 242,
+      "link_text": "/project-bootstrap",
+      "source_link": "`/project-bootstrap`",
+      "broken_target": "/project-bootstrap",
+      "normalized_target": "project-bootstrap",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
       "source_file": "docs\\MODEL_INTELLIGENCE_SYSTEM.md",
       "line_number": 349,
       "link_text": "recommender.py",
@@ -10201,6 +12082,58 @@
       "broken_target": "recommender.py",
       "normalized_target": "recommender.py",
       "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\OPERATOR_RUNBOOK.md",
+      "line_number": 42,
+      "link_text": ".env",
+      "source_link": "`.env`",
+      "broken_target": ".env",
+      "normalized_target": ".env",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\OPERATOR_RUNBOOK.md",
+      "line_number": 119,
+      "link_text": ".env",
+      "source_link": "`.env`",
+      "broken_target": ".env",
+      "normalized_target": ".env",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\OPERATOR_RUNBOOK.md",
+      "line_number": 282,
+      "link_text": ".env",
+      "source_link": "`.env`",
+      "broken_target": ".env",
+      "normalized_target": ".env",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\OPERATOR_RUNBOOK.md",
+      "line_number": 117,
+      "link_text": "./autopack.db",
+      "source_link": "`./autopack.db`",
+      "broken_target": "./autopack.db",
+      "normalized_target": "autopack.db",
+      "reason": "historical_ref",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -10455,71 +12388,6 @@
     },
     {
       "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
-      "line_number": 108,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
-      "line_number": 110,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
-      "line_number": 164,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
-      "line_number": 197,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
-      "line_number": 330,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\PRE_TIDY_GAP_ANALYSIS_2026-01-01.md",
       "line_number": 323,
       "link_text": "archive/data/databases/",
       "source_link": "`archive/data/databases/`",
@@ -10545,6 +12413,19 @@
       "fix_type": "manual_review"
     },
     {
+      "source_file": "docs\\PROJECT_ISOLATION_ARCHITECTURE.md",
+      "line_number": 136,
+      "link_text": "azure-pipelines.yml",
+      "source_link": "`azure-pipelines.yml`",
+      "broken_target": "azure-pipelines.yml",
+      "normalized_target": "azure-pipelines.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
       "source_file": "docs\\PROTECTION_AND_RETENTION_POLICY.md",
       "line_number": 57,
       "link_text": ".autonomous_runs/current_run.json",
@@ -10559,7 +12440,7 @@
     },
     {
       "source_file": "docs\\QUICKSTART.md",
-      "line_number": 149,
+      "line_number": 213,
       "link_text": "BUILD-126_QUALITY_GATE.md",
       "source_link": "[BUILD-126_QUALITY_GATE.md](BUILD-126_QUALITY_GATE.md)",
       "broken_target": "BUILD-126_QUALITY_GATE.md",
@@ -11388,6 +13269,74 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 14,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 882,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
@@ -12457,6 +14406,127 @@
     },
     {
       "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 882,
+      "link_text": "docs/SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "source_link": "`docs/SECURITY_BASELINE_AUTOMATION_STATUS.md`",
+      "broken_target": "docs/SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "normalized_target": "docs/SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 897,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 899,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 1045,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 1050,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 1055,
+      "link_text": "docs/SECURITY_BURNDOWN.md",
+      "source_link": "`docs/SECURITY_BURNDOWN.md`",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
+      "line_number": 902,
+      "link_text": "scripts/security/diff_gate.py",
+      "source_link": "`scripts/security/diff_gate.py`",
+      "broken_target": "scripts/security/diff_gate.py",
+      "normalized_target": "scripts/security/diff_gate.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\COMPREHENSIVE_IMPROVEMENT_SCAN_2026-01-10.md",
       "line_number": 987,
       "link_text": ".prod.example.yml",
       "source_link": "`.prod.example.yml`",
@@ -12913,6 +14983,45 @@
     {
       "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
       "line_number": 71,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 75,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 277,
+      "link_text": ".pre-commit-config.yaml",
+      "source_link": "`.pre-commit-config.yaml`",
+      "broken_target": ".pre-commit-config.yaml",
+      "normalized_target": ".pre-commit-config.yaml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 71,
       "link_text": "v0.1.9",
       "source_link": "`v0.1.9`",
       "broken_target": "v0.1.9",
@@ -12922,6 +15031,53 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 203,
+      "link_text": "SECURITY.md",
+      "source_link": "`SECURITY.md`",
+      "broken_target": "SECURITY.md",
+      "normalized_target": "SECURITY.md",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
+      "line_number": 386,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_DELTA_2026-01-11.md",
@@ -13211,19 +15367,6 @@
     },
     {
       "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_FULL_2026-01-11.md",
-      "line_number": 171,
-      "link_text": "src/autopack/executor/phase_runner.py",
-      "source_link": "`src/autopack/executor/phase_runner.py`",
-      "broken_target": "src/autopack/executor/phase_runner.py",
-      "normalized_target": "src/autopack/executor/phase_runner.py",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\reports\\IMPROVEMENT_AUDIT_FULL_2026-01-11.md",
       "line_number": 214,
       "link_text": "src/autopack/api/routes/auth.py",
       "source_link": "`src/autopack/api/routes/auth.py`",
@@ -13429,6 +15572,73 @@
       "suggestions": [],
       "confidence": "low",
       "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
+      "line_number": 149,
+      "link_text": "docs/SECURITY_INVARIANTS.md",
+      "source_link": "[docs/SECURITY_INVARIANTS.md](docs/SECURITY_INVARIANTS.md)",
+      "broken_target": "docs/SECURITY_INVARIANTS.md",
+      "normalized_target": "docs/SECURITY_INVARIANTS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_INVARIANTS.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_INVARIANTS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
+      "line_number": 180,
+      "link_text": "SECURITY_INVARIANTS.md",
+      "source_link": "[SECURITY_INVARIANTS.md](docs/SECURITY_INVARIANTS.md)",
+      "broken_target": "docs/SECURITY_INVARIANTS.md",
+      "normalized_target": "docs/SECURITY_INVARIANTS.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_INVARIANTS.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_INVARIANTS.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
+      "line_number": 155,
+      "link_text": "tests/unit/test_security_invariants.py",
+      "source_link": "[tests/unit/test_security_invariants.py](tests/unit/test_security_invariants.py)",
+      "broken_target": "tests/unit/test_security_invariants.py",
+      "normalized_target": "tests/unit/test_security_invariants.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
+      "line_number": 175,
+      "link_text": "SECURITY_BURNDOWN.md",
+      "source_link": "[SECURITY_BURNDOWN.md](docs/SECURITY_BURNDOWN.md)",
+      "broken_target": "docs/SECURITY_BURNDOWN.md",
+      "normalized_target": "docs/SECURITY_BURNDOWN.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+      "suggestions": [
+        {
+          "path": "archive\\security-infrastructure\\docs\\SECURITY_BURNDOWN.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
     },
     {
       "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
@@ -13697,19 +15907,6 @@
       "source_link": "`test_executor_http_enforcement.py`",
       "broken_target": "test_executor_http_enforcement.py",
       "normalized_target": "test_executor_http_enforcement.py",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\reports\\IMPROVEMENT_GAPS_CURRENT_2026-01-12.md",
-      "line_number": 99,
-      "link_text": "vitest.config.ts",
-      "source_link": "`vitest.config.ts`",
-      "broken_target": "vitest.config.ts",
-      "normalized_target": "vitest.config.ts",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -14355,6 +16552,74 @@
     },
     {
       "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11.md",
+      "line_number": 258,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11.md",
+      "line_number": 370,
+      "link_text": "security/README.md",
+      "source_link": "`security/README.md`",
+      "broken_target": "security/README.md",
+      "normalized_target": "security/README.md",
+      "reason": "missing_file",
+      "suggested_fix": "README.md",
+      "suggestions": [
+        {
+          "path": "README.md",
+          "score": 0.87
+        },
+        {
+          "path": ".pytest_cache\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\configs\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\security-infrastructure\\baselines\\security\\README.md",
+          "score": 0.87
+        },
+        {
+          "path": "archive\\superseded\\research\\README.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_COMPREHENSIVE_2026-01-11.md",
       "line_number": 263,
       "link_text": "backend/",
       "source_link": "`backend/`",
@@ -14537,37 +16802,37 @@
     },
     {
       "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 127,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/.gitignore`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "normalized_target": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 152,
+      "link_text": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "source_link": "`.autonomous_runs/file-organizer-app-v1/.gitignore`",
+      "broken_target": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "normalized_target": ".autonomous_runs/file-organizer-app-v1/.gitignore",
+      "reason": "runtime_endpoint",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
       "line_number": 139,
       "link_text": ".autonomous_runs/.gitignore",
       "source_link": "`.autonomous_runs/.gitignore`",
       "broken_target": ".autonomous_runs/.gitignore",
       "normalized_target": ".autonomous_runs/.gitignore",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
-      "line_number": 145,
-      "link_text": ".autonomous_runs/file-organizer-app-v1/.faiss",
-      "source_link": "`.autonomous_runs/file-organizer-app-v1/.faiss`",
-      "broken_target": ".autonomous_runs/file-organizer-app-v1/.faiss",
-      "normalized_target": ".autonomous_runs/file-organizer-app-v1/.faiss",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
-      "line_number": 146,
-      "link_text": ".autonomous_runs/file-organizer-app-v1/.faiss",
-      "source_link": "`.autonomous_runs/file-organizer-app-v1/.faiss`",
-      "broken_target": ".autonomous_runs/file-organizer-app-v1/.faiss",
-      "normalized_target": ".autonomous_runs/file-organizer-app-v1/.faiss",
       "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
@@ -14633,6 +16898,58 @@
       "source_link": "`docker-compose.prod.yml`",
       "broken_target": "docker-compose.prod.yml",
       "normalized_target": "docker-compose.prod.yml",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 219,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 222,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 223,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\reports\\IMPROVEMENT_OPPORTUNITIES_REMAINING_2026-01-11.md",
+      "line_number": 229,
+      "link_text": ".env.example",
+      "source_link": "`.env.example`",
+      "broken_target": ".env.example",
+      "normalized_target": ".env.example",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15446,12 +17763,106 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
-      "line_number": 176,
-      "link_text": "TODO",
-      "source_link": "`TODO`",
-      "broken_target": "TODO",
-      "normalized_target": "TODO",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 972,
+      "link_text": "Architecture Documentation",
+      "source_link": "[Architecture Documentation](../ARCHITECTURE.md)",
+      "broken_target": "../ARCHITECTURE.md",
+      "normalized_target": "../ARCHITECTURE.md",
+      "reason": "missing_file",
+      "suggested_fix": "docs\\ARCHITECTURE.md",
+      "suggestions": [
+        {
+          "path": "docs\\ARCHITECTURE.md",
+          "score": 0.95
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 973,
+      "link_text": "API Reference",
+      "source_link": "[API Reference](./API_REFERENCE.md)",
+      "broken_target": "./API_REFERENCE.md",
+      "normalized_target": "API_REFERENCE.md",
+      "reason": "missing_file",
+      "suggested_fix": "docs\\research\\API_REFERENCE.md",
+      "suggestions": [
+        {
+          "path": "docs\\research\\API_REFERENCE.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 974,
+      "link_text": "Research System CI/CD Guide",
+      "source_link": "[Research System CI/CD Guide](../guides/RESEARCH_CI_FIX_CHECKLIST.md)",
+      "broken_target": "../guides/RESEARCH_CI_FIX_CHECKLIST.md",
+      "normalized_target": "../guides/RESEARCH_CI_FIX_CHECKLIST.md",
+      "reason": "missing_file",
+      "suggested_fix": "docs\\guides\\RESEARCH_CI_FIX_CHECKLIST.md",
+      "suggestions": [
+        {
+          "path": "docs\\guides\\RESEARCH_CI_FIX_CHECKLIST.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 976,
+      "link_text": "Build vs Buy Analysis Framework",
+      "source_link": "[Build vs Buy Analysis Framework](./decision_frameworks.md)",
+      "broken_target": "./decision_frameworks.md",
+      "normalized_target": "decision_frameworks.md",
+      "reason": "missing_file",
+      "suggested_fix": "docs\\research\\decision_frameworks.md",
+      "suggestions": [
+        {
+          "path": "docs\\research\\decision_frameworks.md",
+          "score": 0.92
+        }
+      ],
+      "confidence": "high",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 985,
+      "link_text": "Research API Mode",
+      "source_link": "[Research API Mode](../guides/RESEARCH_QUARANTINE.md)",
+      "broken_target": "../guides/RESEARCH_QUARANTINE.md",
+      "normalized_target": "../guides/RESEARCH_QUARANTINE.md",
+      "reason": "missing_file",
+      "suggested_fix": "archive\\superseded\\research\\unsorted\\RESEARCH_QUARANTINE.md",
+      "suggestions": [
+        {
+          "path": "archive\\superseded\\research\\unsorted\\RESEARCH_QUARANTINE.md",
+          "score": 0.87
+        },
+        {
+          "path": "docs\\guides\\RESEARCH_QUARANTINE.md",
+          "score": 0.87
+        }
+      ],
+      "confidence": "medium",
+      "fix_type": "update_reference"
+    },
+    {
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 55,
+      "link_text": "/research/mode",
+      "source_link": "`/research/mode`",
+      "broken_target": "/research/mode",
+      "normalized_target": "research/mode",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15459,12 +17870,12 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_BASELINE_AUTOMATION_STATUS.md",
-      "line_number": 187,
-      "link_text": "docs/IMPLEMENTATION_PLAN_BASELINE_REFRESH.md",
-      "source_link": "`docs/IMPLEMENTATION_PLAN_BASELINE_REFRESH.md`",
-      "broken_target": "docs/IMPLEMENTATION_PLAN_BASELINE_REFRESH.md",
-      "normalized_target": "docs/IMPLEMENTATION_PLAN_BASELINE_REFRESH.md",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 618,
+      "link_text": "0.7-0.9",
+      "source_link": "`0.7-0.9`",
+      "broken_target": "0.7-0.9",
+      "normalized_target": "0.7-0.9",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15472,12 +17883,12 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_BURNDOWN.md",
-      "line_number": 86,
-      "link_text": "governed_apply.py",
-      "source_link": "`governed_apply.py`",
-      "broken_target": "governed_apply.py",
-      "normalized_target": "governed_apply.py",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 866,
+      "link_text": "0.7-0.9",
+      "source_link": "`0.7-0.9`",
+      "broken_target": "0.7-0.9",
+      "normalized_target": "0.7-0.9",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15485,12 +17896,12 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_BURNDOWN.md",
-      "line_number": 167,
-      "link_text": "security/baseline-refresh-YYYYMMDD",
-      "source_link": "`security/baseline-refresh-YYYYMMDD`",
-      "broken_target": "security/baseline-refresh-YYYYMMDD",
-      "normalized_target": "security/baseline-refresh-YYYYMMDD",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 619,
+      "link_text": "0.5-0.7",
+      "source_link": "`0.5-0.7`",
+      "broken_target": "0.5-0.7",
+      "normalized_target": "0.5-0.7",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15498,12 +17909,12 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_INVARIANTS.md",
-      "line_number": 63,
-      "link_text": "py/log-injection",
-      "source_link": "`py/log-injection`",
-      "broken_target": "py/log-injection",
-      "normalized_target": "py/log-injection",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 867,
+      "link_text": "0.5-0.7",
+      "source_link": "`0.5-0.7`",
+      "broken_target": "0.5-0.7",
+      "normalized_target": "0.5-0.7",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -15511,207 +17922,12 @@
       "fix_type": "manual_review"
     },
     {
-      "source_file": "docs\\SECURITY_INVARIANTS.md",
-      "line_number": 107,
-      "link_text": "py/stack-trace-exposure",
-      "source_link": "`py/stack-trace-exposure`",
-      "broken_target": "py/stack-trace-exposure",
-      "normalized_target": "py/stack-trace-exposure",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_INVARIANTS.md",
-      "line_number": 148,
-      "link_text": "py/path-injection",
-      "source_link": "`py/path-injection`",
-      "broken_target": "py/path-injection",
-      "normalized_target": "py/path-injection",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_INVARIANTS.md",
-      "line_number": 173,
-      "link_text": "py/bad-tag-filter",
-      "source_link": "`py/bad-tag-filter`",
-      "broken_target": "py/bad-tag-filter",
-      "normalized_target": "py/bad-tag-filter",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 127,
-      "link_text": "codeql-results/python.sarif",
-      "source_link": "`codeql-results/python.sarif`",
-      "broken_target": "codeql-results/python.sarif",
-      "normalized_target": "codeql-results/python.sarif",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 345,
-      "link_text": "codeql-results/python.sarif",
-      "source_link": "`codeql-results/python.sarif`",
-      "broken_target": "codeql-results/python.sarif",
-      "normalized_target": "codeql-results/python.sarif",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 488,
-      "link_text": "codeql-results/python.sarif",
-      "source_link": "`codeql-results/python.sarif`",
-      "broken_target": "codeql-results/python.sarif",
-      "normalized_target": "codeql-results/python.sarif",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 612,
-      "link_text": "codeql-results/python.sarif",
-      "source_link": "`codeql-results/python.sarif`",
-      "broken_target": "codeql-results/python.sarif",
-      "normalized_target": "codeql-results/python.sarif",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 149,
-      "link_text": "security/baseline-refresh-YYYYMMDD",
-      "source_link": "`security/baseline-refresh-YYYYMMDD`",
-      "broken_target": "security/baseline-refresh-YYYYMMDD",
-      "normalized_target": "security/baseline-refresh-YYYYMMDD",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 621,
-      "link_text": "security/baseline-refresh-YYYYMMDD",
-      "source_link": "`security/baseline-refresh-YYYYMMDD`",
-      "broken_target": "security/baseline-refresh-YYYYMMDD",
-      "normalized_target": "security/baseline-refresh-YYYYMMDD",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 168,
-      "link_text": "check_security_baseline_log_entry.py",
-      "source_link": "`check_security_baseline_log_entry.py`",
-      "broken_target": "check_security_baseline_log_entry.py",
-      "normalized_target": "check_security_baseline_log_entry.py",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/commented-out-code",
-      "source_link": "`py/commented-out-code`",
-      "broken_target": "py/commented-out-code",
-      "normalized_target": "py/commented-out-code",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/repeated-import",
-      "source_link": "`py/repeated-import`",
-      "broken_target": "py/repeated-import",
-      "normalized_target": "py/repeated-import",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/empty-except",
-      "source_link": "`py/empty-except`",
-      "broken_target": "py/empty-except",
-      "normalized_target": "py/empty-except",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/unreachable-statement",
-      "source_link": "`py/unreachable-statement`",
-      "broken_target": "py/unreachable-statement",
-      "normalized_target": "py/unreachable-statement",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/unused-local-variable",
-      "source_link": "`py/unused-local-variable`",
-      "broken_target": "py/unused-local-variable",
-      "normalized_target": "py/unused-local-variable",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\SECURITY_LOG.md",
-      "line_number": 276,
-      "link_text": "py/multiple-definition",
-      "source_link": "`py/multiple-definition`",
-      "broken_target": "py/multiple-definition",
-      "normalized_target": "py/multiple-definition",
+      "source_file": "docs\\RESEARCH_PIPELINE_GUIDE.md",
+      "line_number": 865,
+      "link_text": "0.9-1.0",
+      "source_link": "`0.9-1.0`",
+      "broken_target": "0.9-1.0",
+      "normalized_target": "0.9-1.0",
       "reason": "missing_file",
       "suggested_fix": null,
       "suggestions": [],
@@ -16084,7 +18300,7 @@
     },
     {
       "source_file": "docs\\TELEMETRY_GUIDE.md",
-      "line_number": 198,
+      "line_number": 232,
       "link_text": "token_estimator_calibration_YYYYMMDD_HHMMSS.md",
       "source_link": "`token_estimator_calibration_YYYYMMDD_HHMMSS.md`",
       "broken_target": "token_estimator_calibration_YYYYMMDD_HHMMSS.md",
@@ -16097,7 +18313,7 @@
     },
     {
       "source_file": "docs\\TELEMETRY_GUIDE.md",
-      "line_number": 199,
+      "line_number": 233,
       "link_text": "token_estimator_calibration_YYYYMMDD_HHMMSS.json",
       "source_link": "`token_estimator_calibration_YYYYMMDD_HHMMSS.json`",
       "broken_target": "token_estimator_calibration_YYYYMMDD_HHMMSS.json",
@@ -16116,6 +18332,19 @@
       "broken_target": "src.autopack.telemetry_utils",
       "normalized_target": "src.autopack.telemetry_utils",
       "reason": "historical_ref",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\test_labeling.md",
+      "line_number": 3,
+      "link_text": "/api/test_auth/test_endpoint",
+      "source_link": "`/api/test_auth/test_endpoint`",
+      "broken_target": "/api/test_auth/test_endpoint",
+      "normalized_target": "api/test_auth/test_endpoint",
+      "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -16155,19 +18384,6 @@
       "broken_target": "scripts/tidy/database_organizer.py",
       "normalized_target": "scripts/tidy/database_organizer.py",
       "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\TIDY_SYSTEM_REVISION_PLAN_2026-01-01.md",
-      "line_number": 736,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -16337,19 +18553,6 @@
       "broken_target": "scripts/git-hooks/pre-commit-workspace-check",
       "normalized_target": "scripts/git-hooks/pre-commit-workspace-check",
       "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\TIDY_SYSTEM_USAGE.md",
-      "line_number": 38,
-      "link_text": ".autonomous_runs/autopack",
-      "source_link": "`.autonomous_runs/autopack`",
-      "broken_target": ".autonomous_runs/autopack",
-      "normalized_target": ".autonomous_runs/autopack",
-      "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -16552,19 +18755,6 @@
     },
     {
       "source_file": "docs\\WORKSPACE_ORGANIZATION_SPEC.md",
-      "line_number": 62,
-      "link_text": ".pytest_cache/",
-      "source_link": "`.pytest_cache/`",
-      "broken_target": ".pytest_cache/",
-      "normalized_target": ".pytest_cache/",
-      "reason": "runtime_endpoint",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\WORKSPACE_ORGANIZATION_SPEC.md",
       "line_number": 73,
       "link_text": "archive/plans/",
       "source_link": "`archive/plans/`",
@@ -16630,19 +18820,6 @@
     },
     {
       "source_file": "docs\\WORKSPACE_ORGANIZATION_SPEC.md",
-      "line_number": 89,
-      "link_text": "archive/unsorted/",
-      "source_link": "`archive/unsorted/`",
-      "broken_target": "archive/unsorted/",
-      "normalized_target": "archive/unsorted/",
-      "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\WORKSPACE_ORGANIZATION_SPEC.md",
       "line_number": 239,
       "link_text": "superseded/reports/",
       "source_link": "`superseded/reports/`",
@@ -16662,19 +18839,6 @@
       "broken_target": "superseded/prompts/",
       "normalized_target": "superseded/prompts/",
       "reason": "missing_file",
-      "suggested_fix": null,
-      "suggestions": [],
-      "confidence": "low",
-      "fix_type": "manual_review"
-    },
-    {
-      "source_file": "docs\\WORKSPACE_ORGANIZATION_SPEC.md",
-      "line_number": 286,
-      "link_text": ".autonomous_runs/autopack/",
-      "source_link": "`.autonomous_runs/autopack/`",
-      "broken_target": ".autonomous_runs/autopack/",
-      "normalized_target": ".autonomous_runs/autopack/",
-      "reason": "runtime_endpoint",
       "suggested_fix": null,
       "suggestions": [],
       "confidence": "low",
@@ -16747,7 +18911,7 @@
     },
     {
       "source_file": "docs\\WORKTREE_PARALLEL_WORKFLOW.md",
-      "line_number": 251,
+      "line_number": 370,
       "link_text": "Memory Service Operator Guide",
       "source_link": "[Memory Service Operator Guide](docs/operators/MEMORY_SERVICE_GUIDE.md)",
       "broken_target": "docs/operators/MEMORY_SERVICE_GUIDE.md",
@@ -16760,7 +18924,20 @@
     },
     {
       "source_file": "docs\\WORKTREE_PARALLEL_WORKFLOW.md",
-      "line_number": 817,
+      "line_number": 39,
+      "link_text": "config.py",
+      "source_link": "`config.py`",
+      "broken_target": "config.py",
+      "normalized_target": "config.py",
+      "reason": "missing_file",
+      "suggested_fix": null,
+      "suggestions": [],
+      "confidence": "low",
+      "fix_type": "manual_review"
+    },
+    {
+      "source_file": "docs\\WORKTREE_PARALLEL_WORKFLOW.md",
+      "line_number": 936,
       "link_text": "docs/FILE.md",
       "source_link": "`docs/FILE.md`",
       "broken_target": "docs/FILE.md",
@@ -16773,13 +18950,13 @@
     }
   ],
   "summary": {
-    "total_broken": 1290,
-    "auto_fixable": 0,
-    "manual_review": 1290,
+    "total_broken": 1409,
+    "auto_fixable": 62,
+    "manual_review": 1347,
     "by_confidence": {
-      "high": 0,
-      "medium": 0,
-      "low": 1290
+      "high": 47,
+      "medium": 15,
+      "low": 1347
     }
   }
 }

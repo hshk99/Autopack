@@ -141,9 +141,9 @@ class TestCategoryAwareOverrideLogic:
             not token_selected_budget or token_selected_budget >= 16384 or not is_docs_like
         )
 
-        assert not should_apply_floor, (
-            "Should NOT apply floor for docs with intentionally low budget"
-        )
+        assert (
+            not should_apply_floor
+        ), "Should NOT apply floor for docs with intentionally low budget"
 
     def test_should_apply_floor_docs_high_budget(self):
         """
@@ -249,9 +249,9 @@ class TestCategoryAwareOverrideLogic:
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
 
-        assert max_tokens == 4096, (
-            f"docs/low should preserve category-aware budget 4096, got {max_tokens}"
-        )
+        assert (
+            max_tokens == 4096
+        ), f"docs/low should preserve category-aware budget 4096, got {max_tokens}"
 
     def test_conditional_override_implementation_scenario(self):
         """
@@ -327,9 +327,9 @@ class TestCategoryAwareOverrideLogic:
         if token_selected_budget:
             max_tokens = max(max_tokens or 0, token_selected_budget)
 
-        assert max_tokens == 16384, (
-            f"docs without estimator should get 16384 floor for safety, got {max_tokens}"
-        )
+        assert (
+            max_tokens == 16384
+        ), f"docs without estimator should get 16384 floor for safety, got {max_tokens}"
 
     def test_telemetry_semantics_separation(self):
         """
@@ -361,9 +361,9 @@ class TestCategoryAwareOverrideLogic:
         token_pred = phase_spec.get("metadata", {}).get("token_prediction", {})
         assert "selected_budget" in token_pred, "selected_budget should be recorded"
         assert "actual_max_tokens" in token_pred, "actual_max_tokens should be recorded"
-        assert token_pred["selected_budget"] == 4096, (
-            "selected_budget should reflect estimator intent"
-        )
-        assert token_pred["actual_max_tokens"] == 4096, (
-            "actual_max_tokens should reflect final ceiling"
-        )
+        assert (
+            token_pred["selected_budget"] == 4096
+        ), "selected_budget should reflect estimator intent"
+        assert (
+            token_pred["actual_max_tokens"] == 4096
+        ), "actual_max_tokens should reflect final ceiling"

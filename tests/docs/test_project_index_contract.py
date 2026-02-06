@@ -17,9 +17,9 @@ def test_project_index_has_canonical_sot_files():
 
     data = json.loads(project_index_path.read_text(encoding="utf-8"))
 
-    assert "sot_files" in data and isinstance(data["sot_files"], dict), (
-        "PROJECT_INDEX missing sot_files map"
-    )
+    assert "sot_files" in data and isinstance(
+        data["sot_files"], dict
+    ), "PROJECT_INDEX missing sot_files map"
 
     # docs/WORKSPACE_ORGANIZATION_SPEC.md defines the canonical 6-file SOT core.
     required_sot = {
@@ -57,9 +57,9 @@ def test_project_index_does_not_claim_5_file_sot():
             pps = ars.get("per_project_structure", {})
             if isinstance(pps, dict):
                 docs_desc = str(pps.get("docs/", ""))
-                assert "6-file" in docs_desc, (
-                    "workspace_structure.*.per_project_structure docs/ should mention 6-file SOT"
-                )
+                assert (
+                    "6-file" in docs_desc
+                ), "workspace_structure.*.per_project_structure docs/ should mention 6-file SOT"
 
 
 def test_project_index_quickstart_uses_canonical_env_template_path():
@@ -68,16 +68,16 @@ def test_project_index_quickstart_uses_canonical_env_template_path():
     data = json.loads(project_index_path.read_text(encoding="utf-8"))
 
     quick_start = data.get("setup", {}).get("quick_start", [])
-    assert isinstance(quick_start, list) and quick_start, (
-        "PROJECT_INDEX setup.quick_start must be a non-empty list"
-    )
+    assert (
+        isinstance(quick_start, list) and quick_start
+    ), "PROJECT_INDEX setup.quick_start must be a non-empty list"
 
     joined = "\n".join(str(x) for x in quick_start)
 
     # Canonical: repo-root .env.example (per WORKSPACE_ORGANIZATION_SPEC + docs drift checker).
-    assert "cp .env.example .env" in joined, (
-        "PROJECT_INDEX quick_start must include: cp .env.example .env"
-    )
-    assert "cp docs/templates/env.example .env" not in joined, (
-        "PROJECT_INDEX must not reference docs/templates/env.example (non-canonical / missing path)"
-    )
+    assert (
+        "cp .env.example .env" in joined
+    ), "PROJECT_INDEX quick_start must include: cp .env.example .env"
+    assert (
+        "cp docs/templates/env.example .env" not in joined
+    ), "PROJECT_INDEX must not reference docs/templates/env.example (non-canonical / missing path)"

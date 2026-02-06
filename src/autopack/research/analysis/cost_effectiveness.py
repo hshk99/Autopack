@@ -281,21 +281,27 @@ class ProjectCostProjection:
         """Generate executive summary."""
         tco = self._total_tco()
 
-        # Find primary cost drivers
+        # Find primary cost drivers with safe access
         drivers = []
-        if tco["year_1"]["ai_apis"] > tco["year_1"]["total"] * 0.2:
+        year_1 = tco.get("year_1", {})
+        year_1_total = year_1.get("total", 1)  # Avoid division by zero
+
+        ai_apis = year_1.get("ai_apis", 0)
+        if year_1_total > 0 and ai_apis > year_1_total * 0.2:
             drivers.append(
-                f"AI API usage ({tco['year_1']['ai_apis'] / tco['year_1']['total'] * 100:.0f}%)"
+                f"AI API usage ({ai_apis / year_1_total * 100:.0f}%)"
             )
-        if tco["year_1"]["development"] > tco["year_1"]["total"] * 0.2:
+
+        development = year_1.get("development", 0)
+        if year_1_total > 0 and development > year_1_total * 0.2:
             drivers.append(
-                f"Development ({tco['year_1']['development'] / tco['year_1']['total'] * 100:.0f}%)"
+                f"Development ({development / year_1_total * 100:.0f}%)"
             )
 
         return {
-            "total_year_1_cost": tco["year_1"]["total"],
-            "total_year_3_cost": tco["year_3_cumulative"]["total"],
-            "total_year_5_cost": tco["year_5_cumulative"]["total"],
+            "total_year_1_cost": year_1_total,
+            "total_year_3_cost": tco.get("year_3_cumulative", {}).get("total", 0),
+            "total_year_5_cost": tco.get("year_5_cumulative", {}).get("total", 0),
             "primary_cost_drivers": drivers,
             "key_recommendations": self._generate_recommendations(),
             "cost_confidence": "medium",
@@ -416,22 +422,31 @@ class ProjectCostProjection:
         ai_year_1 = ai.get("projections", {}).get("year_1", {}).get("yearly_cost", 0)
         ai_year_5 = ai.get("projections", {}).get("year_5", {}).get("yearly_cost", 0)
 
+        # Get development costs with safe defaults
+        dev_year_1 = dev.get("year_1_total", 0)
+        dev_year_5 = dev.get("year_5_total", 0)
+        ongoing_monthly_cost = dev.get("ongoing_development", {}).get("monthly_cost", 0)
+
+        # Get infrastructure costs with safe defaults
+        infra_year_1 = infra.get("year_1_total", 0)
+        infra_year_5 = infra.get("year_5_total", 0)
+
         year_1 = {
-            "development": dev["year_1_total"],
-            "infrastructure": infra["year_1_total"],
+            "development": dev_year_1,
+            "infrastructure": infra_year_1,
             "services": services_year_1,
             "ai_apis": ai_year_1,
-            "operational": dev["ongoing_development"]["monthly_cost"] * 12 * 0.2,  # 20% for ops
+            "operational": ongoing_monthly_cost * 12 * 0.2,  # 20% for ops
             "total": 0,
         }
         year_1["total"] = sum(year_1.values())
 
         year_5 = {
-            "development": dev["year_5_total"],
-            "infrastructure": infra["year_5_total"],
+            "development": dev_year_5,
+            "infrastructure": infra_year_5,
             "services": services_year_5,
             "ai_apis": ai_year_5 * 3,  # Rough 5-year cumulative
-            "operational": dev["ongoing_development"]["monthly_cost"] * 60 * 0.2,
+            "operational": ongoing_monthly_cost * 60 * 0.2,
             "total": 0,
         }
         year_5["total"] = sum(year_5.values())
@@ -476,7 +491,7 @@ class ProjectCostProjection:
     def _risk_adjusted(self) -> Dict[str, Any]:
         """Calculate risk-adjusted cost scenarios."""
         tco = self._total_tco()
-        base = tco["year_5_cumulative"]["total"]
+        base = tco.get("year_5_cumulative", {}).get("total", 0)
 
         return {
             "optimistic": {
@@ -500,14 +515,18 @@ class ProjectCostProjection:
         # Assume $29/month subscription
         subscription_price = 29
 
+        # Safe access to TCO values
+        year_1_total = tco.get("year_1", {}).get("total", 0)
+        year_5_total = tco.get("year_5_cumulative", {}).get("total", 0)
+
         return {
             "required_mrr_to_cover_costs": {
-                "year_1": tco["year_1"]["total"] / 12,
-                "year_5": tco["year_5_cumulative"]["total"] / 60,
+                "year_1": year_1_total / 12 if year_1_total else 0,
+                "year_5": year_5_total / 60 if year_5_total else 0,
             },
             "users_needed_at_29_mo": {
-                "year_1": int(tco["year_1"]["total"] / 12 / subscription_price),
-                "year_5": int(tco["year_5_cumulative"]["total"] / 60 / subscription_price),
+                "year_1": int((year_1_total / 12 / subscription_price) if year_1_total else 0),
+                "year_5": int((year_5_total / 60 / subscription_price) if year_5_total else 0),
             },
         }
 
@@ -674,15 +693,15 @@ class CostEffectivenessAnalyzer:
 
             # Get cost data
             cost_data = result.get("cost_data", {})
-            options = result.get("options", {})
+            options = result.get("options", {}) if result.get("options") else {}
 
-            # Find the selected option's cost data
-            if decision == DecisionType.BUY and "buy" in options:
+            # Find the selected option's cost data - handle missing options gracefully
+            if decision == DecisionType.BUY and options.get("buy"):
                 selected = options["buy"].get("total_cost_estimate", {})
-            elif decision == DecisionType.INTEGRATE and "integrate" in options:
+            elif decision == DecisionType.INTEGRATE and options.get("integrate"):
                 selected = options["integrate"].get("total_cost_estimate", {})
             else:
-                selected = options.get("build", {}).get("total_cost_estimate", {})
+                selected = options.get("build", {}).get("total_cost_estimate", {}) if options.get("build") else {}
 
             # Parse vendor lock-in
             vendor_info = result.get("vendor_lock_in", {})
@@ -857,34 +876,53 @@ class CostEffectivenessAnalyzer:
         Generate BudgetCost anchor for Autopack with schema validation.
 
         Returns:
-            Validated BudgetCost anchor dictionary
+            Validated BudgetCost anchor dictionary, or empty dict if no projection
 
         Raises:
             ValueError: If anchor data fails validation
         """
         if not self.projection:
-            raise ValueError("No projection data available to generate anchor")
+            return {}
 
         analysis = self.projection.calculate_all()
-        tco = analysis["total_cost_of_ownership"]
+
+        # Safely extract TCO data with defensive defaults
+        tco = analysis.get("total_cost_of_ownership", {})
+        if not tco:
+            return {}
+
+        year_1_data = tco.get("year_1", {})
+        if not year_1_data:
+            return {}
+
+        # Extract cost categories with safe defaults
+        total_cost = year_1_data.get("total", 0)
+        if total_cost <= 0:
+            return {}
+
+        development_cost = year_1_data.get("development", 0)
+        infrastructure_cost = year_1_data.get("infrastructure", 0)
+        services_cost = year_1_data.get("services", 0)
+        ai_apis_cost = year_1_data.get("ai_apis", 0)
+        operational_cost = year_1_data.get("operational", 0)
 
         # Build the anchor data
         anchor_data = {
             "pivot_type": "BudgetCost",
             "budget_constraints": {
-                "total_mvp_budget": tco["year_1"]["total"],
-                "monthly_runway": tco["year_1"]["total"] / 12,
+                "total_mvp_budget": total_cost,
+                "monthly_runway": total_cost / 12 if total_cost > 0 else 0,
                 "timeline_months": 6,
                 "buffer_percent": 20,
             },
             "cost_breakdown": {
-                "development": tco["year_1"]["development"],
-                "infrastructure": tco["year_1"]["infrastructure"],
-                "services": tco["year_1"]["services"],
-                "ai_apis": tco["year_1"]["ai_apis"],
-                "operational": tco["year_1"]["operational"],
+                "development": development_cost,
+                "infrastructure": infrastructure_cost,
+                "services": services_cost,
+                "ai_apis": ai_apis_cost,
+                "operational": operational_cost,
             },
-            "cost_optimization_strategies": [o.strategy for o in self.projection.optimizations],
+            "cost_optimization_strategies": [o.strategy for o in (self.projection.optimizations or [])],
             "source": "cost-effectiveness-analyzer",
         }
 

@@ -1,0 +1,25 @@
+{
+  "tasks": [
+    {
+      "task_id": "FOLLOWUP-test-run-test-phase",
+      "title": "Investigate ci_fail in build",
+      "description": "Phase test-phase failed with ci_fail. Error: Compilation error. This pattern has occurred multiple times. Investigate root cause and implement preventive measures.",
+      "priority": "high",
+      "source_insights": [
+        {
+          "type": "feedback_loop_closure",
+          "phase_id": "test-phase",
+          "run_id": "test-run",
+          "outcome_type": "failure",
+          "hint_type": "ci_fail"
+        }
+      ],
+      "suggested_files": [],
+      "estimated_effort": "M",
+      "created_at": "2026-02-06T15:24:42.807861+00:00",
+      "queued_at": "2026-02-06T15:24:42.807861+00:00",
+      "feedback_source": "IMP-LOOP-026"
+    }
+  ],
+  "updated_at": "2026-02-06T15:24:42.808409+00:00"
+}

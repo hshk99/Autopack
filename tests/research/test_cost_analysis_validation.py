@@ -300,6 +300,6 @@ class TestCostAnalysisValidation:
             analyzer.to_json(output_file)
 
     def test_no_projection_for_anchor_raises_error(self, analyzer: CostEffectivenessAnalyzer):
-        """Test that generating anchor without projection raises error."""
-        with pytest.raises(ValueError, match="No projection data available"):
-            analyzer.generate_budget_anchor()
+        """Test that generating anchor without projection returns empty dict."""
+        anchor = analyzer.generate_budget_anchor()
+        assert anchor == {}

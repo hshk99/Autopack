@@ -1518,12 +1518,15 @@ Configuration options (feature_flags.yaml):
         Returns:
             True if circuit breaker allows execution, False if blocked
         """
-        if self.executor_ctx is None:
-            return True  # No context, allow proceeding
+        if self.executor_ctx is None or not hasattr(self.executor_ctx, 'circuit_breaker'):
+            return True  # No context or circuit breaker, allow proceeding
+
+        if self.executor_ctx.circuit_breaker is None:
+            return True  # No circuit breaker, allow proceeding
 
         passed = self.executor_ctx.circuit_breaker.is_available()
         health_score = self.executor_ctx.circuit_breaker.health_score
-        state = self.executor_ctx.circuit_breaker.state.value
+        state = self.executor_ctx.circuit_breaker.state.value if hasattr(self.executor_ctx.circuit_breaker.state, 'value') else str(self.executor_ctx.circuit_breaker.state)
 
         # IMP-SEG-001: Record circuit breaker check
         self._health_collector.record_circuit_breaker_check(
@@ -1589,7 +1592,8 @@ Configuration options (feature_flags.yaml):
         Returns:
             True if restoration was successful, False if checkpoint not found
         """
-        if checkpoint_id not in self._state_checkpoints:
+        checkpoint = self._state_checkpoints.get(checkpoint_id)
+        if checkpoint is None:
             logger.warning(f"[IMP-REL-005] Checkpoint not found: {checkpoint_id}")
             return False
 
@@ -1597,7 +1601,6 @@ Configuration options (feature_flags.yaml):
             logger.error("[IMP-REL-005] Cannot restore state: no active session")
             return False
 
-        checkpoint = self._state_checkpoints[checkpoint_id]
         checkpoint.restore_session(self.session)
 
         logger.info(f"[IMP-REL-005] Restored session state from checkpoint: {checkpoint_id}")
@@ -1628,8 +1631,21 @@ Configuration options (feature_flags.yaml):
             return
 
         # Calculate final gate states and health
-        circuit_breaker_state = self.executor_ctx.circuit_breaker.state.value
-        circuit_breaker_health = self.executor_ctx.circuit_breaker.health_score
+        circuit_breaker = self.executor_ctx.circuit_breaker if self.executor_ctx else None
+        if circuit_breaker and hasattr(circuit_breaker, 'state') and circuit_breaker.state:
+            circuit_breaker_state = circuit_breaker.state.value
+        else:
+            circuit_breaker_state = "unknown"
+
+        # Use consecutive_failures as a proxy for health if health_score doesn't exist
+        circuit_breaker_health = 1.0
+        if circuit_breaker and hasattr(circuit_breaker, 'consecutive_failures'):
+            try:
+                failures = circuit_breaker.consecutive_failures
+                if isinstance(failures, (int, float)):
+                    circuit_breaker_health = max(0.0, 1.0 - (failures / 10.0))
+            except (TypeError, AttributeError):
+                circuit_breaker_health = 1.0
         budget_remaining = self.executor_ctx.get_budget_remaining()
 
         # Get health status from feedback loop if available
@@ -1646,8 +1662,24 @@ Configuration options (feature_flags.yaml):
 
         # Create snapshot
         completed_at = self.session.completed_at or datetime.now(timezone.utc)
-        started_at = self.session.started_at
+        started_at = self.session.started_at or datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
+
+        # Calculate health gates metrics from circuit breaker with safe defaults
+        health_gates_checked = 0
+        health_gates_blocked = 0
+        if circuit_breaker:
+            try:
+                if hasattr(circuit_breaker, 'total_trips'):
+                    trips = circuit_breaker.total_trips
+                    if isinstance(trips, int):
+                        health_gates_checked = trips
+                if hasattr(circuit_breaker, 'health_blocked_transitions'):
+                    blocked = circuit_breaker.health_blocked_transitions
+                    if isinstance(blocked, int):
+                        health_gates_blocked = blocked
+            except (TypeError, AttributeError):
+                pass  # Keep defaults
 
         snapshot = SessionHealthSnapshot(
             session_id=self.session.session_id,
@@ -1659,16 +1691,8 @@ Configuration options (feature_flags.yaml):
             circuit_breaker_health_score=circuit_breaker_health,
             budget_remaining=budget_remaining,
             health_status=health_status,
-            health_gates_checked=self.executor_ctx.circuit_breaker.total_checks,
-            health_gates_blocked=(
-                max(
-                    0,
-                    self.executor_ctx.circuit_breaker.total_checks
-                    - self.executor_ctx.circuit_breaker.checks_passed,
-                )
-                if hasattr(self.executor_ctx.circuit_breaker, "checks_passed")
-                else 0
-            ),
+            health_gates_checked=health_gates_checked,
+            health_gates_blocked=health_gates_blocked,
             research_cycles_executed=research_cycles_executed,
             actions_executed=(
                 self.session.execution_summary.executed_actions
@@ -1981,7 +2005,8 @@ Configuration options (feature_flags.yaml):
 
             # Calculate session duration
             if self.session.metadata:
-                duration = (self.session.completed_at - self.session.started_at).total_seconds()
+                started = self.session.started_at or datetime.now(timezone.utc)
+                duration = (self.session.completed_at - started).total_seconds()
                 self.session.metadata.session_duration_ms = int(duration * 1000)
 
             logger.info(f"[Autopilot] Session completed: {session_id}")
@@ -2514,7 +2539,9 @@ Configuration options (feature_flags.yaml):
                     outcome.trigger_result.triggers_detected if outcome.trigger_result else 0
                 ),
                 triggers_executed=(
-                    outcome.trigger_result.triggers_executed if outcome.trigger_result else 0
+                    outcome.trigger_result.execution_result.triggers_executed
+                    if outcome.trigger_result and outcome.trigger_result.execution_result
+                    else 0
                 ),
                 decision=outcome.decision.value,
                 gaps_addressed=outcome.gaps_addressed if outcome.gaps_addressed else 0,

@@ -1,0 +1,38 @@
+{
+  "project_id": "Autopack",
+  "issues_by_key": {
+    "builder_churn_limit_exceeded": {
+      "category": "builder_guardrail",
+      "base_severity": "major",
+      "age_in_runs": 1,
+      "age_in_tiers": 1,
+      "first_seen_run_id": "test-run-123",
+      "last_seen_run_id": "test-run-123",
+      "last_seen_at": "2026-02-06T15:24:17.587879Z",
+      "seen_in_tiers": [],
+      "status": "open"
+    },
+    "builder_guardrail_failure": {
+      "category": "builder_guardrail",
+      "base_severity": "major",
+      "age_in_runs": 1,
+      "age_in_tiers": 1,
+      "first_seen_run_id": "test-run-123",
+      "last_seen_run_id": "test-run-123",
+      "last_seen_at": "2026-02-06T15:24:17.642514Z",
+      "seen_in_tiers": [],
+      "status": "open"
+    },
+    "builder_failure": {
+      "category": "builder_failure",
+      "base_severity": "major",
+      "age_in_runs": 2,
+      "age_in_tiers": 2,
+      "first_seen_run_id": "test-run-123",
+      "last_seen_run_id": "test-run-123",
+      "last_seen_at": "2026-02-06T15:24:17.736481Z",
+      "seen_in_tiers": [],
+      "status": "open"
+    }
+  }
+}

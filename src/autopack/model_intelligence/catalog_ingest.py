@@ -166,13 +166,15 @@ def ingest_pricing(session: Session, pricing_yaml_path: str, effective_at: datet
     Args:
         session: Database session.
         pricing_yaml_path: Path to pricing.yaml file.
-        effective_at: Effective date for pricing (defaults to now).
+        effective_at: Effective date for pricing (defaults to today at UTC midnight).
 
     Returns:
-        Number of pricing records ingested.
+        Number of NEW pricing records ingested (updated records not counted).
     """
     if effective_at is None:
-        effective_at = datetime.now(timezone.utc)
+        # Use today at UTC midnight to ensure idempotency across multiple calls within same day
+        now = datetime.now(timezone.utc)
+        effective_at = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
     pricing_config = load_yaml(pricing_yaml_path)
     ingested_count = 0
@@ -200,10 +202,13 @@ def ingest_pricing(session: Session, pricing_yaml_path: str, effective_at: datet
                 session.flush()
 
             # Check if pricing record already exists
+            source = f"{provider}_pricing_yaml"
             existing = (
                 session.query(ModelPricing)
-                .filter_by(
-                    model_id=model_id, effective_at=effective_at, source=f"{provider}_pricing_yaml"
+                .filter(
+                    ModelPricing.model_id == model_id,
+                    ModelPricing.effective_at == effective_at,
+                    ModelPricing.source == source,
                 )
                 .first()
             )
@@ -221,7 +226,7 @@ def ingest_pricing(session: Session, pricing_yaml_path: str, effective_at: datet
                     output_per_1k=pricing.get("output_per_1k", 0),
                     currency="USD",
                     effective_at=effective_at,
-                    source=f"{provider}_pricing_yaml",
+                    source=source,
                     source_url="config/pricing.yaml",
                 )
                 session.add(pricing_record)

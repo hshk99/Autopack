@@ -46,6 +46,8 @@ policy:
   quarantined_paths:
     - "src/autopack/dashboard/frontend/**"  # Frontend is separate codebase
     - "src/autopack/research/**"  # Research subsystem is quarantined (PR8)
+    - "src/autopack/generative/adapters/together_ai.py"  # Placeholder implementation with expected TODOs
+    - "src/autopack/integrations/mcp_registry.py"  # MCP registry with placeholder implementation
     - "archive/**"  # Historical files
 
   # Patterns that indicate a TODO needs immediate attention

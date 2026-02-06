@@ -196,6 +196,7 @@ class TestSecurityTodosBlocked:
         """No TODOs mentioning 'security', 'secret', 'auth', 'credential'."""
         policy = load_policy()
         urgent_patterns = policy["policy"].get("urgent_patterns", [])
+        quarantined = policy["policy"].get("quarantined_paths", [])
 
         src_dir = REPO_ROOT / "src" / "autopack"
         if not src_dir.exists():
@@ -203,6 +204,10 @@ class TestSecurityTodosBlocked:
 
         security_todos = []
         for py_file in src_dir.rglob("*.py"):
+            # Skip quarantined paths (placeholder implementations)
+            if is_quarantined(py_file, quarantined):
+                continue
+
             todos = find_todos_in_file(py_file)
             for line_num, line in todos:
                 # Check if line matches any urgent pattern

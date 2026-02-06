@@ -183,9 +183,10 @@ app.include_router(runs_router)
 
 # Backwards compatibility re-exports for tests (PR-API-1/PR-API-3 compatibility layer)
 # These allow existing tests to continue importing from autopack.main
-from .api.deps import _is_trusted_proxy, get_client_ip  # noqa: F401
+from .api.deps import _is_trusted_proxy, get_client_ip, verify_api_key  # noqa: F401
 from .api.routes.phases import submit_builder_result  # noqa: F401
 from .config import settings  # noqa: F401
 from .database import get_db  # noqa: F401
 from .file_layout import RunFileLayout  # noqa: F401
 from .notifications.telegram_notifier import answer_telegram_callback  # noqa: F401
+from .notifications.telegram_webhook_security import verify_telegram_webhook as verify_telegram_webhook_crypto  # noqa: F401

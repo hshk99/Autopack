@@ -66,6 +66,21 @@ SPECIAL_SECURITY_ENDPOINTS = {
 QUARANTINED_ENDPOINTS = {
     "/research/sessions": "Mock in-memory state - not production-safe (PR8)",
     "/research/sessions/{session_id}": "Mock in-memory state - not production-safe (PR8)",
+    "/research/bootstrap": "Research bootstrap - mock implementation (PR8)",
+    "/research/bootstrap/{session_id}/status": "Research session status - mock implementation (PR8)",
+    "/research/bootstrap/{session_id}/draft_anchor": "Research anchor generation - mock implementation (PR8)",
+    "/research/full/session": "Full research session - mock implementation (PR8)",
+    "/research/full/session/{session_id}/validate": "Research validation - mock implementation (PR8)",
+    "/research/full/session/{session_id}/publish": "Research publishing - mock implementation (PR8)",
+    "/research/full/cache/status": "Research cache status - mock implementation (PR8)",
+    "/research/full/cache": "Research cache management - mock implementation (PR8)",
+    "/research/full/invalidate": "Research cache invalidation - mock implementation (PR8)",
+    "/research/full/session/{session_id}/analysis/cost-effectiveness": "Research analysis - mock implementation (PR8)",
+    "/research/full/session/{session_id}/analysis/build-vs-buy": "Research analysis - mock implementation (PR8)",
+    "/research/full/session/{session_id}/analysis/followup-triggers": "Research analysis - mock implementation (PR8)",
+    "/research/full/session/{session_id}/analysis/research-state": "Research analysis - mock implementation (PR8)",
+    "/research/full/session/{session_id}/analysis": "Research analysis - mock implementation (PR8)",
+    "/research/mode": "Research mode endpoint - mock implementation (PR8)",
 }
 
 

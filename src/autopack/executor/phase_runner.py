@@ -143,6 +143,31 @@ class PhaseRunner:
             f"[{phase_id}] Starting phase execution (attempt {attempt_index}/{max_attempts})"
         )
 
+        # IMP-RES-005: Phase 0 - Execute validator gates
+        # Validate phase context before proceeding to builder
+        validator_context = {
+            "phase": phase,
+            "phase_id": phase_id,
+            "attempt_index": attempt_index,
+            "escalation_level": escalation_level,
+            "allowed_paths": allowed_paths,
+        }
+        gate_result = self.validator_gate_pipeline.execute(validator_context)
+
+        if not gate_result.can_proceed:
+            logger.error(
+                f"[{phase_id}] Validator gates blocked execution: {gate_result.get_summary()}"
+            )
+            for error_msg in gate_result.get_blocking_failure_messages():
+                logger.error(f"[{phase_id}] {error_msg}")
+            return ExecutionResult(
+                success=False,
+                phase_result="BLOCKED",
+                error_message=f"Validator gates blocked execution: {gate_result.get_summary()}",
+            )
+
+        logger.info(f"[{phase_id}] {gate_result.get_summary()}")
+
         # Phase 1: Execute Builder
         builder_result, build_error = self._execute_builder(
             phase, attempt_index, escalation_level, allowed_paths

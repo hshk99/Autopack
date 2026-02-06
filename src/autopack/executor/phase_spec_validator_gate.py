@@ -21,25 +21,14 @@ REQUIRED_PHASE_FIELDS = ["phase_id", "phase_name", "phase_type"]
 
 
 class PhaseSpecificationValidator(ValidatorGate):
-    """Validates phase specification structure and required fields.
-
-    This gate ensures that all phases meet the minimum specification requirements
-    before execution begins.
-    """
+    """Validates phase specification structure and required fields."""
 
     def __init__(self):
         """Initialize phase specification validator gate."""
         super().__init__(name="PhaseSpecification", gate_type=GateType.HARD)
 
     def validate(self, context: Dict[str, Any]) -> GateResult:
-        """Validate phase specification.
-
-        Args:
-            context: Phase execution context containing phase specification
-
-        Returns:
-            GateResult indicating whether phase spec is valid
-        """
+        """Validate phase specification."""
         phase = context.get("phase")
         phase_id = context.get("phase_id", "unknown")
 
@@ -92,25 +81,14 @@ class PhaseSpecificationValidator(ValidatorGate):
 
 
 class PhaseContextValidator(ValidatorGate):
-    """Validates phase execution context.
-
-    Ensures that the execution context has all required information
-    for phase execution to proceed.
-    """
+    """Validates phase execution context."""
 
     def __init__(self):
         """Initialize phase context validator gate."""
         super().__init__(name="PhaseContext", gate_type=GateType.HARD)
 
     def validate(self, context: Dict[str, Any]) -> GateResult:
-        """Validate phase execution context.
-
-        Args:
-            context: Phase execution context
-
-        Returns:
-            GateResult indicating whether context is valid
-        """
+        """Validate phase execution context."""
         result = GateResult(
             passed=True, gate_name=self.name, gate_type=self.gate_type, message="Phase context valid"
         )

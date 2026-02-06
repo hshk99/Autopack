@@ -212,7 +212,7 @@ class TestTelegramChannel:
             channel = TelegramChannel()
             assert channel.is_enabled() is True
 
-    def test_send_returns_error_when_not_configured(self, sample_request):
+    def test_send_returns_error_when_not_configured(self, sample_request, isolated_env):
         """Send should return error when not configured."""
         channel = TelegramChannel(bot_token=None, chat_id=None)
         result = channel.send(sample_request)
@@ -261,7 +261,7 @@ class TestEmailChannel:
             channel = EmailChannel()
             assert channel.is_enabled() is False
 
-    def test_send_returns_error_when_not_configured(self, sample_request):
+    def test_send_returns_error_when_not_configured(self, sample_request, isolated_env):
         """Send should return error when not configured."""
         channel = EmailChannel()
         result = channel.send(sample_request)
@@ -295,7 +295,7 @@ class TestSMSChannel:
             channel = SMSChannel()
             assert channel.is_enabled() is True
 
-    def test_send_returns_error_when_not_configured(self, sample_request):
+    def test_send_returns_error_when_not_configured(self, sample_request, isolated_env):
         """Send should return error when not configured."""
         channel = SMSChannel()
         result = channel.send(sample_request)

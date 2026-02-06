@@ -30,6 +30,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from autopack.generation.monitoring_guidance_generator import MonitoringGuidanceGenerator
+
 logger = logging.getLogger(__name__)
 
 
@@ -854,21 +856,38 @@ This SLA does NOT apply to:
         logger.info(f"Generated SLA document: {sla_path}")
 
     def _generate_monitoring_setup(self, phase: PostlaunchPhase) -> None:
-        """Generate monitoring setup guide.
+        """Generate monitoring setup guide using the monitoring guidance generator.
 
         Args:
             phase: The phase being executed
         """
-        if not phase.output:
+        if not phase.output or not phase.output.runbook_dir_path:
             return
 
-        monitoring_content = f"""# Monitoring Setup for {phase.input_data.product_name}
+        # Create monitoring guides directory
+        monitoring_dir = Path(phase.output.runbook_dir_path) / "monitoring_guides"
+        monitoring_dir.mkdir(parents=True, exist_ok=True)
 
-## Alert Rules
+        # Generate monitoring guides for all platforms
+        generator = MonitoringGuidanceGenerator()
+        guides = generator.generate_all_guides()
 
-### Critical Alerts (Severity 1)
-"""
+        # Save each guide to a separate file
+        for platform, guide in guides.items():
+            guide_filename = f"{platform.lower()}_setup.md"
+            guide_path = monitoring_dir / guide_filename
+            guide_path.write_text(guide.guide_content, encoding="utf-8")
+            logger.info(f"Generated {platform} monitoring guide: {guide_path}")
 
+        # Create a summary document with all platforms and recommendations
+        summary_content = self._create_monitoring_summary(phase, guides)
+        summary_path = self.workspace_path / "MONITORING_SETUP.md"
+        summary_path.write_text(summary_content, encoding="utf-8")
+
+        phase.output.monitoring_setup_path = str(summary_path)
+        logger.info(f"Generated monitoring setup summary: {summary_path}")
+
+        # Set alert rules from existing configuration
         phase.output.alert_rules = [
             {
                 "name": "Service Unreachable",
@@ -892,7 +911,63 @@ This SLA does NOT apply to:
             },
         ]
 
-        monitoring_content += """
+    def _create_monitoring_summary(
+        self, phase: PostlaunchPhase, guides: Dict[str, Any]
+    ) -> str:
+        """Create a monitoring setup summary document.
+
+        Args:
+            phase: The phase being executed
+            guides: Dictionary of monitoring guides
+
+        Returns:
+            Summary content as a string
+        """
+        product_name = phase.input_data.product_name if phase.input_data else "Application"
+
+        summary = f"""# Monitoring Setup for {product_name}
+
+This document provides an overview of available monitoring solutions and setup guides.
+
+## Available Monitoring Platforms
+
+"""
+
+        # Add platform comparison table
+        summary += "| Platform | Setup Difficulty | Cost/Month | Setup Time | Best For |\n"
+        summary += "|----------|-----------------|-----------|-----------|----------|\n"
+
+        for platform, guide in guides.items():
+            cost_str = f"${guide.cost_per_month_usd}" if guide.cost_per_month_usd is not None else "Free"
+            summary += f"| {guide.platform_name} | {guide.setup_difficulty} | {cost_str} | {guide.estimated_setup_time_hours}h | {guide.best_for} |\n"
+
+        summary += """
+## Detailed Setup Guides
+
+For detailed setup instructions for each platform, see the guides in the `monitoring_guides/` directory:
+
+"""
+
+        for platform in guides.keys():
+            filename = f"{platform.lower()}_setup.md"
+            summary += f"- [**{platform.capitalize()} Setup Guide**](./monitoring_guides/{filename})\n"
+
+        summary += """
+## Recommended Setup Approach
+
+1. **Determine your infrastructure**: Where will your application run? (Kubernetes, cloud, on-premise)
+2. **Consider your budget**: Balance cost with features and setup complexity
+3. **Evaluate your team's expertise**: Choose a solution your team can maintain
+4. **Start with the platform-specific guide**: Follow the detailed setup instructions
+
+## Alert Rules
+
+### Critical Alerts (Severity 1)
+- Service Unreachable: Health check fails for 5 consecutive checks
+- High Error Rate: Error rate > 5% for 5 minutes
+- Database Unavailable: DB connection pool exhausted or connection timeout
+- Disk Space Critical: Disk usage > 95%
+
 ### High Priority Alerts (Severity 2)
 - High memory usage (>85% for 10 minutes)
 - High CPU usage (>80% for 15 minutes)
@@ -910,88 +985,13 @@ This SLA does NOT apply to:
 - Disk usage moderate (80-95%)
 - Infrequent errors (< 0.1%)
 
-## Grafana Dashboards
-
-### Main Dashboard
-- Service availability timeline
-- Error rate trend
-- Response time distribution (p50, p95, p99)
-- CPU and memory usage
-- Database connection count
-- Active users/sessions
-
-### Business Metrics
-- Total requests/hour
-- Revenue-impacting errors
-- Top 10 error types
-- Hourly/daily/monthly trends
-- Capacity utilization
-
-### Infrastructure Dashboard
-- Kubernetes node health
-- Pod restart count
-- Network I/O
-- Disk space utilization
-- Database replication lag
-
-## Prometheus Configuration
-
-```yaml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-  external_labels:
-    environment: 'production'
-    team: 'backend'
-
-scrape_configs:
-  - job_name: 'application'
-    static_configs:
-      - targets: ['localhost:8000']
-    scrape_interval: 10s
-
-  - job_name: 'kubernetes'
-    kubernetes_sd_configs:
-      - role: pod
-    relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_scrape]
-        action: keep
-        regex: true
-
-rule_files:
-  - '/etc/prometheus/alert_rules.yml'
-```
-
-## Log Aggregation Setup
-
-### ELK Stack Configuration
-```
-Logs from all containers → Filebeat → Logstash → Elasticsearch → Kibana
-```
-
-### Important Log Queries
-```
-# Find all errors in last hour
-level:error AND timestamp:[now-1h TO now]
-
-# Find slow API calls
-duration_ms:[500 TO *]
-
-# Find authentication failures
-event_type:auth_failure
-```
-
 ## Alert Notification Channels
 """
 
         for channel in phase.config.alert_channels:
-            monitoring_content += f"- {channel}\n"
+            summary += f"- {channel}\n"
 
-        monitoring_path = self.workspace_path / "MONITORING_SETUP.md"
-        monitoring_path.write_text(monitoring_content, encoding="utf-8")
-
-        phase.output.monitoring_setup_path = str(monitoring_path)
-        logger.info(f"Generated monitoring setup: {monitoring_path}")
+        return summary
 
     def _save_to_history(self, phase: PostlaunchPhase) -> None:
         """Save phase results to BUILD_HISTORY.

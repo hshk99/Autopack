@@ -28,6 +28,17 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Import CI/CD generators for wiring into deploy phase
+try:
+    from autopack.research.generators.cicd_generator import (
+        CICDWorkflowGenerator,
+        GitLabCIGenerator,
+    )
+except ImportError:
+    logger.warning("CI/CD generators not available, will use fallback implementations")
+    CICDWorkflowGenerator = None
+    GitLabCIGenerator = None
+
 
 class DeployStatus(Enum):
     """Status of a deployment phase."""
@@ -361,7 +372,27 @@ CMD [{self._get_run_command(language)}]
             logger.info(f"Generated CI/CD config: {ci_path}")
 
     def _generate_github_actions_config(self, input_data: DeployInput) -> str:
-        """Generate GitHub Actions workflow configuration.
+        """Generate GitHub Actions workflow configuration using CICDWorkflowGenerator.
+
+        Args:
+            input_data: Deployment input data
+
+        Returns:
+            YAML content for GitHub Actions workflow
+        """
+        if CICDWorkflowGenerator is None:
+            logger.warning("CI/CD generator not available, using fallback implementation")
+            return self._generate_github_actions_config_fallback(input_data)
+
+        try:
+            generator = CICDWorkflowGenerator(include_deploy=True, include_security_scan=True)
+            return generator.generate(input_data.tech_stack)
+        except Exception as e:
+            logger.warning(f"Failed to use CI/CD generator: {e}, falling back to template")
+            return self._generate_github_actions_config_fallback(input_data)
+
+    def _generate_github_actions_config_fallback(self, input_data: DeployInput) -> str:
+        """Fallback GitHub Actions workflow configuration template.
 
         Args:
             input_data: Deployment input data
@@ -407,7 +438,27 @@ jobs:
 """
 
     def _generate_gitlab_ci_config(self, input_data: DeployInput) -> str:
-        """Generate GitLab CI configuration.
+        """Generate GitLab CI configuration using GitLabCIGenerator.
+
+        Args:
+            input_data: Deployment input data
+
+        Returns:
+            YAML content for GitLab CI
+        """
+        if GitLabCIGenerator is None:
+            logger.warning("GitLab CI generator not available, using fallback implementation")
+            return self._generate_gitlab_ci_config_fallback(input_data)
+
+        try:
+            generator = GitLabCIGenerator()
+            return generator.generate(input_data.tech_stack)
+        except Exception as e:
+            logger.warning(f"Failed to use GitLab CI generator: {e}, falling back to template")
+            return self._generate_gitlab_ci_config_fallback(input_data)
+
+    def _generate_gitlab_ci_config_fallback(self, input_data: DeployInput) -> str:
+        """Fallback GitLab CI configuration template.
 
         Args:
             input_data: Deployment input data

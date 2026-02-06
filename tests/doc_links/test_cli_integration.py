@@ -44,6 +44,7 @@ def _run_doc_link_checker(*args: str) -> subprocess.CompletedProcess:
 
 
 @pytest.mark.slow
+@pytest.mark.timeout(120)
 def test_nav_mode_ignores_backticks():
     """Test that nav mode (default) does NOT report backtick references."""
     # Modify README.md temporarily to test nav mode behavior
@@ -79,6 +80,7 @@ And here is a backtick reference: `.autonomous_runs/test_fake_file.json`.
 
 
 @pytest.mark.slow
+@pytest.mark.timeout(120)
 def test_deep_mode_includes_backticks():
     """Test that deep mode DOES include backtick references."""
     # Create a temporary test file with both markdown links and backticks
@@ -114,6 +116,7 @@ And here is a backtick reference: `.autonomous_runs/test_deep_fake_file.json`.
 
 
 @pytest.mark.slow
+@pytest.mark.timeout(120)
 def test_deep_mode_defaults_to_backticks():
     """Test that deep mode defaults to include backticks without explicit flag."""
     # Create a temporary test file with backticks only
@@ -142,6 +145,7 @@ Backtick reference: `scripts/test_nonexistent_default_script.py`.
 
 
 @pytest.mark.slow
+@pytest.mark.timeout(120)
 def test_output_labeling():
     """Test that output clearly labels informational vs enforced categories."""
     # Create a temporary test file with informational reference

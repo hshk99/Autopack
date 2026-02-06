@@ -63,6 +63,11 @@ from ..research.analysis.followup_trigger import (
     TriggerAnalysisResult,
     TriggerExecutionResult,
 )
+from ..research.phase_scheduler import (
+    PhasePriority,
+    PhaseScheduler,
+    PhaseTask,
+)
 from ..telemetry.autopilot_metrics import (
     AutopilotHealthCollector,
     SessionHealthSnapshot,

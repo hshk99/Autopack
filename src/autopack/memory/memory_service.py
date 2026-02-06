@@ -433,13 +433,19 @@ class NullStore:
     def delete(self, collection: str, ids: List[str]) -> int:  # noqa: ARG002
         return 0
 
-    def count(self, collection: str, filter: Optional[Dict[str, Any]] = None) -> int:  # noqa: ARG002
+    def count(
+        self, collection: str, filter: Optional[Dict[str, Any]] = None
+    ) -> int:  # noqa: ARG002
         return 0
 
-    def get_payload(self, collection: str, point_id: str) -> Optional[Dict[str, Any]]:  # noqa: ARG002
+    def get_payload(
+        self, collection: str, point_id: str
+    ) -> Optional[Dict[str, Any]]:  # noqa: ARG002
         return None
 
-    def update_payload(self, collection: str, point_id: str, payload: Dict[str, Any]) -> bool:  # noqa: ARG002
+    def update_payload(
+        self, collection: str, point_id: str, payload: Dict[str, Any]
+    ) -> bool:  # noqa: ARG002
         return False
 
 
@@ -3503,9 +3509,7 @@ class MemoryService:
         signal_to_noise = (
             high_relevance_entries / max(low_relevance_entries, 1)
             if low_relevance_entries > 0
-            else float(high_relevance_entries)
-            if high_relevance_entries > 0
-            else 0.0
+            else float(high_relevance_entries) if high_relevance_entries > 0 else 0.0
         )
 
         # Staleness ratio: stale entries / total entries

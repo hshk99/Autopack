@@ -116,9 +116,7 @@ def print_analysis_summary(result: PlanAnalysisResult):
         icon = (
             "✅"
             if phase.feasibility.value == "CAN_IMPLEMENT"
-            else "⚠️"
-            if phase.feasibility.value == "RISKY"
-            else "❌"
+            else "⚠️" if phase.feasibility.value == "RISKY" else "❌"
         )
         print(f"{i:2d}. {icon} {phase_id} ({phase.estimated_duration_days:.1f} days)")
 

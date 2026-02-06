@@ -57,9 +57,9 @@ class TestLegacyApprovalSafeDefault:
         """
         # Check that production mode is checked when determining auto_approve
         # Pattern should show: production check AND env var check
-        assert "env_mode" in main_py_content or "AUTOPACK_ENV" in main_py_content, (
-            "approvals.py should check AUTOPACK_ENV for production mode protection"
-        )
+        assert (
+            "env_mode" in main_py_content or "AUTOPACK_ENV" in main_py_content
+        ), "approvals.py should check AUTOPACK_ENV for production mode protection"
 
         # Check for production blocking pattern
         # Looking for: env_mode != "production" or similar

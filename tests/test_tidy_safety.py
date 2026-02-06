@@ -51,14 +51,14 @@ class TestTidySafety:
 
         # Assert: root BUILD_HISTORY.md should NOT be in moves
         moved_files = {src.name for src, dest in moves}
-        assert "BUILD_HISTORY.md" not in moved_files, (
-            "Divergent root SOT file should be blocked, not moved"
-        )
+        assert (
+            "BUILD_HISTORY.md" not in moved_files
+        ), "Divergent root SOT file should be blocked, not moved"
 
         # Assert: root file still exists (not moved)
-        assert root_build_history.exists(), (
-            "Root SOT file should remain at root for manual resolution"
-        )
+        assert (
+            root_build_history.exists()
+        ), "Root SOT file should remain at root for manual resolution"
 
         # Assert: docs file unchanged
         assert (
@@ -129,9 +129,9 @@ class TestIdenticalSOTDuplicate:
 
         # Assert: identical SOT file is NOT blocked by route_root_files (divergent ones are)
         blocked_names = {f.name for f in blocked}
-        assert "BUILD_HISTORY.md" not in blocked_names, (
-            "Identical SOT files should not be blocked by route_root_files"
-        )
+        assert (
+            "BUILD_HISTORY.md" not in blocked_names
+        ), "Identical SOT files should not be blocked by route_root_files"
 
         # Assert: BUILD_HISTORY.md is planned to move to superseded
         moved_sot = [dest for src, dest in moves if src.name == "BUILD_HISTORY.md"]
@@ -161,9 +161,9 @@ class TestIdenticalSOTDuplicate:
         moves, blocked = route_root_files(tmp_path, dry_run=False, verbose=False)
 
         # Verify route_root_files planned to move the file
-        assert any(src.name == "DEBUG_LOG.md" for src, dest in moves), (
-            "route_root_files should plan to move identical SOT file"
-        )
+        assert any(
+            src.name == "DEBUG_LOG.md" for src, dest in moves
+        ), "route_root_files should plan to move identical SOT file"
 
         # Execute the moves (safety layer should block SOT file moves)
         from tidy_up import execute_moves
@@ -171,20 +171,20 @@ class TestIdenticalSOTDuplicate:
         execute_moves(moves, dry_run=False)
 
         # Assert: root file STILL exists (protected by execute_moves safety layer)
-        assert (tmp_path / "DEBUG_LOG.md").exists(), (
-            "Root SOT file should remain (protected by execute_moves safety layer)"
-        )
+        assert (
+            tmp_path / "DEBUG_LOG.md"
+        ).exists(), "Root SOT file should remain (protected by execute_moves safety layer)"
 
         # Assert: docs version unchanged
-        assert (docs_dir / "DEBUG_LOG.md").read_text(encoding="utf-8") == content, (
-            "Docs version should be unchanged"
-        )
+        assert (docs_dir / "DEBUG_LOG.md").read_text(
+            encoding="utf-8"
+        ) == content, "Docs version should be unchanged"
 
         # Check output mentions protection
         captured = capsys.readouterr()
-        assert "BLOCKED" in captured.out or "SOT file protection" in captured.out, (
-            "Should indicate SOT file protection"
-        )
+        assert (
+            "BLOCKED" in captured.out or "SOT file protection" in captured.out
+        ), "Should indicate SOT file protection"
 
 
 class TestFailFastBehavior:
@@ -293,9 +293,9 @@ class TestDirtyMarker:
             / ".autonomous_runs"
             / "sot_index_dirty.json"
         )
-        assert marker_path.exists(), (
-            "Subproject marker should be created in project-specific location"
-        )
+        assert (
+            marker_path.exists()
+        ), "Subproject marker should be created in project-specific location"
 
         marker_data = json.loads(marker_path.read_text(encoding="utf-8"))
         assert marker_data["dirty"] is True
@@ -418,9 +418,9 @@ class TestDirtyMarkerTightening:
                     break
 
         # Assert: no modification detected
-        assert not sot_modified_by_consolidation, (
-            "Should not detect modification when SOT files unchanged"
-        )
+        assert (
+            not sot_modified_by_consolidation
+        ), "Should not detect modification when SOT files unchanged"
 
     def test_marker_created_when_consolidation_changes_sot(self, tmp_path):
         """
@@ -486,9 +486,9 @@ class TestTidyIntegration:
         mark_sot_dirty("autopack", tmp_path, dry_run=False)
 
         # Assert
-        assert marker_path.exists(), (
-            "Tidy should create dirty marker when archive consolidation runs"
-        )
+        assert (
+            marker_path.exists()
+        ), "Tidy should create dirty marker when archive consolidation runs"
 
 
 if __name__ == "__main__":

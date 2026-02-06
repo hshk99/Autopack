@@ -1518,12 +1518,15 @@ Configuration options (feature_flags.yaml):
         Returns:
             True if circuit breaker allows execution, False if blocked
         """
-        if self.executor_ctx is None:
-            return True  # No context, allow proceeding
+        if self.executor_ctx is None or not hasattr(self.executor_ctx, 'circuit_breaker'):
+            return True  # No context or circuit breaker, allow proceeding
+
+        if self.executor_ctx.circuit_breaker is None:
+            return True  # No circuit breaker, allow proceeding
 
         passed = self.executor_ctx.circuit_breaker.is_available()
         health_score = self.executor_ctx.circuit_breaker.health_score
-        state = self.executor_ctx.circuit_breaker.state.value
+        state = self.executor_ctx.circuit_breaker.state.value if hasattr(self.executor_ctx.circuit_breaker.state, 'value') else str(self.executor_ctx.circuit_breaker.state)
 
         # IMP-SEG-001: Record circuit breaker check
         self._health_collector.record_circuit_breaker_check(
@@ -1646,7 +1649,7 @@ Configuration options (feature_flags.yaml):
 
         # Create snapshot
         completed_at = self.session.completed_at or datetime.now(timezone.utc)
-        started_at = self.session.started_at
+        started_at = self.session.started_at or datetime.now(timezone.utc)
         duration_seconds = (completed_at - started_at).total_seconds()
 
         snapshot = SessionHealthSnapshot(
@@ -1981,7 +1984,8 @@ Configuration options (feature_flags.yaml):
 
             # Calculate session duration
             if self.session.metadata:
-                duration = (self.session.completed_at - self.session.started_at).total_seconds()
+                started = self.session.started_at or datetime.now(timezone.utc)
+                duration = (self.session.completed_at - started).total_seconds()
                 self.session.metadata.session_duration_ms = int(duration * 1000)
 
             logger.info(f"[Autopilot] Session completed: {session_id}")

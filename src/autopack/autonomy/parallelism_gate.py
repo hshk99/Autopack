@@ -54,6 +54,12 @@ class ParallelismPolicyGate:
             ParallelismPolicyViolation: If parallel execution is not allowed
         """
         # Check if parallelism intention exists
+        if not self.anchor or not hasattr(self.anchor, 'pivot_intentions') or not self.anchor.pivot_intentions:
+            raise ParallelismPolicyViolation(
+                "Intention anchor or pivot_intentions not available. "
+                "Add parallelism_isolation with allowed=true to enable parallel execution."
+            )
+
         if not self.anchor.pivot_intentions.parallelism_isolation:
             raise ParallelismPolicyViolation(
                 "Parallelism policy not defined in intention anchor. "
@@ -97,14 +103,17 @@ class ParallelismPolicyGate:
         Returns:
             Max concurrent runs allowed (default: 1 if parallelism not allowed)
         """
+        if not self.anchor or not hasattr(self.anchor, 'pivot_intentions') or not self.anchor.pivot_intentions:
+            return 1
+
         if not self.anchor.pivot_intentions.parallelism_isolation:
             return 1
 
         policy = self.anchor.pivot_intentions.parallelism_isolation
-        if not policy.allowed:
+        if not policy or not policy.allowed:
             return 1
 
-        return policy.max_concurrent_runs
+        return getattr(policy, 'max_concurrent_runs', 1)
 
     def is_parallel_allowed(self) -> bool:
         """Check if parallel execution is allowed (non-raising).
@@ -112,10 +121,14 @@ class ParallelismPolicyGate:
         Returns:
             True if parallel execution is allowed, False otherwise
         """
-        if not self.anchor.pivot_intentions.parallelism_isolation:
+        if not self.anchor or not hasattr(self.anchor, 'pivot_intentions') or not self.anchor.pivot_intentions:
             return False
 
-        return self.anchor.pivot_intentions.parallelism_isolation.allowed
+        parallelism_isolation = self.anchor.pivot_intentions.parallelism_isolation
+        if not parallelism_isolation:
+            return False
+
+        return getattr(parallelism_isolation, 'allowed', False)
 
 
 def check_parallelism_policy(anchor: IntentionAnchorV2, requested_runs: int = 2) -> None:

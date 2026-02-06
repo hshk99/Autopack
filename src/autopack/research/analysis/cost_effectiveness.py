@@ -281,21 +281,27 @@ class ProjectCostProjection:
         """Generate executive summary."""
         tco = self._total_tco()
 
-        # Find primary cost drivers
+        # Find primary cost drivers with safe access
         drivers = []
-        if tco["year_1"]["ai_apis"] > tco["year_1"]["total"] * 0.2:
+        year_1 = tco.get("year_1", {})
+        year_1_total = year_1.get("total", 1)  # Avoid division by zero
+
+        ai_apis = year_1.get("ai_apis", 0)
+        if year_1_total > 0 and ai_apis > year_1_total * 0.2:
             drivers.append(
-                f"AI API usage ({tco['year_1']['ai_apis'] / tco['year_1']['total'] * 100:.0f}%)"
+                f"AI API usage ({ai_apis / year_1_total * 100:.0f}%)"
             )
-        if tco["year_1"]["development"] > tco["year_1"]["total"] * 0.2:
+
+        development = year_1.get("development", 0)
+        if year_1_total > 0 and development > year_1_total * 0.2:
             drivers.append(
-                f"Development ({tco['year_1']['development'] / tco['year_1']['total'] * 100:.0f}%)"
+                f"Development ({development / year_1_total * 100:.0f}%)"
             )
 
         return {
-            "total_year_1_cost": tco["year_1"]["total"],
-            "total_year_3_cost": tco["year_3_cumulative"]["total"],
-            "total_year_5_cost": tco["year_5_cumulative"]["total"],
+            "total_year_1_cost": year_1_total,
+            "total_year_3_cost": tco.get("year_3_cumulative", {}).get("total", 0),
+            "total_year_5_cost": tco.get("year_5_cumulative", {}).get("total", 0),
             "primary_cost_drivers": drivers,
             "key_recommendations": self._generate_recommendations(),
             "cost_confidence": "medium",
@@ -416,22 +422,31 @@ class ProjectCostProjection:
         ai_year_1 = ai.get("projections", {}).get("year_1", {}).get("yearly_cost", 0)
         ai_year_5 = ai.get("projections", {}).get("year_5", {}).get("yearly_cost", 0)
 
+        # Get development costs with safe defaults
+        dev_year_1 = dev.get("year_1_total", 0)
+        dev_year_5 = dev.get("year_5_total", 0)
+        ongoing_monthly_cost = dev.get("ongoing_development", {}).get("monthly_cost", 0)
+
+        # Get infrastructure costs with safe defaults
+        infra_year_1 = infra.get("year_1_total", 0)
+        infra_year_5 = infra.get("year_5_total", 0)
+
         year_1 = {
-            "development": dev["year_1_total"],
-            "infrastructure": infra["year_1_total"],
+            "development": dev_year_1,
+            "infrastructure": infra_year_1,
             "services": services_year_1,
             "ai_apis": ai_year_1,
-            "operational": dev["ongoing_development"]["monthly_cost"] * 12 * 0.2,  # 20% for ops
+            "operational": ongoing_monthly_cost * 12 * 0.2,  # 20% for ops
             "total": 0,
         }
         year_1["total"] = sum(year_1.values())
 
         year_5 = {
-            "development": dev["year_5_total"],
-            "infrastructure": infra["year_5_total"],
+            "development": dev_year_5,
+            "infrastructure": infra_year_5,
             "services": services_year_5,
             "ai_apis": ai_year_5 * 3,  # Rough 5-year cumulative
-            "operational": dev["ongoing_development"]["monthly_cost"] * 60 * 0.2,
+            "operational": ongoing_monthly_cost * 60 * 0.2,
             "total": 0,
         }
         year_5["total"] = sum(year_5.values())
@@ -476,7 +491,7 @@ class ProjectCostProjection:
     def _risk_adjusted(self) -> Dict[str, Any]:
         """Calculate risk-adjusted cost scenarios."""
         tco = self._total_tco()
-        base = tco["year_5_cumulative"]["total"]
+        base = tco.get("year_5_cumulative", {}).get("total", 0)
 
         return {
             "optimistic": {
@@ -500,14 +515,18 @@ class ProjectCostProjection:
         # Assume $29/month subscription
         subscription_price = 29
 
+        # Safe access to TCO values
+        year_1_total = tco.get("year_1", {}).get("total", 0)
+        year_5_total = tco.get("year_5_cumulative", {}).get("total", 0)
+
         return {
             "required_mrr_to_cover_costs": {
-                "year_1": tco["year_1"]["total"] / 12,
-                "year_5": tco["year_5_cumulative"]["total"] / 60,
+                "year_1": year_1_total / 12 if year_1_total else 0,
+                "year_5": year_5_total / 60 if year_5_total else 0,
             },
             "users_needed_at_29_mo": {
-                "year_1": int(tco["year_1"]["total"] / 12 / subscription_price),
-                "year_5": int(tco["year_5_cumulative"]["total"] / 60 / subscription_price),
+                "year_1": int((year_1_total / 12 / subscription_price) if year_1_total else 0),
+                "year_5": int((year_5_total / 60 / subscription_price) if year_5_total else 0),
             },
         }
 

@@ -30,8 +30,10 @@ from datetime import datetime
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from anthropic import Anthropic
+
 from src.autopack.learned_rules import (
-    load_project_learned_rules,
+    load_project_rules,
     load_run_rule_hints,
     format_rules_for_prompt,
     format_hints_for_prompt,
@@ -192,7 +194,7 @@ class AgentLauncher:
         prompt_context = context or {}
 
         # Add learned rules (Stage 0B integration)
-        learned_rules = load_project_learned_rules(self.project_id)
+        learned_rules = load_project_rules(self.project_id)
         prompt_context["learned_rules"] = format_rules_for_prompt(learned_rules)
 
         # For postmortem agent: add run hints and promoted rules
@@ -226,10 +228,7 @@ class AgentLauncher:
         return prompt
 
     def _call_claude_api(self, prompt: str, model: str, max_tokens: int) -> Dict:
-        """Call Claude API to execute agent
-
-        TODO: Implement actual Claude API call via Anthropic SDK
-        For now, returns stub
+        """Call Claude API to execute agent via Anthropic SDK
 
         Args:
             prompt: Full prompt for agent
@@ -249,18 +248,35 @@ class AgentLauncher:
                 "tokens_used": 0,
             }
 
-        # TODO: Implement actual API call
-        # For now, return stub indicating implementation needed
-        print("[AgentLauncher] ⚠️  Claude API call not implemented yet")
-        print(f"[AgentLauncher]    Model: {model}, Max tokens: {max_tokens:,}")
-        print(f"[AgentLauncher]    Prompt length: {len(prompt)} chars")
+        try:
+            # Initialize Anthropic client
+            client = Anthropic(api_key=api_key)
 
-        return {
-            "success": True,
-            "content": f"# Agent Output (Stub)\n\nAgent would generate output here.\n\nPrompt received: {len(prompt)} chars\nLearned rules: {'Yes' if '{learned_rules}' not in prompt else 'No'}",
-            "tokens_used": 1000,  # Stub
-            "model": model,
-        }
+            # Call Claude API
+            message = client.messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            # Extract content and token usage
+            content = message.content[0].text
+            tokens_used = message.usage.output_tokens
+
+            return {
+                "success": True,
+                "content": content,
+                "tokens_used": tokens_used,
+                "model": model,
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Claude API call failed: {str(e)}",
+                "content": "",
+                "tokens_used": 0,
+            }
 
     def _save_agent_outputs(
         self, agent_role: str, agent_def: Dict, content: str, run_id: Optional[str]
@@ -366,6 +382,50 @@ class AgentLauncher:
             "results": results,
             "total_tokens": total_tokens,
         }
+
+
+def launch_agents(
+    event: str,
+    project_id: str,
+    run_id: Optional[str] = None,
+    agents: Optional[List[str]] = None,
+    context: Optional[Dict] = None,
+    config_path: Optional[str] = None,
+) -> List[Dict]:
+    """Launch Claude agents for a specific event
+
+    Args:
+        event: Event type (project_init, run_complete, manual)
+        project_id: Project identifier
+        run_id: Optional run ID
+        agents: Optional list of specific agents to run (overrides event filtering)
+        context: Additional context to pass to agents
+        config_path: Path to project_types.yaml (defaults to config/project_types.yaml)
+
+    Returns:
+        List of agent results with success/error information
+    """
+    try:
+        launcher = AgentLauncher(project_id=project_id, config_path=config_path)
+        result = launcher.launch_for_event(event=event, run_id=run_id, agents=agents, context=context)
+
+        # Transform results into list format expected by supervisor
+        agent_results = []
+        for agent_role, agent_result in result.get("results", {}).items():
+            agent_results.append({
+                "agent_role": agent_role,
+                "status": "success" if agent_result.get("success") else "failed",
+                "success": agent_result.get("success", False),
+                "tokens_used": agent_result.get("tokens_used", 0),
+                "output_files": agent_result.get("output_files", []),
+            })
+
+        return agent_results
+
+    except Exception as e:
+        # Log error but don't crash - allow build to continue
+        print(f"[launch_agents] Error launching agents: {str(e)}", file=sys.stderr)
+        raise
 
 
 def main():

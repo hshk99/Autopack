@@ -33,7 +33,7 @@ class SelfHostedAdapter(ProviderAdapter):
         self.port = config.get("port") or os.getenv("SELF_HOSTED_PORT", 8000)
         self._features = ProviderFeatures(
             supports_image_generation=False,
-            supports_video_generation=False,
+            supports_video_generation=True,
             supports_voice_tts=True,
             supports_background_removal=True,
             requires_authentication=False,
@@ -41,6 +41,7 @@ class SelfHostedAdapter(ProviderAdapter):
             max_concurrent_requests=4,
             supported_audio_formats=["mp3", "wav", "m4a", "ogg"],
             supported_image_formats=["png", "jpg", "webp"],
+            supported_video_formats=["mp4", "webm", "mov"],
         )
 
     @property
@@ -71,11 +72,74 @@ class SelfHostedAdapter(ProviderAdapter):
         num_frames: Optional[int] = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Video generation not supported by self-hosted adapter."""
-        raise NotImplementedError(
-            f"Video generation not supported by {self.name}. "
-            "Use RunPod or Vertex AI adapters instead."
-        )
+        """Generate video via self-hosted model.
+
+        Args:
+            prompt: Text description for video generation
+            model_id: Local model ID (e.g., 'stable-video-diffusion', 'zeroscope')
+            duration: Video duration in seconds
+            num_frames: Number of frames to generate
+            **kwargs: Additional parameters
+
+        Returns:
+            Dict with video_url, duration_seconds, and metadata
+        """
+        self.logger.debug(f"Generating video with {model_id} on self-hosted: {prompt[:50]}...")
+
+        try:
+            # Connect to local model service via HTTP
+            service_url = (
+                f"{self.base_url}:{self.port}" if isinstance(self.port, int) else f"{self.base_url}"
+            )
+
+            # Create request payload for video generation inference
+            payload = {
+                "prompt": prompt,
+                "model": model_id,
+                "duration": duration,
+            }
+
+            if num_frames is not None:
+                payload["num_frames"] = num_frames
+
+            # Make inference request to local service
+            async with aiohttp.ClientSession() as session:
+                inference_url = urljoin(service_url, "/v1/video/generate")
+                async with session.post(
+                    inference_url,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=600),  # Video generation takes longer
+                ) as response:
+                    if response.status != 200:
+                        self.logger.error(f"Video generation service returned status {response.status}")
+                        raise RuntimeError(f"Video generation failed: {response.status}")
+
+                    # Verify video data received
+                    _ = await response.read()
+
+            # Generate unique identifier for the video
+            prompt_hash = hashlib.md5(prompt.encode()).hexdigest()[:8]
+            video_filename = f"{model_id}_{prompt_hash}.mp4"
+
+            # Generate accessible URL for the video
+            video_url = f"{service_url}/video/{video_filename}"
+
+            self.logger.debug(f"Successfully generated video: {video_url}")
+
+            return {
+                "video_url": video_url,
+                "duration_seconds": duration,
+                "metadata": {
+                    "provider": self.name,
+                    "model": model_id,
+                    "num_frames": num_frames,
+                    "base_url": self.base_url,
+                    "service_url": service_url,
+                },
+            }
+        except Exception as e:
+            self.logger.error(f"Video generation failed: {str(e)}")
+            raise RuntimeError(f"Self-hosted video generation service error: {str(e)}") from e
 
     async def generate_voice(
         self,
@@ -305,6 +369,13 @@ class SelfHostedAdapter(ProviderAdapter):
                                     "bark",
                                 ],
                             ),
+                            "video_generation": models.get(
+                                "video",
+                                [
+                                    "stable-video-diffusion",
+                                    "zeroscope",
+                                ],
+                            ),
                             "background_removal": models.get(
                                 "background_removal",
                                 [
@@ -324,6 +395,10 @@ class SelfHostedAdapter(ProviderAdapter):
             "voice_tts": [
                 "kokoro-82m",
                 "bark",
+            ],
+            "video_generation": [
+                "stable-video-diffusion",
+                "zeroscope",
             ],
             "background_removal": [
                 "birefnet",

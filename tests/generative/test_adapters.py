@@ -277,7 +277,7 @@ class TestSelfHostedAdapter:
         adapter = SelfHostedAdapter()
         features = adapter.features
         assert not features.supports_image_generation
-        assert not features.supports_video_generation
+        assert features.supports_video_generation
         assert features.supports_voice_tts
         assert features.supports_background_removal
         assert not features.requires_authentication
@@ -308,6 +308,37 @@ class TestSelfHostedAdapter:
             assert "audio_url" in result
             assert result["metadata"]["provider"] == "self_hosted"
             assert result["metadata"]["model"] == "kokoro-82m"
+
+    @pytest.mark.asyncio
+    async def test_generate_video(self):
+        """Test video generation."""
+        adapter = SelfHostedAdapter(base_url="http://localhost", port=8000)
+
+        # Mock the aiohttp session
+        with patch("aiohttp.ClientSession") as mock_session_class:
+            mock_session = AsyncMock()
+            mock_response = AsyncMock()
+            mock_response.status = 200
+            mock_response.read = AsyncMock(return_value=b"video_data")
+
+            mock_session.post = AsyncMock()
+            mock_session.post.return_value.__aenter__.return_value = mock_response
+            mock_session.__aenter__.return_value = mock_session
+            mock_session.__aexit__.return_value = AsyncMock()
+
+            mock_session_class.return_value = mock_session
+
+            result = await adapter.generate_video(
+                prompt="a cat running",
+                model_id="stable-video-diffusion",
+                duration=5,
+                num_frames=240,
+            )
+            assert "video_url" in result
+            assert result["duration_seconds"] == 5
+            assert result["metadata"]["provider"] == "self_hosted"
+            assert result["metadata"]["model"] == "stable-video-diffusion"
+            assert result["metadata"]["num_frames"] == 240
 
     @pytest.mark.asyncio
     async def test_remove_background(self):

@@ -232,9 +232,9 @@ class TestP16SeedCatalogDriftContract:
                 f"SEED_CATALOG entry {entry.model_id} is not Anthropic. "
                 "Seed catalog is for Anthropic fallback only."
             )
-            assert "claude" in entry.model_id.lower(), (
-                f"SEED_CATALOG entry {entry.model_id} doesn't look like a Claude model."
-            )
+            assert (
+                "claude" in entry.model_id.lower()
+            ), f"SEED_CATALOG entry {entry.model_id} doesn't look like a Claude model."
 
     def test_config_catalog_preferred_over_seed_when_available(self):
         """When config is available, it should be used instead of seed."""
@@ -275,9 +275,9 @@ class TestP16SeedCatalogDriftContract:
             )
 
             # Pricing should be reasonable (< $100/1k tokens is safe upper bound)
-            assert entry.cost_per_1k_input < 100, (
-                f"SEED_CATALOG entry {entry.model_id} has implausible input cost."
-            )
-            assert entry.cost_per_1k_output < 100, (
-                f"SEED_CATALOG entry {entry.model_id} has implausible output cost."
-            )
+            assert (
+                entry.cost_per_1k_input < 100
+            ), f"SEED_CATALOG entry {entry.model_id} has implausible input cost."
+            assert (
+                entry.cost_per_1k_output < 100
+            ), f"SEED_CATALOG entry {entry.model_id} has implausible output cost."

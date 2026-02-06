@@ -235,9 +235,9 @@ class TestLearnedRuleAging:
                 validation_failures=0,
                 decay_score=decay_score,
             )
-            assert aging.should_deprecate() == expected_deprecate, (
-                f"decay_score={decay_score} should return {expected_deprecate}"
-            )
+            assert (
+                aging.should_deprecate() == expected_deprecate
+            ), f"decay_score={decay_score} should return {expected_deprecate}"
 
 
 class TestLearnedRuleAgingEdgeCases:

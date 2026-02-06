@@ -91,6 +91,35 @@ def clear_diagnosis_cache():
     _clear_cache()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def disable_telegram_notifications(request):
+    """Globally disable Telegram notifications during all tests.
+
+    This prevents tests from sending real Telegram messages when
+    TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set in the environment.
+
+    The BackgroundTaskSupervisor tests use real TelegramNotifier instances,
+    which would otherwise spam real Telegram channels during CI runs.
+    """
+    # Store original values
+    original_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    original_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+
+    # Clear credentials to disable Telegram
+    if "TELEGRAM_BOT_TOKEN" in os.environ:
+        del os.environ["TELEGRAM_BOT_TOKEN"]
+    if "TELEGRAM_CHAT_ID" in os.environ:
+        del os.environ["TELEGRAM_CHAT_ID"]
+
+    yield
+
+    # Restore original values after all tests
+    if original_token is not None:
+        os.environ["TELEGRAM_BOT_TOKEN"] = original_token
+    if original_chat_id is not None:
+        os.environ["TELEGRAM_CHAT_ID"] = original_chat_id
+
+
 @pytest.fixture(scope="function")
 def db_engine():
     """Create a fresh database engine for each test"""

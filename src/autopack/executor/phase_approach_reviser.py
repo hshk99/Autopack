@@ -2,9 +2,13 @@
 
 Extracted from autonomous_executor.py as part of PR-EXE-13.
 Handles revising phase approach when current strategy isn't working.
+
+Thread-safe implementation with per-phase locks to prevent race conditions
+when multiple threads attempt to revise the same phase concurrently.
 """
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Dict, List, Optional
@@ -29,6 +33,9 @@ class RevisedApproach:
 class PhaseApproachReviser:
     """Revises phase approach when stuck or repeatedly failing.
 
+    Thread-safe implementation with per-phase locks to prevent race conditions
+    when multiple threads attempt to revise the same phase concurrently.
+
     Responsibilities:
     1. Analyze phase failure patterns
     2. Generate alternative approaches
@@ -38,6 +45,26 @@ class PhaseApproachReviser:
 
     def __init__(self, executor: "AutonomousExecutor"):
         self.executor = executor
+        # Per-phase locks to prevent concurrent revisions of the same phase
+        self._phase_revision_locks: Dict[str, threading.Lock] = {}
+        self._locks_lock = threading.Lock()  # Protects _phase_revision_locks dict itself
+
+    def _get_phase_lock(self, phase_id: str) -> threading.Lock:
+        """Get or create a lock for a specific phase.
+
+        Thread-safe method to obtain a per-phase lock. Creates the lock on first
+        access and reuses it for subsequent calls with the same phase_id.
+
+        Args:
+            phase_id: The phase identifier
+
+        Returns:
+            A threading.Lock for the phase
+        """
+        with self._locks_lock:
+            if phase_id not in self._phase_revision_locks:
+                self._phase_revision_locks[phase_id] = threading.Lock()
+            return self._phase_revision_locks[phase_id]
 
     def revise_approach(
         self,
@@ -46,6 +73,9 @@ class PhaseApproachReviser:
         error_history: List[Dict],
     ) -> Optional[Dict]:
         """Revise phase approach based on failure history.
+
+        Thread-safe revision with per-phase locking to prevent concurrent
+        revisions of the same phase from causing race conditions.
 
         Invoke LLM to revise the phase approach based on failure context.
 
@@ -57,6 +87,30 @@ class PhaseApproachReviser:
         - Includes hard constraint in prompt
         - Classifies alignment of revision
         - Records telemetry for monitoring
+
+        Args:
+            phase: Original phase specification
+            flaw_type: Detected flaw type
+            error_history: History of errors for this phase
+
+        Returns:
+            Revised phase specification dict, or None if revision failed
+        """
+        phase_id = phase.get("phase_id")
+        # Acquire per-phase lock to ensure thread-safe revision
+        phase_lock = self._get_phase_lock(phase_id)
+        with phase_lock:
+            return self._revise_approach_locked(phase, flaw_type, error_history)
+
+    def _revise_approach_locked(
+        self,
+        phase: Dict,
+        flaw_type: str,
+        error_history: List[Dict],
+    ) -> Optional[Dict]:
+        """Internal implementation of revise_approach, called with phase lock held.
+
+        This method assumes the caller has already acquired the per-phase lock.
 
         Args:
             phase: Original phase specification

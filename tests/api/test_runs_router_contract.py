@@ -146,7 +146,9 @@ class TestListRunsContract:
 
         mock_db = MagicMock()
         mock_db.query.return_value.count.return_value = 0
-        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
+        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = (
+            []
+        )
 
         result = await list_runs(limit=20, offset=0, db=mock_db, _auth="test-key")
 
@@ -162,7 +164,9 @@ class TestListRunsContract:
 
         mock_db = MagicMock()
         mock_db.query.return_value.count.return_value = 0
-        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = []
+        mock_db.query.return_value.options.return_value.order_by.return_value.offset.return_value.limit.return_value.all.return_value = (
+            []
+        )
 
         # Test upper bound
         result = await list_runs(limit=200, offset=0, db=mock_db, _auth="test-key")

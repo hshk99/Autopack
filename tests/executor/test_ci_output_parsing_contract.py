@@ -79,9 +79,9 @@ class TestPytestOutputParsing:
     def test_parse_pytest_counts_table_driven(self, output, expected):
         """Test pytest output parsing with table-driven data."""
         result = parse_pytest_counts(output)
-        assert result == expected, (
-            f"Failed to parse: {output!r}\nExpected: {expected}\nGot: {result}"
-        )
+        assert (
+            result == expected
+        ), f"Failed to parse: {output!r}\nExpected: {expected}\nGot: {result}"
 
     def test_parse_pytest_counts_multiline_with_multiple_matches(self):
         """Test that parsing handles multiple summary lines correctly."""

@@ -530,9 +530,9 @@ class TestAcceptanceCriteria:
 
         for project_type in ProjectType:
             proposal = proposer.propose(project_type)
-            assert len(proposal.options) >= 2, (
-                f"Project type {project_type} has only {len(proposal.options)} options"
-            )
+            assert (
+                len(proposal.options) >= 2
+            ), f"Project type {project_type} has only {len(proposal.options)} options"
 
     def test_cost_estimates_provided(self):
         """Acceptance: Cost estimates provided for all options."""

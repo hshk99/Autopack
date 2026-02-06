@@ -1,0 +1,109 @@
+# AI Innovation Monitor Configuration
+# Token-efficient pipeline: rule-based filtering + LLM for top candidates only
+
+enabled: false  # Set to true to activate
+
+# Schedule (when using scheduler)
+schedule:
+  daily_scan_time: "06:00"  # UTC
+  weekly_summary_day: "monday"
+  weekly_summary_time: "09:00"  # UTC
+
+# Data storage
+data_dir: "data/innovation_monitor"
+
+# Source scrapers (Stage 1: 0 tokens)
+sources:
+  arxiv:
+    enabled: true
+    categories:
+      - "cs.AI"
+      - "cs.CL"  # Computation and Language
+      - "cs.LG"  # Machine Learning
+      - "cs.IR"  # Information Retrieval
+
+  reddit:
+    enabled: true
+    subreddits:
+      - "MachineLearning"
+      - "LocalLLaMA"
+      - "LangChain"
+      - "artificial"
+
+  hackernews:
+    enabled: true
+
+  huggingface:
+    enabled: true
+    include_models: false  # Only daily papers
+
+  github:
+    enabled: true
+    topics:
+      - "rag"
+      - "llm-agent"
+      - "vector-database"
+      - "langchain"
+
+# Keywords for filtering (Stage 2: 0 tokens)
+keywords:
+  - "RAG"
+  - "retrieval augmented"
+  - "vector database"
+  - "embedding"
+  - "memory system"
+  - "agent"
+  - "agentic"
+  - "token efficiency"
+  - "context window"
+  - "PageIndex"
+  - "hybrid search"
+
+# Keyword filter configuration
+keyword_filter:
+  # Additional required patterns (regex)
+  # required:
+  #   - "\\bRAG\\b"
+  #   - "embedding"
+
+  # Patterns to exclude (spam filter)
+  # exclude:
+  #   - "hiring|job"
+
+# Scoring weights (Stage 3: 0 tokens)
+scoring:
+  weights:
+    keyword_match: 0.30
+    engagement: 0.20
+    recency: 0.15
+    source_quality: 0.20
+    boost_keywords: 0.15
+
+# LLM Assessment (Stage 5: ~600 tokens per item)
+assessment:
+  max_candidates: 10  # Only assess top 10 after filtering
+  improvement_threshold: 0.10  # 10% minimum for notification
+  model: "claude-sonnet-4-20250514"  # Fast + cheap
+
+# Notifications (Stage 6: 0 tokens - template-based)
+# Uses Gmail SMTP - same env vars as idea-genesis-orchestrator
+notifications:
+  primary_channel: email
+
+  email:
+    enabled: true
+    # Environment variables required:
+    # SMTP_HOST=smtp.gmail.com
+    # SMTP_PORT=587
+    # SMTP_USER=your-email@gmail.com
+    # SMTP_PASSWORD=Gmail App Password (from myaccount.google.com/apppasswords)
+    # EMAIL_TO=recipient email
+
+  telegram:
+    enabled: false  # Optional backup
+    # TELEGRAM_BOT_TOKEN=your-bot-token
+    # TELEGRAM_CHAT_ID=your-chat-id
+
+# Token budget (estimated)
+# Daily: ~100 items scraped → 10 assessed × 600 tokens = ~6k tokens
+# Monthly: ~180k tokens = ~$0.50-1.00

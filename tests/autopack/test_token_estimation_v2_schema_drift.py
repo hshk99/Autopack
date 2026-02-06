@@ -32,9 +32,9 @@ def test_token_estimation_v2_event_has_required_columns():
     - actual_max_tokens: Final ceiling (AFTER P4 enforcement)
     """
     # Check selected_budget column exists
-    assert hasattr(TokenEstimationV2Event, "selected_budget"), (
-        "TokenEstimationV2Event missing 'selected_budget' column (estimator intent)"
-    )
+    assert hasattr(
+        TokenEstimationV2Event, "selected_budget"
+    ), "TokenEstimationV2Event missing 'selected_budget' column (estimator intent)"
 
     # Check actual_max_tokens column exists (BUILD-142)
     assert hasattr(TokenEstimationV2Event, "actual_max_tokens"), (
@@ -82,17 +82,15 @@ def test_telemetry_writer_actual_max_tokens_is_optional():
     sig = inspect.signature(_write_token_estimation_v2_telemetry)
     actual_max_tokens_param = sig.parameters.get("actual_max_tokens")
 
-    assert actual_max_tokens_param is not None, (
-        "actual_max_tokens parameter missing from function signature"
-    )
+    assert (
+        actual_max_tokens_param is not None
+    ), "actual_max_tokens parameter missing from function signature"
 
     # Check it has a default value (None)
     assert (
         actual_max_tokens_param.default is None
         or actual_max_tokens_param.default == inspect.Parameter.empty
-    ), (
-        f"actual_max_tokens parameter should be Optional (default=None), got default={actual_max_tokens_param.default}"
-    )
+    ), f"actual_max_tokens parameter should be Optional (default=None), got default={actual_max_tokens_param.default}"
 
 
 def test_calibration_sample_has_actual_max_tokens():
@@ -113,9 +111,9 @@ def test_calibration_sample_has_actual_max_tokens():
         from calibrate_token_estimator import CalibrationSample
 
         # Check actual_max_tokens field exists
-        assert hasattr(CalibrationSample, "__dataclass_fields__"), (
-            "CalibrationSample is not a dataclass"
-        )
+        assert hasattr(
+            CalibrationSample, "__dataclass_fields__"
+        ), "CalibrationSample is not a dataclass"
 
         fields = CalibrationSample.__dataclass_fields__
         assert "actual_max_tokens" in fields, (

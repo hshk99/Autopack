@@ -18,6 +18,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from autopack import models
+from autopack.api.db_query_validator import DBQueryValidator
 from autopack.api.deps import verify_read_access
 from autopack.config import settings
 from autopack.database import get_db
@@ -39,6 +40,13 @@ async def get_artifacts_index(
     Returns list of artifact files with metadata.
     Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
     """
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+    except ValueError as e:
+        logger.warning(f"Invalid run_id in get_artifacts_index: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid run_id: {str(e)}")
+
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
@@ -96,6 +104,13 @@ async def get_artifact_file(
     from pathlib import Path
 
     from autopack.artifacts.redaction import ArtifactRedactor
+
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+    except ValueError as e:
+        logger.warning(f"Invalid run_id in get_artifact_file: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid run_id: {str(e)}")
 
     # IMP-SEC-003: Strengthen path traversal defense
     # Decode URL encoding first - decode twice to catch double-encoded attacks
@@ -197,6 +212,13 @@ async def get_browser_artifacts(
     Returns screenshots and other browser-related artifacts.
     Auth: Required in production; dev opt-in via AUTOPACK_PUBLIC_READ=1.
     """
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+    except ValueError as e:
+        logger.warning(f"Invalid run_id in get_browser_artifacts: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid run_id: {str(e)}")
+
     run = db.query(models.Run).filter(models.Run.id == run_id).first()
     if not run:
         raise HTTPException(status_code=404, detail=f"Run {run_id} not found")

@@ -20,6 +20,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, joinedload
 
 from autopack import models, schemas
+from autopack.api.db_query_validator import DBQueryValidator
 from autopack.api.deps import limiter, verify_api_key, verify_read_access
 from autopack.config import settings
 from autopack.database import get_db
@@ -255,6 +256,9 @@ def get_run(
 ):
     """Get run details including all tiers and phases."""
     try:
+        # IMP-SEC-002: Validate user-controlled parameters before database query
+        run_id = DBQueryValidator.validate_run_id(run_id)
+
         # P3.2: Use joinedload to eagerly load tiers and phases in a single query
         # This avoids N+1 queries when serializing the response
         run = (
@@ -294,6 +298,13 @@ def get_run(
 )
 def get_run_issue_index(run_id: str, _auth: str = Depends(verify_read_access)):
     """Get run-level issue index."""
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+    except ValueError as e:
+        logger.warning(f"Invalid run_id in get_run_issue_index: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid run_id: {str(e)}")
+
     tracker = IssueTracker(run_id=run_id)
     index = tracker.load_run_issue_index()
     return index.model_dump()

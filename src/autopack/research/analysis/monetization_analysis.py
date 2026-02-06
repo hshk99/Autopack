@@ -1173,7 +1173,7 @@ class MonetizationAnalyzer:
             }
 
         # Build recommended model
-        next((t for t in result.pricing_tiers if t.recommended), None)
+        recommended_tier = next((t for t in result.pricing_tiers if t.recommended), None)
         recommended_pricing = {}
         for tier in result.pricing_tiers:
             recommended_pricing[tier.name.lower()] = f"${tier.price_monthly}/month"

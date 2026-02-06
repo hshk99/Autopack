@@ -674,15 +674,15 @@ class CostEffectivenessAnalyzer:
 
             # Get cost data
             cost_data = result.get("cost_data", {})
-            options = result.get("options", {})
+            options = result.get("options", {}) if result.get("options") else {}
 
-            # Find the selected option's cost data
-            if decision == DecisionType.BUY and "buy" in options:
+            # Find the selected option's cost data - handle missing options gracefully
+            if decision == DecisionType.BUY and options.get("buy"):
                 selected = options["buy"].get("total_cost_estimate", {})
-            elif decision == DecisionType.INTEGRATE and "integrate" in options:
+            elif decision == DecisionType.INTEGRATE and options.get("integrate"):
                 selected = options["integrate"].get("total_cost_estimate", {})
             else:
-                selected = options.get("build", {}).get("total_cost_estimate", {})
+                selected = options.get("build", {}).get("total_cost_estimate", {}) if options.get("build") else {}
 
             # Parse vendor lock-in
             vendor_info = result.get("vendor_lock_in", {})

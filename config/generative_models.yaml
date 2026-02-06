@@ -87,6 +87,8 @@ capabilities:
       - hunyuan_video
       - wan_22
       - ltx_video
+      - stable_video_diffusion
+      - zeroscope
       - veo_31
     min_acceptable_quality: 0.80
     prefer_open_source_if_above: 0.85
@@ -114,6 +116,22 @@ capabilities:
         cost_per_unit: 0.018
         license: "MIT"
         supported_params: ["prompt", "duration", "num_frames", "resolution"]
+
+      stable_video_diffusion:
+        provider: self_hosted
+        name: "Stable Video Diffusion"
+        quality_score: 0.76
+        cost_per_unit: 0.0005
+        license: "Apache 2.0"
+        supported_params: ["prompt", "duration", "num_frames"]
+
+      zeroscope:
+        provider: self_hosted
+        name: "Zeroscope"
+        quality_score: 0.72
+        cost_per_unit: 0.0003
+        license: "MIT"
+        supported_params: ["prompt", "duration", "num_frames"]
 
       veo_31:
         provider: vertex_ai

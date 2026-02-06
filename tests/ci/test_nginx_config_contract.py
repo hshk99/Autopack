@@ -66,9 +66,9 @@ class TestNginxConfigContract:
         # Filter out the auth location if it was matched
         general_api_blocks = [block for block in api_matches if "location /api/auth/" not in block]
 
-        assert general_api_blocks, (
-            "nginx.conf must have a general 'location /api/' block for non-auth routes"
-        )
+        assert (
+            general_api_blocks
+        ), "nginx.conf must have a general 'location /api/' block for non-auth routes"
 
         api_block = general_api_blocks[0]
 
@@ -100,12 +100,12 @@ class TestNginxConfigContract:
         health_block = health_match.group(0)
 
         # Verify it proxies to backend /health
-        assert "proxy_pass" in health_block, (
-            "/health must proxy to backend, not return static content"
-        )
-        assert "/health" in health_block, (
-            "/health proxy_pass should target backend /health endpoint"
-        )
+        assert (
+            "proxy_pass" in health_block
+        ), "/health must proxy to backend, not return static content"
+        assert (
+            "/health" in health_block
+        ), "/health proxy_pass should target backend /health endpoint"
 
     def test_nginx_health_is_static(self, nginx_config: str):
         """nginx-health should be a static liveness probe."""
@@ -122,12 +122,12 @@ class TestNginxConfigContract:
         nginx_health_block = nginx_health_match.group(0)
 
         # Verify it returns static content (return directive, not proxy_pass)
-        assert "return 200" in nginx_health_block, (
-            "/nginx-health must return static 200 response, not proxy to backend"
-        )
-        assert "proxy_pass" not in nginx_health_block, (
-            "/nginx-health must NOT proxy - it's a static liveness check"
-        )
+        assert (
+            "return 200" in nginx_health_block
+        ), "/nginx-health must return static 200 response, not proxy to backend"
+        assert (
+            "proxy_pass" not in nginx_health_block
+        ), "/nginx-health must NOT proxy - it's a static liveness check"
 
     def test_auth_location_before_api_location(self, nginx_config: str):
         """Auth location should be defined to take precedence over general /api/."""
@@ -168,21 +168,21 @@ class TestNginxConfigSecurity:
         ]
 
         for header in required_headers:
-            assert header in nginx_config, (
-                f"Security header {header} must be configured in nginx.conf"
-            )
+            assert (
+                header in nginx_config
+            ), f"Security header {header} must be configured in nginx.conf"
 
     def test_client_max_body_size_configured(self, nginx_config: str):
         """Verify request size limits are configured."""
-        assert "client_max_body_size" in nginx_config, (
-            "client_max_body_size must be configured to prevent resource exhaustion"
-        )
+        assert (
+            "client_max_body_size" in nginx_config
+        ), "client_max_body_size must be configured to prevent resource exhaustion"
 
     def test_request_id_propagation(self, nginx_config: str):
         """Verify X-Request-ID header propagation for tracing."""
-        assert "X-Request-ID" in nginx_config, (
-            "X-Request-ID header propagation must be configured for distributed tracing"
-        )
+        assert (
+            "X-Request-ID" in nginx_config
+        ), "X-Request-ID header propagation must be configured for distributed tracing"
 
 
 class TestNginxRoutingDocumentation:
@@ -198,10 +198,10 @@ class TestNginxRoutingDocumentation:
         with open(docs_path, "r", encoding="utf-8") as f:
             content = f.read()
 
-        assert "Reverse Proxy Routing" in content, (
-            "DEPLOYMENT.md must document reverse proxy routing invariants"
-        )
+        assert (
+            "Reverse Proxy Routing" in content
+        ), "DEPLOYMENT.md must document reverse proxy routing invariants"
         assert "/api/auth" in content, "DEPLOYMENT.md must document /api/auth prefix preservation"
-        assert "/nginx-health" in content, (
-            "DEPLOYMENT.md must document /nginx-health liveness endpoint"
-        )
+        assert (
+            "/nginx-health" in content
+        ), "DEPLOYMENT.md must document /nginx-health liveness endpoint"

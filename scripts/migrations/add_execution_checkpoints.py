@@ -64,8 +64,7 @@ def create_execution_checkpoints_table(session, db_type):
 
     if db_type == "postgresql":
         # PostgreSQL version with TIMESTAMPTZ and SERIAL
-        session.execute(
-            text("""
+        session.execute(text("""
             CREATE TABLE execution_checkpoints (
                 id SERIAL PRIMARY KEY,
                 run_id TEXT NOT NULL,
@@ -88,8 +87,7 @@ def create_execution_checkpoints_table(session, db_type):
                 -- Timing
                 timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
-        """)
-        )
+        """))
 
         # Create indexes
         session.execute(
@@ -114,8 +112,7 @@ def create_execution_checkpoints_table(session, db_type):
 
     else:  # SQLite
         # SQLite version with INTEGER PRIMARY KEY AUTOINCREMENT
-        session.execute(
-            text("""
+        session.execute(text("""
             CREATE TABLE execution_checkpoints (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 run_id TEXT NOT NULL,
@@ -138,8 +135,7 @@ def create_execution_checkpoints_table(session, db_type):
                 -- Timing
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-        )
+        """))
 
         # Create indexes
         session.execute(

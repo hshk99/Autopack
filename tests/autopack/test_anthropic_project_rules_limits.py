@@ -98,9 +98,9 @@ class TestProjectRulesSizeLimits:
         assert rule_count < 100, f"Expected fewer than 100 rules, got {rule_count}"
 
         # Should have logged the truncation
-        assert any("rules skipped" in record.message for record in caplog.records), (
-            "Expected truncation log message"
-        )
+        assert any(
+            "rules skipped" in record.message for record in caplog.records
+        ), "Expected truncation log message"
 
     def test_empty_rules_are_skipped(self, mock_client):
         """Rules with empty or missing rule_text should be skipped."""

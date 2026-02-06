@@ -58,8 +58,7 @@ def upgrade(engine: Engine) -> None:
 
         if dialect == "sqlite":
             # SQLite version
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 CREATE TABLE sot_retrieval_events (
                     event_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     run_id TEXT NOT NULL,
@@ -89,8 +88,7 @@ def upgrade(engine: Engine) -> None:
                     FOREIGN KEY (run_id, phase_id) REFERENCES phases (run_id, phase_id) ON DELETE CASCADE,
                     FOREIGN KEY (run_id) REFERENCES runs (id) ON DELETE CASCADE
                 )
-            """)
-            )
+            """))
 
             # Create indexes
             conn.execute(
@@ -119,8 +117,7 @@ def upgrade(engine: Engine) -> None:
 
         elif dialect == "postgresql":
             # PostgreSQL version
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 CREATE TABLE sot_retrieval_events (
                     event_id SERIAL PRIMARY KEY,
                     run_id VARCHAR NOT NULL,
@@ -156,8 +153,7 @@ def upgrade(engine: Engine) -> None:
                         REFERENCES runs (id)
                         ON DELETE CASCADE
                 )
-            """)
-            )
+            """))
 
             # Create indexes
             conn.execute(

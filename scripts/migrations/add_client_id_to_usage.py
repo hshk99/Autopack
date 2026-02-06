@@ -122,12 +122,10 @@ def upgrade(engine: Engine) -> None:
         else:
             print("\n[1/3] Adding column: client_id (VARCHAR NULLABLE)")
             print("      Purpose: Enable per-client cost attribution for SaaS billing")
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 ALTER TABLE llm_usage_events
                 ADD COLUMN client_id VARCHAR NULL
-            """)
-            )
+            """))
             print("      [x] Column 'client_id' added")
 
         # Step 2: Add single-column index on client_id
@@ -136,12 +134,10 @@ def upgrade(engine: Engine) -> None:
         else:
             print("\n[2/3] Creating index: ix_llm_usage_events_client_id")
             print("      Purpose: Fast lookups by client_id")
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 CREATE INDEX ix_llm_usage_events_client_id
                 ON llm_usage_events (client_id)
-            """)
-            )
+            """))
             print("      [x] Index 'ix_llm_usage_events_client_id' created")
 
         # Step 3: Add composite index on (client_id, created_at)
@@ -150,23 +146,19 @@ def upgrade(engine: Engine) -> None:
         else:
             print("\n[3/3] Creating composite index: ix_client_created")
             print("      Purpose: Efficient time-range queries per client for billing")
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 CREATE INDEX ix_client_created
                 ON llm_usage_events (client_id, created_at)
-            """)
-            )
+            """))
             print("      [x] Index 'ix_client_created' created")
 
         # Verification
         print("\n[Verification]")
-        result = conn.execute(
-            text("""
+        result = conn.execute(text("""
             SELECT COUNT(*) as total_rows,
                    COUNT(client_id) as rows_with_client_id
             FROM llm_usage_events
-        """)
-        )
+        """))
         row = result.fetchone()
         if row:
             print(f"      Total rows: {row[0]}")
@@ -226,12 +218,10 @@ def downgrade(engine: Engine) -> None:
         else:
             # PostgreSQL and other databases support DROP COLUMN
             print("\n[3/3] Dropping column: client_id")
-            conn.execute(
-                text("""
+            conn.execute(text("""
                 ALTER TABLE llm_usage_events
                 DROP COLUMN client_id
-            """)
-            )
+            """))
             print("      [x] Column 'client_id' dropped")
 
     print("\n" + "=" * 80)

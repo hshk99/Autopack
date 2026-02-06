@@ -122,9 +122,9 @@ class ExecutorContext:
         self._replan_attempted: bool = False
 
         # IMP-TRIGGER-001: Health transition tracking for task regeneration
-        self._health_states: Dict[
-            str, bool
-        ] = {}  # Track provider health states for transition detection
+        self._health_states: Dict[str, bool] = (
+            {}
+        )  # Track provider health states for transition detection
         self._last_health_transition: Optional[datetime] = None
         self._health_transition_count: int = 0
 

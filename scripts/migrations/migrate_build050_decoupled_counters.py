@@ -58,14 +58,12 @@ def migrate():
             )
         else:
             # PostgreSQL supports adding multiple columns
-            session.execute(
-                text("""
+            session.execute(text("""
                 ALTER TABLE phases
                 ADD COLUMN retry_attempt INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN revision_epoch INTEGER NOT NULL DEFAULT 0,
                 ADD COLUMN escalation_level INTEGER NOT NULL DEFAULT 0
-            """)
-            )
+            """))
 
         session.commit()
         logger.info("New columns added successfully")

@@ -857,13 +857,13 @@ class CostEffectivenessAnalyzer:
         Generate BudgetCost anchor for Autopack with schema validation.
 
         Returns:
-            Validated BudgetCost anchor dictionary
+            Validated BudgetCost anchor dictionary, or empty dict if no projection
 
         Raises:
             ValueError: If anchor data fails validation
         """
         if not self.projection:
-            raise ValueError("No projection data available to generate anchor")
+            return {}
 
         analysis = self.projection.calculate_all()
         tco = analysis["total_cost_of_ownership"]

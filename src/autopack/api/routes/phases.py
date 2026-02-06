@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from autopack import models, schemas
+from autopack.api.db_query_validator import DBQueryValidator
 from autopack.api.deps import verify_api_key
 from autopack.builder_schemas import AuditorResult, BuilderResult
 from autopack.config import settings
@@ -50,6 +51,13 @@ async def list_phases(
     Returns:
         Paginated response with items and metadata
     """
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+    except ValueError as e:
+        logger.warning(f"Invalid run_id in list_phases: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid run_id: {str(e)}")
+
     # Validate pagination params
     page = max(1, page)
     page_size = min(max(1, page_size), 100)
@@ -96,6 +104,14 @@ def update_phase_status(
     db: Session = Depends(get_db),
 ):
     """Update phase status."""
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+        phase_id = DBQueryValidator.validate_phase_id(phase_id)
+    except ValueError as e:
+        logger.warning(f"Invalid parameters in update_phase_status: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid parameter: {str(e)}")
+
     phase = (
         db.query(models.Phase)
         .filter(models.Phase.run_id == run_id, models.Phase.phase_id == phase_id)
@@ -215,6 +231,24 @@ def record_phase_issue(
     db: Session = Depends(get_db),
 ):
     """Record an issue for a phase."""
+    # IMP-SEC-002: Validate user-controlled parameters before database query
+    try:
+        run_id = DBQueryValidator.validate_run_id(run_id)
+        phase_id = DBQueryValidator.validate_phase_id(phase_id)
+        issue_key = DBQueryValidator.validate_string_parameter(issue_key, "issue_key")
+        severity = DBQueryValidator.validate_string_parameter(severity, "severity")
+        source = DBQueryValidator.validate_string_parameter(source, "source")
+        category = DBQueryValidator.validate_string_parameter(category, "category")
+        if task_category:
+            task_category = DBQueryValidator.validate_string_parameter(task_category, "task_category")
+        if complexity:
+            complexity = DBQueryValidator.validate_string_parameter(complexity, "complexity")
+        if evidence_refs:
+            evidence_refs = DBQueryValidator.validate_list_of_strings(evidence_refs, "evidence_refs")
+    except ValueError as e:
+        logger.warning(f"Invalid parameters in record_phase_issue: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid parameter: {str(e)}")
+
     phase = (
         db.query(models.Phase)
         .options(joinedload(models.Phase.tier))

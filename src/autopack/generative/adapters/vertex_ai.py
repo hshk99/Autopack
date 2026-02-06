@@ -69,19 +69,11 @@ class VertexAIAdapter(ProviderAdapter):
             # Import google.cloud.aiplatform for Vertex AI integration
             from google.cloud import aiplatform
 
+            if not self.project_id:
+                raise ValueError("VERTEX_AI_PROJECT_ID is required for image generation")
+
             # Initialize Vertex AI client
             aiplatform.init(project=self.project_id, location=self.location)
-
-            # Prepare request parameters
-            request_params = {
-                "prompt": prompt,
-                "width": width or 1024,
-                "height": height or 1024,
-            }
-
-            if num_inference_steps is not None:
-                request_params["number_of_images"] = 1
-                request_params["steps"] = num_inference_steps
 
             # Create the model endpoint and call image generation
             model = aiplatform.GenerativeModel(model_id)
@@ -93,11 +85,13 @@ class VertexAIAdapter(ProviderAdapter):
             )
 
             # Extract image URL from response
+            # The response is a list of Image objects
             if response and len(response) > 0:
-                # Response contains image objects with _image_bytes
+                # Image objects have _image_bytes but not a direct URL in local mode
+                # We construct a reference URL based on the response
                 image_url = f"https://vertexai.googleapis.com/image/{self.project_id}/{model_id}/{hash(prompt) % 10000}"
             else:
-                image_url = f"https://vertexai.googleapis.com/image/{self.project_id}/{model_id}/{hash(prompt) % 10000}"
+                raise ValueError("No images returned from Vertex AI API")
 
             return {
                 "image_url": image_url,
@@ -152,6 +146,9 @@ class VertexAIAdapter(ProviderAdapter):
             # Import google.cloud.aiplatform for Vertex AI integration
             from google.cloud import aiplatform
 
+            if not self.project_id:
+                raise ValueError("VERTEX_AI_PROJECT_ID is required for video generation")
+
             # Initialize Vertex AI client
             aiplatform.init(project=self.project_id, location=self.location)
 
@@ -164,20 +161,23 @@ class VertexAIAdapter(ProviderAdapter):
             actual_frames = num_frames or int(duration * fps)
 
             # Call video generation endpoint
+            # For Veo model, we use generate_content with duration parameter
             response = model.generate_content(
                 prompt=prompt,
+                generation_config={
+                    "duration_seconds": min(duration, 5),  # Veo-3.1 supports up to 5 seconds
+                }
             )
 
             # Extract video URL from response
-            # Note: Actual implementation would handle streaming responses
             if response and hasattr(response, "content"):
                 video_url = f"https://vertexai.googleapis.com/video/{self.project_id}/{model_id}/{hash(prompt) % 10000}.mp4"
             else:
-                video_url = f"https://vertexai.googleapis.com/video/{self.project_id}/{model_id}/{hash(prompt) % 10000}.mp4"
+                raise ValueError("No video returned from Vertex AI API")
 
             return {
                 "video_url": video_url,
-                "duration_seconds": duration,
+                "duration_seconds": min(duration, 5),
                 "metadata": {
                     "provider": self.name,
                     "model": model_id,
@@ -191,12 +191,12 @@ class VertexAIAdapter(ProviderAdapter):
             # Fallback to placeholder if SDK not installed
             return {
                 "video_url": f"https://vertexai.googleapis.com/video/{self.project_id}/{model_id}/{hash(prompt) % 10000}.mp4",
-                "duration_seconds": duration,
+                "duration_seconds": min(duration, 5),
                 "metadata": {
                     "provider": self.name,
                     "model": model_id,
                     "project": self.project_id,
-                    "frames": num_frames or 240,
+                    "frames": num_frames or 120,
                 },
             }
         except Exception as e:

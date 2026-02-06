@@ -7,11 +7,18 @@ This module provides guidance generation for the deployment phase, including:
 - Monitoring setup
 
 Architectural foundation for Wave 6 deployment phase extensions (IMP-HIGH-003).
+
+ART-005 Enhancement: Integration with comprehensive DeploymentGuide generator for
+generating full deployment documentation including platform-specific instructions,
+environment configuration, security checklists, and troubleshooting guides.
 """
 
+import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class DeploymentProvider(str, Enum):
@@ -428,13 +435,17 @@ class DeploymentPhaseHandler:
 
     Coordinates deployment phase execution by:
     - Selecting appropriate templates based on project requirements
-    - Generating deployment guidance
+    - Generating comprehensive deployment guidance using DeploymentGuide
     - Creating necessary configuration files
+
+    ART-005: Integrated with comprehensive DeploymentGuide generator for
+    generating full deployment documentation.
     """
 
     def __init__(self):
         """Initialize deployment phase handler."""
         self.template_registry = DeploymentTemplateRegistry()
+        self._deployment_guide = None  # Lazy-loaded DeploymentGuide instance
 
     def generate_deployment_guidance(self, providers: List[str], guidance_types: List[str]) -> str:
         """Generate deployment guidance for the phase.
@@ -502,3 +513,76 @@ class DeploymentPhaseHandler:
                 and (not guidance_types or t.guidance_type.value in guidance_types)
             ],
         }
+
+    def _get_deployment_guide(self) -> Any:
+        """Get or lazily load DeploymentGuide instance.
+
+        Returns:
+            DeploymentGuide instance or None if import fails
+        """
+        if self._deployment_guide is None:
+            try:
+                from autopack.artifact_generators.deployment_guide import DeploymentGuide
+                self._deployment_guide = DeploymentGuide()
+                logger.debug("[ART-005] DeploymentGuide loaded successfully")
+            except ImportError as e:
+                logger.warning(
+                    f"[ART-005] Failed to import DeploymentGuide: {e}. "
+                    "Template-based guidance will be used instead."
+                )
+                return None
+        return self._deployment_guide
+
+    def generate_comprehensive_deployment_guide(
+        self,
+        project_name: str,
+        tech_stack: Dict[str, Any],
+        platforms: Optional[List[str]] = None,
+        project_requirements: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Generate comprehensive deployment guide using DeploymentGuide generator.
+
+        This method provides full deployment documentation including:
+        - Platform-specific deployment instructions (AWS, GCP, Azure, Heroku, Self-hosted)
+        - Environment configuration guides
+        - Security checklists
+        - Troubleshooting sections
+        - Monitoring and maintenance setup
+
+        ART-005: Wires comprehensive deployment guide generation into deploy phase.
+
+        Args:
+            project_name: Name of the project
+            tech_stack: Technology stack configuration
+            platforms: List of platforms to generate guides for
+            project_requirements: Optional project requirements and constraints
+
+        Returns:
+            Comprehensive deployment guide as string
+        """
+        logger.info(
+            f"[ART-005] Generating comprehensive deployment guide for {project_name} "
+            f"with platforms: {platforms or 'all'}"
+        )
+
+        guide_generator = self._get_deployment_guide()
+        if guide_generator is not None:
+            try:
+                return guide_generator.generate(
+                    project_name=project_name,
+                    tech_stack=tech_stack,
+                    platforms=platforms,
+                    project_requirements=project_requirements,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[ART-005] Failed to generate comprehensive guide: {e}. "
+                    "Falling back to template-based guidance."
+                )
+
+        # Fallback to template-based guidance if comprehensive guide fails
+        logger.debug("[ART-005] Using fallback template-based guidance")
+        return self.generate_deployment_guidance(
+            providers=platforms or ["docker"],
+            guidance_types=["containerization", "cloud_deployment", "ci_cd_pipeline", "monitoring"],
+        )

@@ -25,6 +25,10 @@ from typing import Any, Optional, TypeVar, Union
 
 from pydantic import BaseModel, Field
 
+from ..schema_validation.json_schema import (
+    SchemaValidationError,
+    validate_intention_anchor_v2,
+)
 from ..intention_anchor.v2 import (
     BudgetCostIntention,
     EvidenceVerificationIntention,
@@ -427,6 +431,9 @@ class ResearchToAnchorMapper:
 
         # Build the anchor
         anchor = self._build_anchor(bootstrap_session, parsed_idea, pivot_mappings)
+
+        # Validate anchor against JSON schema (IMP-SCHEMA-002)
+        self._validate_anchor_schema(anchor)
 
         logger.info(
             f"[AnchorMapper] Mapped {len(pivot_mappings)} pivots, "
@@ -1340,6 +1347,37 @@ class ResearchToAnchorMapper:
             pivot_intentions=pivot_intentions,
             metadata=metadata,
         )
+
+    def _validate_anchor_schema(self, anchor: IntentionAnchorV2) -> None:
+        """Validate the constructed anchor against JSON schema.
+
+        This is the schema validation gate that ensures all mapped anchors
+        conform to the IntentionAnchorV2 schema before being returned.
+
+        Args:
+            anchor: The IntentionAnchorV2 object to validate
+
+        Raises:
+            SchemaValidationError: If the anchor fails schema validation
+        """
+        try:
+            # Convert anchor to JSON-safe dict for schema validation
+            # Exclude None values so optional fields don't appear in validation
+            anchor_dict = anchor.model_dump(mode="json", exclude_none=True)
+
+            # Validate against schema
+            validate_intention_anchor_v2(anchor_dict)
+
+            logger.debug(
+                f"[AnchorMapper] Anchor schema validation passed "
+                f"(project_id={anchor_dict.get('project_id')}, "
+                f"pivots={list(anchor_dict.get('pivot_intentions', {}).keys())})"
+            )
+
+        except SchemaValidationError as e:
+            logger.error(f"[AnchorMapper] Anchor schema validation failed: {e}")
+            logger.error(f"[AnchorMapper] Validation errors: {e.errors}")
+            raise
 
     def get_confidence_report(self, mappings: list[PivotMapping]) -> dict[str, MappingConfidence]:
         """Get a confidence report for all pivot mappings.

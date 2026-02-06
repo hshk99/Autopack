@@ -198,29 +198,40 @@ class ContextManager:
         Returns:
             Formatted retrieval context string or None
         """
-        if not self.retrieval_injection or not self.memory_service:
+        if not self.memory_service:
             return None
 
         phase_id = phase.get("phase_id", "unknown")
 
         # Check if SOT retrieval should be included
         max_context_chars = phase.get("max_context_chars", 20000)
-        if not self._should_include_sot_retrieval(max_context_chars, phase_id):
+        if self.retrieval_injection and not self._should_include_sot_retrieval(max_context_chars, phase_id):
             logger.debug(f"[{phase_id}] SOT retrieval skipped by budget gate")
             return None
 
-        # Retrieve context (delegates to retrieval_injection)
-        retrieval_result = self.retrieval_injection.retrieve_context(
-            phase=phase,
-            file_context=file_context,
-            project_rules=project_rules or [],
+        # Extract query from phase or file context
+        query = phase.get("query") or phase.get("phase_id", "unknown")
+        project_id = phase.get("project_id", "unknown")
+
+        # Retrieve context from memory service
+        retrieval_result = self.memory_service.retrieve_context(
+            query=query,
+            project_id=project_id,
+            include_code=True,
+            include_summaries=True,
+            include_errors=True,
+            include_hints=True,
+            include_planning=True,
+            include_plan_changes=True,
+            include_decisions=True,
+            include_sot=True,
         )
 
         if not retrieval_result:
             return None
 
         # Format retrieved context
-        formatted_context = self.retrieval_injection.format_retrieved_context(retrieval_result)
+        formatted_context = self.memory_service.format_retrieved_context(retrieval_result, max_chars=max_context_chars)
 
         # Record telemetry
         self._record_sot_telemetry(

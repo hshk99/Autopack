@@ -135,9 +135,9 @@ class RegressionProtector:
 
         # In-memory storage
         self.fixes: Dict[str, IssueFix] = {}  # issue_id -> IssueFix
-        self.regressions: Dict[
-            str, RegressionDetection
-        ] = {}  # regression_id -> RegressionDetection
+        self.regressions: Dict[str, RegressionDetection] = (
+            {}
+        )  # regression_id -> RegressionDetection
 
         # Load from storage if available
         if self.storage_path and self.storage_path.exists():

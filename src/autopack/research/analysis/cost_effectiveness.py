@@ -885,25 +885,44 @@ class CostEffectivenessAnalyzer:
             return {}
 
         analysis = self.projection.calculate_all()
-        tco = analysis["total_cost_of_ownership"]
+
+        # Safely extract TCO data with defensive defaults
+        tco = analysis.get("total_cost_of_ownership", {})
+        if not tco:
+            return {}
+
+        year_1_data = tco.get("year_1", {})
+        if not year_1_data:
+            return {}
+
+        # Extract cost categories with safe defaults
+        total_cost = year_1_data.get("total", 0)
+        if total_cost <= 0:
+            return {}
+
+        development_cost = year_1_data.get("development", 0)
+        infrastructure_cost = year_1_data.get("infrastructure", 0)
+        services_cost = year_1_data.get("services", 0)
+        ai_apis_cost = year_1_data.get("ai_apis", 0)
+        operational_cost = year_1_data.get("operational", 0)
 
         # Build the anchor data
         anchor_data = {
             "pivot_type": "BudgetCost",
             "budget_constraints": {
-                "total_mvp_budget": tco["year_1"]["total"],
-                "monthly_runway": tco["year_1"]["total"] / 12,
+                "total_mvp_budget": total_cost,
+                "monthly_runway": total_cost / 12 if total_cost > 0 else 0,
                 "timeline_months": 6,
                 "buffer_percent": 20,
             },
             "cost_breakdown": {
-                "development": tco["year_1"]["development"],
-                "infrastructure": tco["year_1"]["infrastructure"],
-                "services": tco["year_1"]["services"],
-                "ai_apis": tco["year_1"]["ai_apis"],
-                "operational": tco["year_1"]["operational"],
+                "development": development_cost,
+                "infrastructure": infrastructure_cost,
+                "services": services_cost,
+                "ai_apis": ai_apis_cost,
+                "operational": operational_cost,
             },
-            "cost_optimization_strategies": [o.strategy for o in self.projection.optimizations],
+            "cost_optimization_strategies": [o.strategy for o in (self.projection.optimizations or [])],
             "source": "cost-effectiveness-analyzer",
         }
 

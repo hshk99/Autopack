@@ -12,10 +12,14 @@ Key responsibilities:
 - Recovery strategy selection
 - State updates and telemetry
 
+IMP-RES-005: Wires validators as pipeline gates to enforce validation checks
+before phase execution begins.
+
 Related modules:
 - doctor_integration.py: Doctor invocation and budget tracking
 - replan_trigger.py: Approach flaw detection and replanning
 - intention_stuck_handler.py: Intention-first stuck handling (BUILD-161)
+- validator_gate.py: Validator gate infrastructure
 """
 
 import logging
@@ -23,6 +27,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from autopack.executor.validator_gate import create_default_validator_gate_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +106,8 @@ class PhaseRunner:
         self.phase_state_mgr = phase_state_mgr
         self.manifest_generator = manifest_generator
         self.time_watchdog = time_watchdog
+        # IMP-RES-005: Initialize validator gate pipeline for phase validation
+        self.validator_gate_pipeline = create_default_validator_gate_pipeline()
 
     def execute_phase(
         self,
@@ -142,6 +150,36 @@ class PhaseRunner:
         logger.info(
             f"[{phase_id}] Starting phase execution (attempt {attempt_index}/{max_attempts})"
         )
+
+        # IMP-RES-005: Phase 0: Validate phase specification and context before execution
+        validation_context = {
+            "phase": phase,
+            "phase_id": phase_id,
+            "attempt_index": attempt_index,
+            "escalation_level": escalation_level,
+            "allowed_paths": allowed_paths,
+        }
+        validator_result = self.validator_gate_pipeline.execute(validation_context)
+
+        if not validator_result.can_proceed:
+            # Blocking validation failure - cannot proceed with execution
+            logger.error(
+                f"[{phase_id}] Phase validation failed. Summary: {validator_result.get_summary()}"
+            )
+            failure_messages = validator_result.get_blocking_failure_messages()
+            error_msg = "; ".join(failure_messages)
+            return ExecutionResult(
+                success=False,
+                phase_result="BLOCKED",
+                error_message=f"Validation gate blocked phase execution: {error_msg}",
+            )
+
+        if not validator_result.all_passed:
+            # Soft validation warnings - log but proceed
+            logger.warning(
+                f"[{phase_id}] Phase validation passed with warnings. "
+                f"Summary: {validator_result.get_summary()}"
+            )
 
         # Phase 1: Execute Builder
         builder_result, build_error = self._execute_builder(

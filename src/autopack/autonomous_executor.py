@@ -376,6 +376,10 @@ class AutonomousExecutor:
         # Track phase reset counts for observability
         self._phase_reset_counts: Dict[str, int] = {}
 
+        # IMP-REL-003: Thread-safe locks for in-memory phase state dictionaries
+        # Prevents race conditions when multiple threads access phase state concurrently
+        self._phase_state_lock = threading.Lock()  # Protects all phase state dictionaries
+
         # PR-EXE-5: Initialize context preflight and retrieval injection (extracted modules)
         from autopack.config import settings
         from autopack.executor.context_preflight import ContextPreflight
@@ -2015,6 +2019,7 @@ class AutonomousExecutor:
         Record an error for approach flaw detection (PR-EXE-10).
 
         Delegates to ErrorAnalyzer module for error pattern tracking.
+        Thread-safe access to phase error history (IMP-REL-003).
 
         Args:
             phase: Phase specification
@@ -2033,17 +2038,19 @@ class AutonomousExecutor:
         )
 
         # Backward compatibility: Also store in local dict for phase_orchestrator
-        if phase_id not in self._phase_error_history:
-            self._phase_error_history[phase_id] = []
+        # IMP-REL-003: Use lock to protect concurrent access to phase state
+        with self._phase_state_lock:
+            if phase_id not in self._phase_error_history:
+                self._phase_error_history[phase_id] = []
 
-        error_record = {
-            "attempt": attempt_index,
-            "error_type": error_type,
-            "error_details": error_details,
-            "timestamp": time.time(),
-        }
+            error_record = {
+                "attempt": attempt_index,
+                "error_type": error_type,
+                "error_details": error_details,
+                "timestamp": time.time(),
+            }
 
-        self._phase_error_history[phase_id].append(error_record)
+            self._phase_error_history[phase_id].append(error_record)
 
     def _detect_approach_flaw(self, phase: Dict) -> Optional[str]:
         """
@@ -2064,8 +2071,12 @@ class AutonomousExecutor:
         return None
 
     def _get_replan_count(self, phase_id: str) -> int:
-        """Get how many times a phase has been re-planned."""
-        return self._phase_revised_specs.get(f"_replan_count_{phase_id}", 0)
+        """Get how many times a phase has been re-planned.
+
+        Thread-safe access to phase replan count (IMP-REL-003).
+        """
+        with self._phase_state_lock:
+            return self._phase_revised_specs.get(f"_replan_count_{phase_id}", 0)
 
     # =========================================================================
     # GOAL ANCHORING METHODS (per GPT_RESPONSE27) - IMP-MAINT-001: Delegated to GoalAnchoringManager
@@ -2076,18 +2087,23 @@ class AutonomousExecutor:
         return self.goal_anchoring.extract_one_line_intent(description)
 
     def _initialize_phase_goal_anchor(self, phase: Dict) -> None:
-        """Initialize goal anchor. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
+        """Initialize goal anchor. Delegated to GoalAnchoringManager in IMP-MAINT-001.
+
+        Thread-safe update to phase goal anchoring state (IMP-REL-003).
+        """
         self.goal_anchoring.initialize_phase_goal_anchor(phase)
         # Keep local state in sync for backward compatibility
         phase_id = phase.get("phase_id")
         if phase_id:
-            self._phase_original_intent[phase_id] = self.goal_anchoring.get_original_intent(
-                phase_id
-            )
-            self._phase_original_description[phase_id] = (
-                self.goal_anchoring.get_original_description(phase_id)
-            )
-            self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
+            # IMP-REL-003: Use lock to protect concurrent access to phase state
+            with self._phase_state_lock:
+                self._phase_original_intent[phase_id] = self.goal_anchoring.get_original_intent(
+                    phase_id
+                )
+                self._phase_original_description[phase_id] = (
+                    self.goal_anchoring.get_original_description(phase_id)
+                )
+                self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
 
     def _detect_scope_narrowing(self, original: str, revised: str) -> bool:
         """Detect scope narrowing. Delegated to GoalAnchoringManager in IMP-MAINT-001."""
@@ -2120,8 +2136,10 @@ class AutonomousExecutor:
             success=success,
         )
         # Keep local state in sync for backward compatibility
-        self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
-        self._run_replan_telemetry = self.goal_anchoring.state.run_replan_telemetry
+        # IMP-REL-003: Use lock to protect concurrent access to phase state
+        with self._phase_state_lock:
+            self._phase_replan_history[phase_id] = self.goal_anchoring.get_replan_history(phase_id)
+            self._run_replan_telemetry = self.goal_anchoring.state.run_replan_telemetry
 
     def _record_plan_change_entry(
         self,
@@ -2235,11 +2253,13 @@ class AutonomousExecutor:
         Get the phase specification to use for execution.
 
         Returns the revised spec if one exists, otherwise the original.
+        Thread-safe access to phase revised specs (IMP-REL-003).
         """
         phase_id = phase.get("phase_id")
-        if phase_id in self._phase_revised_specs:
-            logger.info(f"[Re-Plan] Using revised spec for {phase_id}")
-            return self._phase_revised_specs[phase_id]
+        with self._phase_state_lock:
+            if phase_id in self._phase_revised_specs:
+                logger.info(f"[Re-Plan] Using revised spec for {phase_id}")
+                return self._phase_revised_specs[phase_id]
         return phase
 
     # =========================================================================
@@ -2557,7 +2577,9 @@ class AutonomousExecutor:
             # Trigger mid-run re-planning
             logger.info("[Doctor] Action: replan - triggering approach revision")
             # Get error history for context
-            error_history = self._phase_error_history.get(phase_id, [])
+            # IMP-REL-003: Use lock to protect concurrent access to phase error history
+            with self._phase_state_lock:
+                error_history = self._phase_error_history.get(phase_id, [])
             revised_phase = self._revise_phase_approach(
                 phase, f"doctor_replan:{response.rationale[:50]}", error_history
             )
@@ -3240,16 +3262,18 @@ class AutonomousExecutor:
             logger.info(f"[{phase_id}] Phase completed successfully")
 
             # [Goal Anchoring] Update replan telemetry to mark successful if this phase was replanned
-            if phase_id in self._phase_replan_history and self._phase_replan_history[phase_id]:
-                # Mark the most recent replan as successful
-                for replan_record in reversed(self._phase_replan_history[phase_id]):
-                    if not replan_record.get("success", False):
-                        replan_record["success"] = True
-                        logger.debug(
-                            f"[GoalAnchor] Marked replan attempt {replan_record.get('attempt')} "
-                            f"as successful for {phase_id}"
-                        )
-                        break  # Only update the most recent one
+            # IMP-REL-003: Use lock to protect concurrent access to phase replan history
+            with self._phase_state_lock:
+                if phase_id in self._phase_replan_history and self._phase_replan_history[phase_id]:
+                    # Mark the most recent replan as successful
+                    for replan_record in reversed(self._phase_replan_history[phase_id]):
+                        if not replan_record.get("success", False):
+                            replan_record["success"] = True
+                            logger.debug(
+                                f"[GoalAnchor] Marked replan attempt {replan_record.get('attempt')} "
+                                f"as successful for {phase_id}"
+                            )
+                            break  # Only update the most recent one
 
             # Log build event to CONSOLIDATED_BUILD.md
             try:

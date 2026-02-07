@@ -23,6 +23,7 @@ from autopack.research.analysis import (
 )
 from autopack.research.analysis.pattern_extractor import PatternExtractionResult, PatternExtractor
 from autopack.research.cache_optimizer import CacheOptimizer, OptimizedResearchCache
+from autopack.research.discovery.mcp_discovery import MCPRegistryScanner
 from autopack.research.discovery.project_history_analyzer import ProjectHistoryAnalyzer
 from autopack.research.frameworks.competitive_intensity import CompetitiveIntensity
 from autopack.research.frameworks.market_attractiveness import MarketAttractiveness
@@ -223,6 +224,9 @@ class ResearchOrchestrator:
 
         # Build history analyzer for feasibility and cost feedback
         self._build_history_analyzer: Optional[BuildHistoryAnalyzer] = None
+
+        # MCP discovery scanner for bootstrap pipeline
+        self._mcp_scanner = MCPRegistryScanner()
 
         # Completeness validator for research quality gates (IMP-RESEARCH-002)
         self._completeness_validator = ResearchCompletenessValidator(
@@ -960,6 +964,23 @@ class ResearchOrchestrator:
         final_confidence = self._get_session_overall_confidence(session)
         logger.info(f"Bootstrap session {session_id} final confidence: {final_confidence:.2f}")
 
+        # Wire MCP discovery into bootstrap pipeline
+        # Build requirements from research findings for MCP tool recommendations
+        mcp_requirements = self._build_mcp_requirements(session, parsed_idea)
+        try:
+            logger.info(f"Scanning MCP registry for {parsed_idea.detected_project_type.value}")
+            mcp_scan_result = await self._mcp_scanner.scan_mcp_registry(
+                project_type=parsed_idea.detected_project_type.value,
+                requirements=mcp_requirements,
+            )
+            session.mcp_scan_result = mcp_scan_result.to_dict()
+            logger.info(
+                f"MCP discovery found {mcp_scan_result.total_matches} tools for {session_id}"
+            )
+        except Exception as e:
+            logger.warning(f"MCP discovery failed for {session_id}: {e}")
+            # MCP discovery failure is not critical to bootstrap completion
+
         # Synthesize results if phases completed with acceptable confidence
         if session.is_complete() or final_confidence >= self._min_confidence_for_completion:
             # Validation gate before synthesis (IMP-RESEARCH-002)
@@ -974,6 +995,9 @@ class ResearchOrchestrator:
                     "final_confidence": final_confidence,
                     "confidence_threshold": self._confidence_threshold,
                 }
+                # Add MCP discovery results to synthesis
+                if hasattr(session, "mcp_scan_result") and session.mcp_scan_result:
+                    session.synthesis["mcp_discovery"] = session.mcp_scan_result
 
                 # Validate synthesis output
                 synthesis_validation = self.validate_synthesis_completeness(session.synthesis)
@@ -2051,6 +2075,72 @@ class ResearchOrchestrator:
         }
 
         return data
+
+    def _build_mcp_requirements(
+        self, session: BootstrapSession, parsed_idea: ParsedIdea
+    ) -> dict[str, Any]:
+        """Build MCP tool requirements from research findings and project type.
+
+        Extracts requirements from technical feasibility and competitive analysis
+        to identify which MCP tools would be most useful for the project.
+
+        Args:
+            session: BootstrapSession with completed research phases
+            parsed_idea: ParsedIdea with project type and description
+
+        Returns:
+            Dictionary of MCP requirements mapped to tool features
+        """
+        requirements: dict[str, Any] = {}
+
+        # Extract technical requirements from feasibility research
+        feasibility_data = session.technical_feasibility.data
+        if feasibility_data:
+            required_techs = feasibility_data.get("required_technologies", [])
+
+            # Map technologies to MCP tool needs
+            if any(
+                tech.lower() in ["database", "sql", "postgres", "mongodb"]
+                for tech in required_techs
+            ):
+                requirements["needs_database"] = True
+
+            if any(tech.lower() in ["api", "rest", "graphql"] for tech in required_techs):
+                requirements["needs_search"] = True
+
+            if any(tech.lower() in ["collaboration", "github", "git"] for tech in required_techs):
+                requirements["needs_collaboration"] = True
+
+            if any(
+                tech.lower() in ["async", "concurrent", "parallel", "distributed"]
+                for tech in required_techs
+            ):
+                requirements["needs_async"] = True
+
+        # Add search capability for web/mobile projects
+        if parsed_idea.detected_project_type.value in [
+            "web-app",
+            "mobile-app",
+            "saas",
+            "ecommerce",
+        ]:
+            requirements["needs_search"] = True
+
+        # Add filesystem access for data processing projects
+        if "data" in parsed_idea.description.lower() or "analysis" in parsed_idea.description.lower():
+            requirements["needs_filesystem"] = True
+
+        # Add memory/storage for knowledge-based systems
+        if any(
+            keyword in parsed_idea.description.lower()
+            for keyword in ["knowledge", "learning", "memory", "ai", "ml"]
+        ):
+            requirements["needs_memory"] = True
+
+        logger.debug(
+            f"Built MCP requirements for {parsed_idea.detected_project_type.value}: {list(requirements.keys())}"
+        )
+        return requirements
 
     def _synthesize_research(
         self,

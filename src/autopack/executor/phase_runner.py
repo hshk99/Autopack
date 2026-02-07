@@ -11,11 +11,13 @@ Key responsibilities:
 - Success/failure routing
 - Recovery strategy selection
 - State updates and telemetry
+- Validator gate wiring (IMP-RES-005: Wire validators as pipeline gates)
 
 Related modules:
 - doctor_integration.py: Doctor invocation and budget tracking
 - replan_trigger.py: Approach flaw detection and replanning
 - intention_stuck_handler.py: Intention-first stuck handling (BUILD-161)
+- validator_gate.py: Validator gate infrastructure and pipeline
 """
 
 import logging
@@ -23,6 +25,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from autopack.executor.validator_gate import ValidatorGatePipeline, create_default_validator_gate_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +74,7 @@ class PhaseRunner:
         phase_state_mgr: Any,
         manifest_generator: Optional[Any] = None,
         time_watchdog: Any = None,  # IMP-SAFETY-004: Required but typed as Any for flexibility
+        validator_gate_pipeline: Optional[ValidatorGatePipeline] = None,  # IMP-RES-005: Validator gates
     ):
         """Initialize PhaseRunner with dependencies.
 
@@ -83,6 +88,7 @@ class PhaseRunner:
             phase_state_mgr: Phase state manager for DB updates
             manifest_generator: Optional manifest generator
             time_watchdog: TimeWatchdog instance for timeout enforcement (IMP-SAFETY-004: mandatory)
+            validator_gate_pipeline: Optional validator gate pipeline (IMP-RES-005: wired validators)
         """
         # IMP-SAFETY-004: Validate time_watchdog is provided
         if time_watchdog is None:
@@ -100,6 +106,8 @@ class PhaseRunner:
         self.phase_state_mgr = phase_state_mgr
         self.manifest_generator = manifest_generator
         self.time_watchdog = time_watchdog
+        # IMP-RES-005: Wire validator gate pipeline
+        self.validator_gate_pipeline = validator_gate_pipeline or create_default_validator_gate_pipeline()
 
     def execute_phase(
         self,
@@ -142,6 +150,31 @@ class PhaseRunner:
         logger.info(
             f"[{phase_id}] Starting phase execution (attempt {attempt_index}/{max_attempts})"
         )
+
+        # IMP-RES-005: Phase 0 - Execute validator gates
+        # Validate phase context before proceeding to builder
+        validator_context = {
+            "phase": phase,
+            "phase_id": phase_id,
+            "attempt_index": attempt_index,
+            "escalation_level": escalation_level,
+            "allowed_paths": allowed_paths,
+        }
+        gate_result = self.validator_gate_pipeline.execute(validator_context)
+
+        if not gate_result.can_proceed:
+            logger.error(
+                f"[{phase_id}] Validator gates blocked execution: {gate_result.get_summary()}"
+            )
+            for error_msg in gate_result.get_blocking_failure_messages():
+                logger.error(f"[{phase_id}] {error_msg}")
+            return ExecutionResult(
+                success=False,
+                phase_result="BLOCKED",
+                error_message=f"Validator gates blocked execution: {gate_result.get_summary()}",
+            )
+
+        logger.info(f"[{phase_id}] {gate_result.get_summary()}")
 
         # Phase 1: Execute Builder
         builder_result, build_error = self._execute_builder(

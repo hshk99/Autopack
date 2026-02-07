@@ -13,6 +13,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from autopack.research.idea_parser import ProjectType
+from autopack.research.validators.artifact_validator import ArtifactValidator
 
 logger = logging.getLogger(__name__)
 
@@ -494,6 +495,7 @@ class TechStackProposer:
             include_mcp_options: Whether to prioritize options with MCP servers
         """
         self.include_mcp_options = include_mcp_options
+        self._validator = ArtifactValidator()
 
     def propose(
         self,
@@ -508,6 +510,9 @@ class TechStackProposer:
 
         Returns:
             TechStackProposal with at least 2 options
+
+        Raises:
+            ValueError: If proposal fails schema validation
         """
         requirements = requirements or []
 
@@ -534,6 +539,20 @@ class TechStackProposer:
             recommendation_reasoning=reasoning,
             confidence_score=confidence,
         )
+
+        # Validate proposal against schema
+        validation_result = self._validator.validate(proposal.model_dump())
+        if not validation_result.is_valid:
+            error_messages = [f"{e.path}: {e.message}" for e in validation_result.errors]
+            error_text = "; ".join(error_messages)
+            logger.error(
+                f"[TechStackProposer] Schema validation failed for {project_type.value}: {error_text}"
+            )
+            raise ValueError(f"Tech stack proposal failed schema validation: {error_text}")
+
+        if validation_result.warnings:
+            for warning in validation_result.warnings:
+                logger.warning(f"[TechStackProposer] {warning}")
 
         logger.info(
             f"[TechStackProposer] Generated proposal for {project_type.value} "

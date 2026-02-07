@@ -295,3 +295,36 @@ def mock_embedding_function(monkeypatch):
     mock_embed = MagicMock(side_effect=fake_embed)
     monkeypatch.setattr("autopack.memory.memory_service.sync_embed_text", mock_embed)
     return mock_embed
+
+
+# ---------------------------------------------------------------------------
+# Disable Telegram notifications during tests to prevent spam
+# This is critical - tests were sending real Telegram messages!
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_telegram_notifications():
+    """Disable Telegram notifications during tests to prevent spam.
+
+    The BackgroundTaskSupervisor and other components use TelegramNotifier
+    which was sending real notifications during test runs. This fixture
+    clears all Telegram-related env vars for the entire test session.
+    """
+    # Store original values
+    original_values = {
+        "TELEGRAM_BOT_TOKEN": os.environ.get("TELEGRAM_BOT_TOKEN"),
+        "TELEGRAM_CHAT_ID": os.environ.get("TELEGRAM_CHAT_ID"),
+        "AUTOPACK_TELEGRAM_BOT_TOKEN": os.environ.get("AUTOPACK_TELEGRAM_BOT_TOKEN"),
+        "AUTOPACK_TELEGRAM_CHAT_ID": os.environ.get("AUTOPACK_TELEGRAM_CHAT_ID"),
+    }
+
+    # Clear all Telegram env vars
+    for key in original_values:
+        os.environ.pop(key, None)
+
+    yield
+
+    # Restore original values
+    for key, value in original_values.items():
+        if value is not None:
+            os.environ[key] = value

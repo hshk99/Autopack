@@ -34,7 +34,9 @@ def compute_runtime_stats(
         Number of runtime stats records created/updated.
     """
     if window_end is None:
-        window_end = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        # Round to start of day for idempotency
+        window_end = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
 
     if window_start is None:
         window_start = window_end - timedelta(days=window_days)

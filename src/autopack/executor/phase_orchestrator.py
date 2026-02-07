@@ -1774,6 +1774,9 @@ class PhaseOrchestrator:
         Generates deployment guidance based on phase configuration and creates
         necessary deployment templates and configurations.
 
+        ART-005: Wires comprehensive deployment guide generation into deploy phase.
+        Uses project metadata to generate full deployment documentation when available.
+
         Args:
             context: Execution context for the deployment phase
 
@@ -1789,10 +1792,36 @@ class PhaseOrchestrator:
             providers = deployment_config.get("providers", ["docker"])
             guidance_types = deployment_config.get("guidance_types", ["containerization"])
 
-            # Generate deployment guidance
-            guidance = self.deployment_handler.generate_deployment_guidance(
-                providers, guidance_types
-            )
+            # ART-005: Try to generate comprehensive guide if project metadata is available
+            project_name = deployment_config.get("project_name")
+            tech_stack = deployment_config.get("tech_stack")
+            project_requirements = deployment_config.get("project_requirements")
+
+            guidance = None
+            if project_name and tech_stack:
+                logger.info(
+                    f"[ART-005] Generating comprehensive deployment guide for {project_name}"
+                )
+                try:
+                    guidance = self.deployment_handler.generate_comprehensive_deployment_guide(
+                        project_name=project_name,
+                        tech_stack=tech_stack,
+                        platforms=providers,
+                        project_requirements=project_requirements,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[ART-005] Failed to generate comprehensive guide: {e}. "
+                        "Falling back to template-based guidance."
+                    )
+                    guidance = None
+
+            # Fall back to template-based guidance if comprehensive guide not generated
+            if not guidance:
+                logger.debug("[IMP-HIGH-003] Using template-based deployment guidance")
+                guidance = self.deployment_handler.generate_deployment_guidance(
+                    providers, guidance_types
+                )
 
             if not guidance:
                 logger.warning(

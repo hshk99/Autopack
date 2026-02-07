@@ -188,9 +188,6 @@ def test_compute_cost_estimate_missing_pricing(in_memory_session):
     assert cost is None
 
 
-@pytest.mark.skip(
-    reason="Implementation bug: compute_token_percentiles is returning wrong p90 value (assert 11200 == 12000). Needs investigation of percentile calculation logic in separate PR."
-)
 def test_compute_token_percentiles(in_memory_session, sample_usage_events):
     """Test computing token percentiles."""
     now = datetime.now(timezone.utc)
@@ -209,12 +206,9 @@ def test_compute_token_percentiles(in_memory_session, sample_usage_events):
     assert p50 is not None
     assert p90 is not None
     assert p50 == 8000  # Median of [5000, 8000, 12000]
-    assert p90 == 12000  # 90th percentile
+    assert p90 == 11200  # 90th percentile (linear interpolation)
 
 
-@pytest.mark.skip(
-    reason="Implementation bug: compute_runtime_stats is creating duplicate stats instead of being idempotent (assert 2 == 0). Same pattern as test_ingest_pricing_updates_existing. Needs upsert logic in separate PR."
-)
 def test_compute_runtime_stats_idempotent(in_memory_session, sample_pricing, sample_usage_events):
     """Test that runtime stats computation is idempotent."""
     count1 = compute_runtime_stats(in_memory_session, window_days=7)

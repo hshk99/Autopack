@@ -63,6 +63,11 @@ from ..research.analysis.followup_trigger import (
     TriggerAnalysisResult,
     TriggerExecutionResult,
 )
+from ..research.phase_scheduler import (
+    PhasePriority,
+    PhaseScheduler,
+    PhaseTask,
+)
 from ..telemetry.autopilot_metrics import (
     AutopilotHealthCollector,
     SessionHealthSnapshot,
@@ -2185,6 +2190,74 @@ Configuration options (feature_flags.yaml):
             return True
         except ValueError:
             return False
+
+    # =========================================================================
+    # IMP-RES-002: Phase Scheduler Integration for Autopilot Phases
+    # =========================================================================
+
+    async def schedule_and_execute_phases(
+        self,
+        gap_report: Any,
+        anchor: IntentionAnchorV2,
+        sequential: bool = False,
+    ) -> dict[str, Any]:
+        """Schedule and execute autopilot phases with dependency awareness.
+
+        IMP-RES-002: Uses PhaseScheduler to coordinate gap scanning and plan
+        proposal phases with proper dependencies and resource management.
+
+        Args:
+            gap_report: The gap report from workspace scanning
+            anchor: The intention anchor guiding execution
+            sequential: If True, execute phases sequentially (for debugging)
+
+        Returns:
+            Dictionary with execution results and metrics from PhaseScheduler
+        """
+        logger.info("[IMP-RES-002] Scheduling autopilot phases for parallel execution")
+
+        # Reset scheduler for new execution
+        self._phase_scheduler.reset()
+
+        async def plan_proposal_phase() -> dict[str, Any]:
+            """Phase: Plan proposal generation."""
+            logger.info("[IMP-RES-002] Executing plan proposal phase")
+            try:
+                proposal = propose_plan(
+                    anchor=anchor,
+                    gap_report=gap_report,
+                    workspace_root=self.workspace_root,
+                )
+                logger.info(f"[IMP-RES-002] Plan proposal complete: {len(proposal.actions)} actions")
+                return {"success": True, "proposal": proposal}
+            except Exception as e:
+                logger.error(f"[IMP-RES-002] Plan proposal phase failed: {e}", exc_info=True)
+                return {"success": False, "error": str(e)}
+
+        # Register plan proposal phase (no dependencies in current flow)
+        plan_proposal_task = PhaseTask(
+            phase_id="plan_proposal",
+            phase_name="Plan Proposal",
+            task_func=plan_proposal_phase,
+            priority=PhasePriority.HIGH,
+            dependencies=[],
+            estimated_duration_seconds=8.0,
+            resource_requirement=0.5,
+            retryable=True,
+            max_retries=1,
+        )
+        self._phase_scheduler.register_phase(plan_proposal_task)
+
+        # Execute phases with dependency awareness
+        logger.info(f"[IMP-RES-002] Starting phase execution (sequential={sequential})")
+        execution_result = await self._phase_scheduler.schedule_and_execute(
+            sequential=sequential
+        )
+
+        logger.info(
+            f"[IMP-RES-002] Phase execution complete: success={execution_result['success']}"
+        )
+        return execution_result
 
     async def trigger_research_cycle(
         self,

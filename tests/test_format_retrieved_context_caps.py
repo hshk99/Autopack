@@ -29,13 +29,10 @@ class TestFormatRetrievedContextCaps:
         assert len(formatted) <= 1000, "Empty context should be within cap"
         assert formatted == "", "Empty context should return empty string"
 
-    @pytest.mark.skip(
-        reason="Implementation bug: format_retrieved_context expects 'content_preview' in payload, but test passes 'content'. Needs implementation fix in separate PR."
-    )
     def test_small_context_under_cap(self, memory_service):
         """Small context well under cap should be returned unmodified"""
         context = {
-            "code": [{"content": "def foo(): pass", "metadata": {}}],
+            "code": [{"payload": {"path": "test.py", "content_preview": "def foo(): pass"}}],
             "summaries": [],
             "errors": [],
             "hints": [],
@@ -52,7 +49,7 @@ class TestFormatRetrievedContextCaps:
         # Create context with 10KB of content
         large_content = "x" * 10000
         context = {
-            "code": [{"content": large_content, "metadata": {}}],
+            "code": [{"payload": {"path": "large.py", "content_preview": large_content}}],
             "summaries": [],
             "errors": [],
             "hints": [],
@@ -69,11 +66,11 @@ class TestFormatRetrievedContextCaps:
     def test_multiple_sections_all_truncated_proportionally(self, memory_service):
         """When multiple sections exceed cap, all should be truncated"""
         context = {
-            "code": [{"content": "c" * 5000, "metadata": {}}],
-            "summaries": [{"content": "s" * 5000, "metadata": {}}],
-            "errors": [{"content": "e" * 5000, "metadata": {}}],
+            "code": [{"payload": {"path": "code.py", "content_preview": "c" * 5000}}],
+            "summaries": [{"payload": {"phase_id": "p1", "summary": "s" * 5000}}],
+            "errors": [{"payload": {"error_type": "TestError", "error_text": "e" * 5000}}],
             "hints": [],
-            "sot": [{"content": "t" * 5000, "metadata": {}}],
+            "sot": [{"payload": {"sot_file": "doc.md", "heading": "Section", "content_preview": "t" * 5000}}],
         }
 
         # Total raw content: 20KB, cap: 3KB → expect proportional truncation
@@ -93,7 +90,7 @@ class TestFormatRetrievedContextCaps:
             "summaries": [],
             "errors": [],
             "hints": [],
-            "sot": [{"content": "t" * 8000, "metadata": {}}],  # 8KB of SOT content
+            "sot": [{"payload": {"sot_file": "doc.md", "heading": "Section", "content_preview": "t" * 8000}}],  # 8KB of SOT content
         }
 
         # Cap at 2KB total → SOT must be truncated
@@ -107,7 +104,7 @@ class TestFormatRetrievedContextCaps:
     def test_zero_max_chars_returns_empty(self, memory_service):
         """max_chars=0 should return empty string"""
         context = {
-            "code": [{"content": "def foo(): pass", "metadata": {}}],
+            "code": [{"payload": {"path": "test.py", "content_preview": "def foo(): pass"}}],
             "summaries": [],
             "errors": [],
             "hints": [],
@@ -121,7 +118,7 @@ class TestFormatRetrievedContextCaps:
     def test_very_small_cap_edge_case(self, memory_service):
         """Very small cap (100 chars) should still be respected"""
         context = {
-            "code": [{"content": "x" * 1000, "metadata": {}}],
+            "code": [{"payload": {"path": "test.py", "content_preview": "x" * 1000}}],
             "summaries": [],
             "errors": [],
             "hints": [],
@@ -138,8 +135,8 @@ class TestFormatRetrievedContextCaps:
     def test_cap_enforcement_with_section_headers(self, memory_service):
         """Cap should include section headers in total char count"""
         context = {
-            "code": [{"content": "c" * 500, "metadata": {}}],
-            "summaries": [{"content": "s" * 500, "metadata": {}}],
+            "code": [{"payload": {"path": "code.py", "content_preview": "c" * 500}}],
+            "summaries": [{"payload": {"phase_id": "p1", "summary": "s" * 500}}],
             "errors": [],
             "hints": [],
             "sot": [],
@@ -154,7 +151,7 @@ class TestFormatRetrievedContextCaps:
     def test_idempotent_formatting_with_same_cap(self, memory_service):
         """Calling format_retrieved_context() twice with same cap should give same result"""
         context = {
-            "code": [{"content": "x" * 5000, "metadata": {}}],
+            "code": [{"payload": {"path": "test.py", "content_preview": "x" * 5000}}],
             "summaries": [],
             "errors": [],
             "hints": [],

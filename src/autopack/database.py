@@ -170,12 +170,17 @@ def get_session() -> Generator[Session, None, None]:
 
 
 def get_db():
-    """Dependency for FastAPI to get DB session"""
-    db = SessionLocal()
+    """Dependency for FastAPI to get DB session.
+
+    Uses ScopedSession to ensure thread-local session handling in async contexts.
+    This prevents SQLite threading errors when sessions are created in one thread
+    and closed in another.
+    """
+    session = ScopedSession()
     try:
-        yield db
+        yield session
     finally:
-        db.close()
+        ScopedSession.remove()  # Properly close and return session to pool
 
 
 def get_pool_health():

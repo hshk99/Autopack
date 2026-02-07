@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from autopack.artifact_loader import ArtifactLoader, get_artifact_substitution_stats
 from autopack.context_budgeter import BudgetSelection
 from autopack.database import Base
+from autopack.file_layout import RunFileLayout
 from autopack.usage_recorder import (
     TokenEfficiencyMetrics,
     get_token_efficiency_stats,
@@ -182,8 +183,11 @@ class TestArtifactSubstitutionStats:
 
     def test_with_substitutions(self, artifact_loader, temp_workspace):
         """Should count substitutions and tokens saved"""
-        # Create artifacts
-        artifacts_dir = temp_workspace / ".autonomous_runs" / "test-run-123" / "phases"
+        # Create artifacts using RunFileLayout with the same base_dir that ArtifactLoader uses
+        # ArtifactLoader internally uses: workspace / ".autonomous_runs"
+        autonomous_runs_base = temp_workspace / ".autonomous_runs"
+        layout = RunFileLayout(run_id="test-run-123", base_dir=autonomous_runs_base)
+        artifacts_dir = layout.base_dir / "phases"
         artifacts_dir.mkdir(parents=True)
 
         phase_summary = artifacts_dir / "phase_01_test.md"

@@ -43,8 +43,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.autopack.openai_clients import OpenAIBuilderClient, OpenAIAuditorClient
 from src.autopack.llm_client import ModelSelector
 from src.autopack.learned_rules import (
-    load_project_learned_rules,
-    get_relevant_rules_for_phase,
+    load_project_rules,
+    get_active_rules_for_phase,
     load_run_rule_hints,
     get_relevant_hints_for_phase,
     record_run_rule_hint,
@@ -215,7 +215,7 @@ class Supervisor:
         print("\n[Supervisor] 📚 Loading learned rules for phase...")
 
         # Stage 0B: Get persistent project rules (from snapshot)
-        relevant_project_rules = get_relevant_rules_for_phase(
+        relevant_project_rules = get_active_rules_for_phase(
             self.run_rules_snapshot, phase, max_rules=10
         )
 
@@ -407,7 +407,7 @@ class Supervisor:
 
         # Stage 0B: Load persistent project rules (before run starts)
         print("[Supervisor] 📚 Loading project learned rules...")
-        self.project_rules = load_project_learned_rules(self.project_id)
+        self.project_rules = load_project_rules(self.project_id)
         self.run_rules_snapshot = self.project_rules.copy()  # Freeze for this run
         print(
             f"[Supervisor] Loaded {len(self.project_rules)} persistent rules for project '{self.project_id}'"

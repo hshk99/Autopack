@@ -2514,7 +2514,7 @@ Configuration options (feature_flags.yaml):
                     outcome.trigger_result.triggers_detected if outcome.trigger_result else 0
                 ),
                 triggers_executed=(
-                    outcome.trigger_result.triggers_executed if outcome.trigger_result else 0
+                    outcome.trigger_result.triggers_selected if outcome.trigger_result else 0
                 ),
                 decision=outcome.decision.value,
                 gaps_addressed=outcome.gaps_addressed if outcome.gaps_addressed else 0,

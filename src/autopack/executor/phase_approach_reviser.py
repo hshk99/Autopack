@@ -74,11 +74,13 @@ class PhaseApproachReviser:
         self.executor._initialize_phase_goal_anchor(phase)
 
         # Get the true original intent (before any replanning)
-        original_intent = self.executor._phase_original_intent.get(phase_id, "")
-        original_description = self.executor._phase_original_description.get(
-            phase_id, current_description
-        )
-        replan_attempt = len(self.executor._phase_replan_history.get(phase_id, [])) + 1
+        # IMP-REL-003: Use lock to protect concurrent access to phase state
+        with self.executor._phase_state_lock:
+            original_intent = self.executor._phase_original_intent.get(phase_id, "")
+            original_description = self.executor._phase_original_description.get(
+                phase_id, current_description
+            )
+            replan_attempt = len(self.executor._phase_replan_history.get(phase_id, [])) + 1
 
         logger.info(
             f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})"

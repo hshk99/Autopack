@@ -163,6 +163,10 @@ class BootstrapSession(BaseModel):
         default_factory=dict, description="Synthesized findings from all phases"
     )
 
+    mcp_scan_result: Optional[dict[str, Any]] = Field(
+        default=None, description="MCP discovery scan results for recommended tools"
+    )
+
     parallel_execution_used: bool = Field(
         default=False, description="Whether parallel execution was used"
     )

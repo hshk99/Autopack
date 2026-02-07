@@ -8,9 +8,14 @@ This module provides:
 - Status to outcome mapping for escalation tracking
 - Force-mark phase status for recovery scenarios
 - Run-level health budget tracking
+
+IMP-REL-003: Thread-safe phase state updates with locking:
+- Add _state_lock (threading.Lock) to protect health budget counters
+- All counter increments and reads are protected by the lock
 """
 
 import logging
+import threading
 import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional
 
@@ -31,6 +36,8 @@ class ExecutorStateManager:
     - Mapping phase statuses to escalation outcomes
     - Force-marking phase status for recovery
     - Run-level health budget tracking
+
+    IMP-REL-003: Thread-safe health budget counter management with locking.
     """
 
     # Status to outcome mapping for escalation tracking
@@ -59,6 +66,9 @@ class ExecutorStateManager:
         self.run_id = run_id
         self.api_client = api_client
         self._write_run_summary_callback = write_run_summary_callback
+
+        # IMP-REL-003: Thread-safe health budget tracking with lock
+        self._state_lock = threading.Lock()
 
         # Health budget tracking
         self._http_500_count = 0
@@ -146,41 +156,53 @@ class ExecutorStateManager:
 
         Per GPT_RESPONSE8 Section 2.2: Single health budget source.
 
+        IMP-REL-003: Thread-safe read of health budget counters.
+
         Returns:
             Dict with health budget counters
         """
-        return {
-            "http_500": self._http_500_count,
-            "patch_failures": self._patch_failure_count,
-            "total_failures": self._total_failures,
-        }
+        with self._state_lock:
+            return {
+                "http_500": self._http_500_count,
+                "patch_failures": self._patch_failure_count,
+                "total_failures": self._total_failures,
+            }
 
     def increment_http_500_count(self) -> int:
         """Increment HTTP 500 error count.
 
+        IMP-REL-003: Thread-safe counter increment with locking.
+
         Returns:
             New count value
         """
-        self._http_500_count += 1
-        return self._http_500_count
+        with self._state_lock:
+            self._http_500_count += 1
+            return self._http_500_count
 
     def increment_patch_failure_count(self) -> int:
         """Increment patch failure count.
 
+        IMP-REL-003: Thread-safe counter increment with locking.
+
         Returns:
             New count value
         """
-        self._patch_failure_count += 1
-        return self._patch_failure_count
+        with self._state_lock:
+            self._patch_failure_count += 1
+            return self._patch_failure_count
 
     def increment_total_failures(self) -> int:
         """Increment total failure count.
 
+        IMP-REL-003: Thread-safe counter increment with locking.
+
         Returns:
             New count value
         """
-        self._total_failures += 1
-        return self._total_failures
+        with self._state_lock:
+            self._total_failures += 1
+            return self._total_failures
 
     def set_counters(
         self,
@@ -190,17 +212,20 @@ class ExecutorStateManager:
     ) -> None:
         """Set health budget counters.
 
+        IMP-REL-003: Thread-safe counter updates with locking.
+
         Args:
             http_500_count: Optional new HTTP 500 count
             patch_failure_count: Optional new patch failure count
             total_failures: Optional new total failures count
         """
-        if http_500_count is not None:
-            self._http_500_count = http_500_count
-        if patch_failure_count is not None:
-            self._patch_failure_count = patch_failure_count
-        if total_failures is not None:
-            self._total_failures = total_failures
+        with self._state_lock:
+            if http_500_count is not None:
+                self._http_500_count = http_500_count
+            if patch_failure_count is not None:
+                self._patch_failure_count = patch_failure_count
+            if total_failures is not None:
+                self._total_failures = total_failures
 
 
 # Convenience functions for backward compatibility with executor methods

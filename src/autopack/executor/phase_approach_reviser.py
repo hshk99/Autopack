@@ -74,11 +74,13 @@ class PhaseApproachReviser:
         self.executor._initialize_phase_goal_anchor(phase)
 
         # Get the true original intent (before any replanning)
-        original_intent = self.executor._phase_original_intent.get(phase_id, "")
-        original_description = self.executor._phase_original_description.get(
-            phase_id, current_description
-        )
-        replan_attempt = len(self.executor._phase_replan_history.get(phase_id, [])) + 1
+        # IMP-REL-003: Use lock to protect concurrent access to phase state
+        with self.executor._phase_state_lock:
+            original_intent = self.executor._phase_original_intent.get(phase_id, "")
+            original_description = self.executor._phase_original_description.get(
+                phase_id, current_description
+            )
+            replan_attempt = len(self.executor._phase_replan_history.get(phase_id, [])) + 1
 
         logger.info(
             f"[Re-Plan] Revising approach for {phase_id} due to {flaw_type} (attempt {replan_attempt})"
@@ -224,13 +226,14 @@ Just the new description that should replace the current one while preserving th
             logger.info(f"[Re-Plan] Revised: {revised_description[:100]}...")
 
             # Store and track
-            self.executor._phase_revised_specs[phase_id] = revised_phase
-            self.executor._phase_revised_specs[f"_replan_count_{phase_id}"] = (
-                self.executor._get_replan_count(phase_id) + 1
-            )
+            # IMP-REL-003: Use executor's phase state lock when updating shared state
+            with self.executor._phase_state_lock:
+                self.executor._phase_revised_specs[phase_id] = revised_phase
+                replan_count = self.executor._phase_revised_specs.get(f"_replan_count_{phase_id}", 0) + 1
+                self.executor._phase_revised_specs[f"_replan_count_{phase_id}"] = replan_count
 
-            # Clear error history for fresh start with new approach
-            self.executor._phase_error_history[phase_id] = []
+                # Clear error history for fresh start with new approach
+                self.executor._phase_error_history[phase_id] = []
 
             # [Goal Anchoring] Record telemetry (success will be updated later if phase succeeds)
             self.executor._record_replan_telemetry(

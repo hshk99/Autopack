@@ -4,6 +4,7 @@ Validates that the phase approach reviser correctly revises phase approaches
 when stuck, implements goal anchoring, and classifies alignment.
 """
 
+import threading
 from unittest.mock import Mock, patch
 
 import pytest
@@ -26,6 +27,8 @@ class TestPhaseApproachReviser:
         executor._phase_replan_history = {}
         executor._phase_revised_specs = {}
         executor._phase_error_history = {}
+        # IMP-REL-003: Add thread-safe lock for phase state (required by reviser)
+        executor._phase_state_lock = threading.Lock()
         executor._initialize_phase_goal_anchor = Mock()
         executor._classify_replan_alignment = Mock(
             return_value={"alignment": "aligned", "notes": "Revision maintains original scope"}

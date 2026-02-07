@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from autopack import models, schemas
 from autopack.api.deps import verify_api_key
+from autopack.artifact_generators.runbook_generator import RunbookGenerator
 from autopack.builder_schemas import AuditorResult, BuilderResult
 from autopack.config import settings
 from autopack.database import get_db
@@ -30,6 +31,45 @@ from autopack.issue_tracker import IssueTracker
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["phases"])
+
+
+def _generate_and_save_runbooks(run_id: str, phase: models.Phase) -> None:
+    """Generate and save runbooks for a successful implementation phase.
+
+    IMP-ART-004: Auto-trigger runbook generation on build.
+    """
+    try:
+        if phase.phase_type != models.PhaseType.IMPLEMENTATION.value:
+            logger.debug(f"[IMP-ART-004] Skipping runbook generation for phase_type={phase.phase_type}")
+            return
+
+        logger.info(f"[IMP-ART-004] Auto-generating runbooks: run_id={run_id}, phase_id={phase.phase_id}")
+
+        generator = RunbookGenerator()
+        project_name = phase.name or phase.phase_id or "Project"
+
+        runbooks = generator.generate(
+            product_name=project_name,
+            runbook_types=["incident_response", "maintenance", "scaling"],
+            uptime_target=99.9,
+            response_time_target_ms=500,
+        )
+
+        file_layout = RunFileLayout(run_id)
+        file_layout.ensure_directories()
+
+        runbooks_dir = file_layout.base_dir / "runbooks"
+        runbooks_dir.mkdir(exist_ok=True)
+
+        for filename, content in runbooks.items():
+            filepath = runbooks_dir / filename
+            filepath.write_text(content, encoding="utf-8")
+            logger.info(f"[IMP-ART-004] Generated runbook: {filepath}")
+
+        logger.info(f"[IMP-ART-004] Generated {len(runbooks)} runbooks for run {run_id}")
+
+    except Exception as e:
+        logger.error(f"[IMP-ART-004] Failed to generate runbooks: {e}", exc_info=True)
 
 
 @router.get("/phases", response_model=schemas.PaginatedResponse)
@@ -482,6 +522,10 @@ def submit_builder_result(
         logger.error(f"[API] [{run_id}/{phase_id}] Database commit failed: {e}", exc_info=True)
         db.rollback()
         raise HTTPException(status_code=500, detail="Database error during commit")
+
+    # IMP-ART-004: Auto-trigger runbook generation on successful implementation phase completion
+    if phase.state == models.PhaseState.GATE and builder_result.status == "success":
+        _generate_and_save_runbooks(run_id, phase)
 
     return {
         "message": "Builder result submitted successfully",
